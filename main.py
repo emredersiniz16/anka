@@ -3,22 +3,20 @@ import threading
 import ctypes
 import sqlite3
 import os
+import asyncio
+import websockets
+import json
 
 class HarcanabilirSinek:
     def __init__(self, sinek_token):
         self.token = sinek_token
         self.hayatta_mi = True
-        self.rotation_aktif = False # Token rotation kapalı (istediğimizde açarız)
+        self.rotation_aktif = False 
         
         print(f"[SİNEK] Uyanıyor... Token: {self.token}")
         
-        # 1. Kara Kutuyu Kur (İnternet yoksa veriler buraya yazılacak)
         self.kara_kutu_kur()
-        
-        # 2. Kasları (C Motorlarını) Zihne Bağla
         self.motorlari_atesle()
-        
-        # 3. Donanımı Tara ve Rolü Al
         self.rol = self.donanim_tara()
 
     def kara_kutu_kur(self):
@@ -47,14 +45,12 @@ class HarcanabilirSinek:
         except OSError:
             print("[SİNEK UYARI] Motorlar (so dosyaları) bulunamadı! Önce 'make' komutunu çalıştır.")
 
-    # --- TOKEN ROTATION MODÜLÜ (Geleceğe Hazırlık) ---
     def token_guncelle(self, yeni_token):
-        """Kovan'dan yeni bir 'oturum' token'ı gelirse bunu günceller."""
         if self.rotation_aktif:
             self.token = yeni_token
-            print(f"[GÜVENLİK] Token başarıyla rotasyona girdi ve güncellendi.")
+            print(f"[GÜVENLİK] Token güncellendi.")
         else:
-            print("[GÜVENLİK] Rotation kapalı, token güncellemesi yoksayıldı.")
+            print("[GÜVENLİK] Rotation kapalı, güncelleme yoksayıldı.")
 
     def veriyi_guvenceye_al(self, islem_tipi, veri_yolu):
         cursor = self.db_baglanti.cursor()
@@ -64,9 +60,7 @@ class HarcanabilirSinek:
 
     def donanim_tara(self):
         print("[SİNEK] Donanım kapasitesi taranıyor...")
-        atanan_rol = "GOREN_SINEK" 
-        print(f"[SİNEK] Kovan'daki Rolüm: {atanan_rol}")
-        return atanan_rol
+        return "GOREN_SINEK"
 
     def eylem_kamera_cek(self, dosya_adi):
         if hasattr(self, 'kamera_motoru'):
@@ -83,15 +77,36 @@ class HarcanabilirSinek:
         else:
             print("[EYLEM HATA] Ses motoru aktif değil!")
 
-    def canli_baglanti_dinle(self):
-        """WebSocket ile Kovan'dan gelen anlık emirleri dinler"""
-        print("[AĞ] Canlı bağlantı aktif. Emir bekleniyor...")
+    async def canli_baglanti_kur(self):
+        """Kovan'a WebSocket üzerinden bağlanır ve emirleri dinler."""
+        # Not: URL'yi Kovan'ı kurduğumuzda güncelleyeceğiz
+        uri = "ws://KOVAN_ADRESI:8000/ws/" 
+        print(f"[AĞ] Kovan aranıyor...")
+        
         while self.hayatta_mi:
-            # WebSocket buraya bağlanacak ve emirleri yönetecek
-            time.sleep(1) 
+            try:
+                # Token ile Kovan'a bağlan
+                async with websockets.connect(f"{uri}{self.token}") as websocket:
+                    print("[AĞ] Kovan'a bağlandım, emir bekliyorum...")
+                    while self.hayatta_mi:
+                        mesaj = await websocket.recv()
+                        komut = json.loads(mesaj)
+                        
+                        # EMİR İŞLEME MERKEZİ
+                        if komut.get('eylem') == 'FOTOGRAF_CEK':
+                            self.eylem_kamera_cek(komut.get('dosya_adi', 'default_cekim'))
+                        elif komut.get('eylem') == 'KONUS':
+                            self.eylem_konus(komut.get('metin', ''))
+                            
+            except Exception as e:
+                print(f"[AĞ HATA] Kovan ile bağ koptu, 10 saniye sonra tekrar deniyorum...")
+                await asyncio.sleep(10)
+
+    def canli_baglanti_dinle(self):
+        """Thread içinde asenkron döngüyü başlatır."""
+        asyncio.run(self.canli_baglanti_kur())
 
     def nabiz_gonder(self):
-        """5 dakikada bir Kovan'a 'Ben yaşıyorum' der"""
         while self.hayatta_mi:
             if self.token != "KAYITSIZ_SINEK":
                 print(f"[AĞ] Nabız atışı gönderildi (Token: {self.token[:5]}...)")
