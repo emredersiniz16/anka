@@ -8,7 +8,7 @@ class HarcanabilirSinek:
     def __init__(self, sinek_token):
         self.token = sinek_token
         self.hayatta_mi = True
-        print(f"[SİNEK] Uyanıyor... Token doğrulandı.")
+        print(f"[SİNEK] Uyanıyor... Token: {self.token}")
         
         # 1. Kara Kutuyu Kur (İnternet yoksa veriler buraya yazılacak)
         self.kara_kutu_kur()
@@ -94,7 +94,9 @@ class HarcanabilirSinek:
     def nabiz_gonder(self):
         """5 dakikada bir Kovan'a 'Ben yaşıyorum ve buradayım' der"""
         while self.hayatta_mi:
-            print(f"[AĞ] Nabız atışı gönderildi -> Kovan Merkezi (Rol: {self.rol})")
+            # Bağımsız moddaysa ağa ping atmaya çalışmaz, sadece lokal log tutar
+            if self.token != "KAYITSIZ_SINEK":
+                print(f"[AĞ] Nabız atışı gönderildi -> Kovan Merkezi (Rol: {self.rol})")
             time.sleep(300) 
 
     def kovan_icin_yasa(self):
@@ -118,6 +120,13 @@ class HarcanabilirSinek:
             print("[SİNEK] Tamamen kapandı.")
 
 if __name__ == "__main__":
-    SINEK_GIZLI_TOKEN = "SINEK_NODE_99X_BETA" 
+    # Sinek token'ı artık kodun içinde değil, cihazın ortam değişkeninden (environment) çekiliyor!
+    SINEK_GIZLI_TOKEN = os.getenv("SINEK_TOKEN") 
+    
+    if not SINEK_GIZLI_TOKEN:
+        print("[BİLGİ] SINEK_TOKEN bulunamadı! Sinek 'Bağımsız Modda' (Offline) başlatılıyor.")
+        print("[BİLGİ] Ağ bağlantısı kurulmayacak ama veri toplamaya ve Kara Kutu'ya yazmaya devam edecek.")
+        SINEK_GIZLI_TOKEN = "KAYITSIZ_SINEK" # Ağa bağlanmayacak ama çalışmaya devam edecek profil
+        
     sinek = HarcanabilirSinek(SINEK_GIZLI_TOKEN)
     sinek.kovan_icin_yasa()
