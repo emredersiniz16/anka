@@ -15,8 +15,13 @@ class HarcanabilirSinek:
         
         print(f"[SİNEK] Uyanıyor... Token: {self.token}")
         
+        # 1. Kara Kutuyu Kur (İnternet yoksa veriler buraya yazılacak)
         self.kara_kutu_kur()
+        
+        # 2. Kasları (C Motorlarını) Zihne Bağla
         self.motorlari_atesle()
+        
+        # 3. Donanımı Tara ve Rolü Al
         self.rol = self.donanim_tara()
 
     def kara_kutu_kur(self):
@@ -79,7 +84,6 @@ class HarcanabilirSinek:
 
     async def canli_baglanti_kur(self):
         """Kovan'a WebSocket üzerinden bağlanır ve emirleri dinler."""
-        # Not: URL'yi Kovan'ı kurduğumuzda güncelleyeceğiz
         uri = "ws://KOVAN_ADRESI:8000/ws/" 
         print(f"[AĞ] Kovan aranıyor...")
         
