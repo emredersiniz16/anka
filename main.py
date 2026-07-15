@@ -1,7 +1,8 @@
 import time
 import threading
 import ctypes
-import sqlite3 # Sinek'in Kara Kutusu eklendi
+import sqlite3
+import os
 
 class HarcanabilirSinek:
     def __init__(self, sinek_token):
@@ -12,7 +13,10 @@ class HarcanabilirSinek:
         # 1. Kara Kutuyu Kur (İnternet yoksa veriler buraya yazılacak)
         self.kara_kutu_kur()
         
-        # 2. Donanımı Tara ve Rolü Al
+        # 2. Kasları (C Motorlarını) Zihne Bağla
+        self.motorlari_atesle()
+        
+        # 3. Donanımı Tara ve Rolü Al
         self.rol = self.donanim_tara()
 
     def kara_kutu_kur(self):
@@ -30,18 +34,55 @@ class HarcanabilirSinek:
         self.db_baglanti.commit()
         print("[SİNEK] Kara Kutu (SQLite) devrede. Veri kaybı imkansız.")
 
+    def motorlari_atesle(self):
+        """C ile yazılmış donanım motorlarını (so dosyalarını) Python zihnine bağlar."""
+        try:
+            # Ses motorunu yükle
+            self.ses_motoru = ctypes.CDLL('./core/engines/audio_engine.so')
+            self.ses_motoru.safe_speak.argtypes = [ctypes.c_char_p]
+            
+            # Kamera motorunu yükle
+            self.kamera_motoru = ctypes.CDLL('./core/engines/camera_engine.so')
+            self.kamera_motoru.safe_capture_frame.argtypes = [ctypes.c_char_p]
+            
+            print("[SİNEK] Kaslar (Motorlar) zihne bağlandı. Cihaz operasyonel.")
+        except OSError:
+            print("[SİNEK UYARI] Motorlar (so dosyaları) bulunamadı! Önce 'make' komutunu çalıştır.")
+
     def veriyi_guvenceye_al(self, islem_tipi, veri_yolu):
         """İnternet yokken veya Kovan uyurken veriyi depoya yazar"""
         cursor = self.db_baglanti.cursor()
         cursor.execute("INSERT INTO bekleyen_veriler (islem_tipi, veri_yolu) VALUES (?, ?)", (islem_tipi, veri_yolu))
         self.db_baglanti.commit()
-        print(f"[HAFIZA] İnternet yok! Veri kara kutuya yazıldı: {islem_tipi}")
+        print(f"[HAFIZA] Veri kara kutuya yazıldı: {islem_tipi}")
 
     def donanim_tara(self):
         print("[SİNEK] Donanım kapasitesi taranıyor...")
         atanan_rol = "GOREN_SINEK" 
         print(f"[SİNEK] Kovan'daki Rolüm: {atanan_rol}")
         return atanan_rol
+
+    def eylem_kamera_cek(self, dosya_adi):
+        """Kovan'dan emir gelince veya otonom olarak kamerayı tetikler"""
+        if hasattr(self, 'kamera_motoru'):
+            dosya_yolu = f"./{dosya_adi}.jpg"
+            # C motorunu çalıştır (Sistemi bloklamaz)
+            self.kamera_motoru.safe_capture_frame(dosya_yolu.encode('utf-8'))
+            
+            # Veriyi anında Kara Kutu'ya (SQLite) kaydet
+            self.veriyi_guvenceye_al("KAMERA_CEKIMI", dosya_yolu)
+            print(f"[EYLEM] Görüntü alındı ve kara kutuya işlendi: {dosya_yolu}")
+        else:
+            print("[EYLEM HATA] Kamera motoru aktif değil!")
+
+    def eylem_konus(self, metin):
+        """Sinek'in konuşmasını sağlar"""
+        if hasattr(self, 'ses_motoru'):
+            self.ses_motoru.safe_speak(metin.encode('utf-8'))
+            self.veriyi_guvenceye_al("SES_CIKISI", metin)
+            print(f"[EYLEM] Konuşuldu: {metin}")
+        else:
+            print("[EYLEM HATA] Ses motoru aktif değil!")
 
     def canli_baglanti_dinle(self):
         """WebSocket ile Kovan'dan gelen anlık emirleri dinler"""
