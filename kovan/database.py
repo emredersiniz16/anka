@@ -1,7 +1,8 @@
+# kovan/database.py
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# PostgreSQL URL'n (bunu .env dosyasından çekmek daha güvenli olacak)
+# PostgreSQL URL'n (Burayı kendi sunucuna göre güncelleyeceksin)
 DATABASE_URL = "postgresql+asyncpg://admin:sifre@localhost/kovan_db"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
