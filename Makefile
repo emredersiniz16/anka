@@ -1,45 +1,25 @@
-#include "../hal_common.h"
-#include <stdio.h>
+# ANKA OS - NİHAİ MÜHÜRLEME PROTOKOLÜ
+# Cihazın içinde çalışacak otonom çekirdek ve sürücü entegrasyonu
 
-// --- Evrensel (Generic) Donanım Fonksiyonları ---
+CC = gcc
+# Android/Termux üzerinde çalışacağı için dinamik linkleme ve core yolları
+CFLAGS = -Os -I./core -I./core/hal -I./core/utils -ldl -fPIC
 
-int generic_vibrate(int ms) {
-    printf("[GENERIC HAL] Titreşim simüle edildi (Cihaz tanınmadı): %d ms\n", ms);
-    return 0;
-}
+# Tüm modüler yapıdaki kaynakları topluyoruz
+# engines, hal, ve backend sürücülerinin tamamını çekirdeğe dahil ediyoruz
+SRC = core/boot.c \
+      core/hal/hal_core.c \
+      core/hal/hal_loader.c \
+      core/hal/backends/generic_hal.c \
+      $(wildcard core/engines/*.c)
 
-int generic_read_touch(int *x, int *y) {
-    // Standart sahte dokunmatik verisi
-    *x = 0; 
-    *y = 0;
-    return 0;
-}
+TARGET = anka_os.bin
 
-int generic_speak(const char* text) {
-    printf("[GENERIC HAL] Ses Çıkışı (Termux TTS bekleniyor): %s\n", text);
-    return 0;
-}
+all: $(TARGET)
 
-int generic_capture_camera(const char* output_path) {
-    printf("[GENERIC HAL] Kamera simüle edildi. Kayıt yolu -> %s\n", output_path);
-    return 0;
-}
+$(TARGET):
+	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
+	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi, donanım sürücüleri yüklendi (Binary Hazır)."
 
-// --- Fonksiyonları HAL Yapısına Bağlama ---
-static AnkaHAL generic_hal = {
-    .vibrate = generic_vibrate,
-    .read_touch = generic_read_touch,
-    .speak = generic_speak,
-    .capture_camera = generic_capture_camera
-};
-
-AnkaHAL* get_generic_interface(void) {
-    return &generic_hal;
-}
-
-// --- Loader'ın (Yükleyicinin) Arayacağı İmza ---
-hal_backend_t anka_backend_register = {
-    .abi_version = ANKA_HAL_ABI_VERSION,
-    .backend_name = "Evrensel (Generic) Kurtarma Sürücüsü",
-    .get_hal_interface = get_generic_interface
-};
+clean:
+	rm -f $(TARGET)
