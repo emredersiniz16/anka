@@ -1,4 +1,4 @@
-# kovan/server_main.py - GÜNCEL SAF VE HIZLI KOVAN MERKEZİ
+# kovan/server_main.py - GÜNCEL SAF VE HIZLI KOVAN MERKEZİ (V16 UYUMLU)
 import asyncio
 import websockets
 import json
@@ -6,9 +6,10 @@ import json
 # Aktif bağlantıları tutan sözlük
 aktif_sinekler = {}
 
-async def kovan_handler(websocket, path):
-    # URL'den sinek_id'yi al (ws://ip:8000/sinek_id)
-    sinek_id = path.strip("/") or "Bilinmeyen"
+# DİKKAT: 'path' parametresi yeni sürümde kaldırıldığı için sadece 'websocket' alıyoruz.
+async def kovan_handler(websocket):
+    # Yeni sürümde adresi (path) doğrudan websocket nesnesinin içinden okuyoruz
+    sinek_id = websocket.request.path.strip("/") or "Bilinmeyen"
     
     # Kapı Görevlisi: Bağlantıyı kaydet
     aktif_sinekler[sinek_id] = websocket
