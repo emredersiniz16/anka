@@ -1,22 +1,35 @@
-# Makefile - ANKA OS NİHAİ ÇEKİRDEK MÜHÜRLEME
+# Makefile - ANKA OS NİHAİ ÇEKİRDEK MÜHÜRLEME (QUANTUM GÜNCELLEMESİ)
 CC = gcc
-# -I yolları ile header dosyalarını (hal_common.h vb.) bulmasını sağlıyoruz
-CFLAGS = -Os -I./core -I./core/hal -I./core/utils -ldl -fPIC
+CFLAGS = -Os -I./core -I./core/hal -I./core/utils -I./core/quantum -fPIC
+LDFLAGS = -ldl -lpthread -lcrypto -lssl  # Kuantum motoru için gerekli kütüphaneler
 
-# Kaynak kodları: boot.c çekirdektir, geri kalanı modüller
-SRC = core/boot.c \
-      core/hal/hal_core.c \
-      core/hal/hal_loader.c \
-      core/hal/backends/backend_generic.c \
-      core/engines/*.c
+# Hedefler
+TARGET_BIN = anka_os.bin
+QUANTUM_LIB = core/quantum/libanka_quantum.so
 
-TARGET = anka_os.bin
+# Kaynaklar
+SRC_BOOT = core/boot.c \
+           core/hal/hal_core.c \
+           core/hal/hal_loader.c \
+           core/hal/backends/backend_generic.c \
+           core/engines/*.c
 
-all: $(TARGET)
+SRC_QUANTUM = core/quantum/quantum_dust.c \
+              core/quantum/collapse_engine.c \
+              core/quantum/sinek_fsm.c
 
-$(TARGET):
-	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
+all: $(QUANTUM_LIB) $(TARGET_BIN)
+
+# 1. Kuantum motorunu (.so) inşa et
+$(QUANTUM_LIB):
+	$(CC) $(CFLAGS) -shared $(SRC_QUANTUM) -o $@
+	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
+
+# 2. Çekirdeği derle ve Kuantum kütüphanesini bağla
+$(TARGET_BIN):
+	$(CC) $(CFLAGS) $(SRC_BOOT) -o $(TARGET_BIN) $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi (Binary Hazır)."
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET_BIN) $(QUANTUM_LIB)
+	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
