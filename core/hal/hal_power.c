@@ -2,7 +2,7 @@
  * Anka OS — Kovan Mimarisi — Güç/Ağ İzleme Uygulaması
  */
 
-#include "anka_hal.h"
+// Çakışmayı önlemek için sadece hal_common.h ekliyoruz
 #include "hal_common.h"
 
 #include <stdio.h>
@@ -13,6 +13,31 @@
 #include <errno.h>
 
 #define POWER_TAG  "GÜÇ"
+
+// --- EKSİK TANIMLAMALAR (Kayıp dosyanın işlevini buraya alıyoruz) ---
+#ifndef HAL_OK
+typedef int hal_status_t;
+#define HAL_OK 0
+#define HAL_ERR_NOT_FOUND -1
+#define HAL_ERR_INVALID_PARAM -2
+#endif
+
+#ifndef HAL_MIN
+#define HAL_MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+
+#ifndef HAL_MAX
+#define HAL_MAX(a,b) (((a)>(b))?(a):(b))
+#endif
+
+#ifndef HAL_LOG_DEBUG
+#define HAL_LOG_DEBUG(tag, fmt, ...) printf("[%s] " fmt "\n", tag, ##__VA_ARGS__)
+#endif
+
+#ifndef HAL_LOG_WARN
+#define HAL_LOG_WARN(tag, fmt, ...) printf("[%s] UYARI: " fmt "\n", tag, ##__VA_ARGS__)
+#endif
+// ------------------------------------------------------------------
 
 /* Olası pil yolları */
 static const char *BATT_CAP_PATHS[] = {
