@@ -1,16 +1,16 @@
-# kovan/server_main.py - SAF VE HIZLI KOVAN MERKEZİ
+# kovan/server_main.py - GÜNCEL SAF VE HIZLI KOVAN MERKEZİ
 import asyncio
 import websockets
 import json
 
-# ConnectionManager yerine saf sözlük kullanımı
+# Aktif bağlantıları tutan sözlük
 aktif_sinekler = {}
 
 async def kovan_handler(websocket, path):
     # URL'den sinek_id'yi al (ws://ip:8000/sinek_id)
-    sinek_id = path.strip("/")
+    sinek_id = path.strip("/") or "Bilinmeyen"
     
-    # Kapı Görevlisi
+    # Kapı Görevlisi: Bağlantıyı kaydet
     aktif_sinekler[sinek_id] = websocket
     print(f"[KOVAN] Sinek '{sinek_id}' bağlandı.")
 
@@ -27,12 +27,20 @@ async def kovan_handler(websocket, path):
     except websockets.exceptions.ConnectionClosed:
         print(f"[KOVAN] Sinek '{sinek_id}' koptu.")
     finally:
+        # Bağlantı koptuğunda temizle
         if sinek_id in aktif_sinekler:
             del aktif_sinekler[sinek_id]
+            print(f"[KOVAN] Sinek '{sinek_id}' listeden silindi.")
 
-# Sunucuyu başlat
-start_server = websockets.serve(kovan_handler, "0.0.0.0", 8000)
+async def main():
+    # Sunucuyu güvenli bir şekilde başlat
+    async with websockets.serve(kovan_handler, "0.0.0.0", 8000):
+        print("[KOVAN] Kovan 'Saf Mod'da çalışıyor. Dinlemede...")
+        # Sunucuyu sonsuza kadar çalışır durumda tut
+        await asyncio.Future() 
 
-print("[KOVAN] Kovan 'Saf Mod'da çalışıyor. Dinlemede...")
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n[KOVAN] Kovan kapatılıyor...")
