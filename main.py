@@ -64,7 +64,6 @@ class HarcanabilirSinek:
             self.veriyi_guvenceye_al("SES_CIKISI", metin)
 
     async def canli_baglanti_kur(self):
-        # Kovan Saf Mod URI'sine uyarlandı
         uri = f"ws://127.0.0.1:8000/{self.token}"
         while self.hayatta_mi:
             try:
@@ -91,20 +90,19 @@ class HarcanabilirSinek:
 
     async def nabiz_gonder_async(self):
         while self.hayatta_mi:
-            if self.websocket and self.websocket.open:
+            # DÜZELTME: ".open" özelliği kaldırıldı, sadece nesnenin varlığını kontrol ediyoruz.
+            if self.websocket:
                 try:
                     await self.websocket.send(json.dumps({"eylem": "NABIZ", "token": self.token}))
                     print("[AĞ] Kovan'a nabız atıldı.")
                 except Exception as e: 
                     print(f"[AĞ HATASI] Nabız başarısız: {e}")
             
-            # Test için 5 saniye olarak ayarladım, canlıya alırken yükseltirsin
             await asyncio.sleep(5) 
 
     def canli_baglanti_dinle(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        # Dinleme ve nabzı aynı loop'ta paralel çalıştırıyoruz
         loop.run_until_complete(asyncio.gather(self.canli_baglanti_kur(), self.nabiz_gonder_async()))
 
     def kovan_icin_yasa(self):
@@ -119,6 +117,5 @@ class HarcanabilirSinek:
             self.db_baglanti.close()
 
 if __name__ == "__main__":
-    # Test esnasında Token vermezsen KAYITSIZ_SINEK olarak bağlanacak
     sinek = HarcanabilirSinek(os.getenv("SINEK_TOKEN", "KAYITSIZ_SINEK"))
     sinek.kovan_icin_yasa()
