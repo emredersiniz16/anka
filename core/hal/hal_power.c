@@ -2,7 +2,7 @@
  * Anka OS — Kovan Mimarisi — Güç/Ağ İzleme Uygulaması
  */
 
-#include "hal_power.h"
+#include "anka_hal.h"
 #include "hal_common.h"
 
 #include <stdio.h>
@@ -49,7 +49,7 @@ static int read_int_from_file(const char *path, int *out)
     return ret;
 }
 
-/* hal_power_get_battery: Pil seviyesini okur[span_1](start_span)[span_1](end_span) */
+/* hal_power_get_battery: Pil seviyesini okur */
 hal_status_t hal_power_get_battery(int *pct)
 {
     if (!pct) return HAL_ERR_INVALID_PARAM;
@@ -67,7 +67,7 @@ hal_status_t hal_power_get_battery(int *pct)
     return HAL_ERR_NOT_FOUND;
 }
 
-/* hal_power_get_battery_status: Şarj durumu (Charging/Discharging)[span_2](start_span)[span_2](end_span) */
+/* hal_power_get_battery_status: Şarj durumu (Charging/Discharging) */
 hal_status_t hal_power_get_battery_status(char *buf, size_t len)
 {
     if (!buf || len == 0) return HAL_ERR_INVALID_PARAM;
@@ -91,7 +91,7 @@ hal_status_t hal_power_get_battery_status(char *buf, size_t len)
     return HAL_ERR_NOT_FOUND;
 }
 
-/* hal_power_is_network_up: Ping atmadan ağ durumunu kontrol eder[span_3](start_span)[span_3](end_span) */
+/* hal_power_is_network_up: Ping atmadan ağ durumunu kontrol eder */
 hal_status_t hal_power_is_network_up(int *is_up)
 {
     if (!is_up) return HAL_ERR_INVALID_PARAM;
