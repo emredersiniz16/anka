@@ -1,7 +1,7 @@
 # Makefile - ANKA OS NİHAİ ÇEKİRDEK MÜHÜRLEME (QUANTUM + ENGINES)
 CC = gcc
 
-# Header yolları: Hem kökü hem de alt klasörleri kapsayacak şekilde genişletildi
+# Header yolları
 CFLAGS = -Os -fPIC \
          -I. \
          -I./core \
@@ -10,7 +10,9 @@ CFLAGS = -Os -fPIC \
          -I./core/quantum \
          -I./core/engines
 
+# LDFLAGS: Kütüphane yollarını ve linklenecek kütüphaneleri buraya ekledik
 LDFLAGS = -ldl -lpthread -lcrypto -lssl
+QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
 
 # Hedefler
 TARGET_BIN = anka_os.bin
@@ -37,9 +39,9 @@ $(QUANTUM_LIB): $(SRC_QUANTUM)
 	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
 
-# 2. Çekirdeği derle (SRC_BOOT içindeki tüm .c dosyalarını bağla)
-$(TARGET_BIN): $(SRC_BOOT)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+# 2. Çekirdeği derle (QUANTUM_LDFLAGS eklendi)
+$(TARGET_BIN): $(SRC_BOOT) $(QUANTUM_LIB)
+	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ $(QUANTUM_LDFLAGS) $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi (Binary Hazır)."
 
 clean:
