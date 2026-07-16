@@ -1,4 +1,4 @@
-# core/sinek_nexus.py - FINAL (Gözlemci Sağlama Alınmış Sürüm)
+# agents/sinek_nexus.py - FINAL (Gözlemci Sağlama Alınmış Sürüm)
 
 import sys
 import os
@@ -8,6 +8,7 @@ import hashlib
 import json
 
 # --- YOL KİLİDİ ---
+# Bu dosya agents/ içindeyse, importlar aynı klasörden gelir
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from jammer_surfer import JammerSurfer
@@ -69,7 +70,7 @@ class AnkaNexus:
             try:
                 # Gözlemci varlığı kontrolü
                 if hasattr(self, 'gozlemci') and self.gozlemci:
-                    # Gözlemci burada aktif olarak kullanılabilir
+                    # Gözlemci aktif
                     pass
                 
                 if self.haritaci.guce_bak() > 70:
