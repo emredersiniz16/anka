@@ -32,9 +32,9 @@ void check_for_evolution() {
         if (user_confirmed_evolution()) { 
             printf("👉 [OTA]: Evrim başlatılıyor... Kovan yeniden yapılandırılıyor.\n");
             
-            // ⚠️ DİKKAT: evrim_motoru.py listede yoktu! 
-            // Eğer agents klasörüne taşıdıysan burayı 'agents/evrim_motoru.py' yap.
-            system("su -c 'python3 core/evrim_motoru.py --payload universal_sinek.bin &'");
+            // YOL GÜNCELLENDİ: Artık agents/ klasörüne bakıyor.
+            // .bin dosyanın bin/ klasöründe olduğunu varsayarak burayı bıraktım.
+            system("su -c 'python3 agents/evrim_motoru.py --payload universal_sinek.bin &'");
         } else {
             printf("👉 [OTA]: Evrim ertelendi. Mevcut bilinç korunuyor.\n");
         }
