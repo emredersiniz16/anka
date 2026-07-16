@@ -8,39 +8,31 @@
 #include <string.h>
 #include <time.h>
 
-// --- EKSİK FONKSİYON TANIMLARI (Linker Hatalarını Önlemek İçin) ---
-int get_battery_level() {
-    return 100; // Şimdilik pili %100 göster
-}
+// --- EKSİK FONKSİYON TANIMLARI ---
+int get_battery_level() { return 100; }
+int user_confirmed_evolution() { return 1; }
 
-int user_confirmed_evolution() {
-    return 1; // Kullanıcı her zaman onaylamış gibi davran
-}
+// --- DOKUNMATİK MOTORU (core/ klasöründe) ---
+#include "touch_engine.c" 
 
-// Boş init_touch() gölgesi kaldırıldı, gerçek motor aşağıda dahil edildi.
-// ----------------------------------------------------------------
+// --- CORE MODÜLLERİ (core/engines/ klasöründe) ---
+#include "engines/ui_engine.c"
+#include "engines/anim_engine.c" 
+#include "agent_logic.c"           // core/ içinde
+#include "engines/input_handler.c"
+#include "engines/audio_engine.c" 
+#include "engines/camera_engine.c"  
+#include "engines/gallery_engine.c" 
+#include "engines/idle_engine.c"    
+#include "checkup.c"               // core/ içinde
+#include "engines/input_engine.c"    
+#include "engines/ota_engine.c"      
+#include "utils/formatter.c"       // core/utils/ içinde
 
-// --- GERÇEK DOKUNMATİK MOTORU ENTEGRASYONU ---
-#include "../touch_engine.c" 
-
-// --- CORE MODÜLLERİ ---
-#include "ui_engine.c"
-#include "anim_engine.c" 
-#include "agent_logic.c" 
-#include "input_handler.c"
-#include "audio_engine.c" 
-#include "camera_engine.c"  
-#include "gallery_engine.c" 
-#include "idle_engine.c"    
-#include "checkup.c"        
-#include "input_engine.c"    
-#include "ota_engine.c"      
-#include "formatter.c"       
-
-// --- SİSTEMİN DİRİLİŞ KOMUTLARI ---
+// --- SİSTEMİN DİRİLİŞ KOMUTLARI (Güncellenen Yol Yapısı) ---
 void start_kovan_zihni() {
     printf("🪰 [SİSTEM]: Kovan zihni (Nexus) uyanıyor...\n");
-    system("su -c 'python3 core/sinek_nexus.py &' "); 
+    system("su -c 'python3 agents/sinek_nexus.py &' "); 
 }
 
 void network_sync_protocol() {
@@ -58,19 +50,14 @@ void splash_screen() {
 void boot_sequence() {
     system("clear");
     printf("\033[1;36m --- ANKA OS: BİLİNÇLİ KOVAN --- \033[0m\n");
+    // Yol güncellendi: core/ -> agents/ jammer_surfer'ın yerini kontrol et (agents'a taşıdıysan burayı agents/ yap)
     system("su -c 'python3 core/jammer_surfer.py --check-boot-env &'");
     printf("Sistem Senkronize... [ AKTİF ]\n");
     sleep(2);
 }
 
 int main() {
-    // Canlı debug takibi için ekran çıktı yönlendirmeleri geçici olarak kapatıldı.
-    // freopen("/data/local/tmp/debug.log", "w", stdout);
-    // freopen("/data/local/tmp/debug.log", "w", stderr);
-
-    // Terminal çıktılarını anlık ekrana basmaya zorla (Buffering önleyici)
     setvbuf(stdout, NULL, _IONBF, 0);
-
     srand(time(NULL));
 
     // --- 1. SİSTEMİN DİRİLİŞİ ---
@@ -81,14 +68,14 @@ int main() {
 
     // --- 2. DONANIMLAR VE CHECK-UP ---
     if(system("su -c 'python3 agents/setup_engine.py'") != 0) {
-        system("su -c 'python3 core/rejenere_motoru.py --force-recover &'");
+        system("su -c 'python3 agents/rejenere_motoru.py --force-recover &'"); // Yol güncellendi
     }
     
     run_initial_checkup();
     scan_hardware_inputs();
     check_for_evolution();
 
-    // Ekran ve Dokunmatik yapılandırması
+    // ... (Geri kalan donanım ve dokunmatik kurulumu aynen kalıyor)
     int fb_fd = open("/dev/fb0", O_RDWR);
     if (fb_fd >= 0) {
         struct fb_var_screeninfo vinfo;
@@ -101,35 +88,27 @@ int main() {
         close(fb_fd); 
     }
     
-    // Gerçek dokunmatik sensörümüzü başlatıyoruz
     if (init_touch() < 0) {
-        printf("⚠️ [HATA]: Dokunmatik ekran donanımı (/dev/input/event4) aktif edilemedi!\n");
+        printf("⚠️ [HATA]: Dokunmatik ekran donanımı aktif edilemedi!\n");
     }
     
     printf("🎙️ [SİSTEM]: Anka OS Aktif, Kovan tam kapasite.\n");
 
+    // --- 3. SÜREKLİ YÜKSEK HIZLI NABIZ DÖNGÜSÜ ---
     int touch_x = 0, touch_y = 0;
     int pulse_counter = 0;
-
-    // --- 3. SÜREKLİ YÜKSEK HIZLI NABIZ DÖNGÜSÜ ---
     while(1) {
-        // 3.1. Hassas Dokunmatik Takibi (Gecikmesiz - 100Hz)
         if (get_touch_event(&touch_x, &touch_y)) {
-            printf("📍 [SİNEK AKSİYON]: Ekranda dokunuş yakalandı -> X: %d, Y: %d\n", touch_x, touch_y);
-            // İleride dokunma koordinatlarını doğrudan input_handler'a paslayacağız:
-            // handle_input(touch_x, touch_y);
+            printf("📍 [SİNEK AKSİYON]: Dokunuş -> X: %d, Y: %d\n", touch_x, touch_y);
         }
 
-        // 3.2. Arka Plan Senkronizasyon Nabzı (Her 5 saniyede bir - Ana akışı dondurmadan)
         pulse_counter++;
-        if (pulse_counter >= 500) { // 10ms * 500 = 5000ms (5 Saniye)
-            // Sistem çağrılarını arka plana '&' ile gönderiyoruz ki dokunmatik kilitlenmesin
+        if (pulse_counter >= 500) {
             system("su -c 'python3 agents/net_sync.py --verify &' > /dev/null 2>&1");
-            system("su -c 'python3 core/sinek_nexus.py --pulse &' > /dev/null 2>&1");
+            system("su -c 'python3 agents/sinek_nexus.py --pulse &' > /dev/null 2>&1"); // Yol güncellendi
             pulse_counter = 0;
         }
-
-        usleep(10000); // 10ms dinlenme (İşlemciyi şişirmez, dokunmatiği canavar gibi akıcı tutar)
+        usleep(10000);
     }
     return 0;
 }
