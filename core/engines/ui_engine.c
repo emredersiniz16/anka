@@ -7,15 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-// ⚠️ DİKKAT KANKA: fly_engine.c listede yoktu! 
-// Eğer bu dosyayı da 'core/engines/' içine taşıdıysan yol doğru.
-// Eğer 'core/' içine attıysan burayı "#include "../fly_engine.c"" olarak düzeltmelisin.
-#include "fly_engine.c" // FlyState ve durum yönetimi eklendi
+// --- DÜZELTME: .c dosyasını include etmek yerine header'ı include et ---
+#include "fly_engine.h" 
 
 // --- İMZA MOTORU ---
 void render_fly_signature(int x, int y) {
     char sign_cmd[512];
-    // Not: Uygulama kök dizininden çalışacağı için 'assets/' yolu aynen kalıyor.
     sprintf(sign_cmd, "fbi -d /dev/fb0 -g 32x32+%d+%d -a -noverbose -T 1 assets/sinek_icon.bmp &", x, y);
     system(sign_cmd);
 }
@@ -32,7 +29,8 @@ void draw_ui_window(const char *message, int is_day) {
 
 // --- ANA UI RENDER ---
 void ui_render(const char *last_message) {
-    update_fly_behavior(); // Her karede durumu güncelle (Nexus/Jammer kontrolü)
+    // fly_engine.h içindeki fonksiyonu çağırıyoruz (header sayesinde derleyici biliyor)
+    update_fly_behavior(); 
 
     // GHOST modu: Sistem tamamen saydamlaşır
     if (current_state == FLY_GHOST) {
@@ -53,21 +51,16 @@ void ui_render(const char *last_message) {
     struct tm *tm = localtime(&t);
     int is_day = (tm->tm_hour >= 7 && tm->tm_hour <= 18) ? 1 : 0;
 
-    // SİNEK DURUMUNA GÖRE GÖRSELLEŞTİRME (YEDEKLEMELİ / FALLBACK)
     char fly_cmd[512];
     if (current_state == FLY_MIRROR) {
-        // Yansıtma: Ayna GIF'i yoksa uçan sineğe dön
         sprintf(fly_cmd, "fbi -d /dev/fb0 -g 250x250+%d+%d -a -noverbose -T 1 assets/sinek_ayna.GIF || fbi -d /dev/fb0 -g 150x150+%d+%d -a -noverbose -T 1 assets/sinek_ucuyor.GIF &", w/2 - 125, h/2 - 125, w - 250, 50);
     } else if (current_state == FLY_THINK) {
-        // Düşünme: Düşünen GIF yoksa uçan sineğe dön
         sprintf(fly_cmd, "fbi -d /dev/fb0 -g 200x200+%d+%d -a -noverbose -T 1 assets/sinek_dusunen.GIF || fbi -d /dev/fb0 -g 150x150+%d+%d -a -noverbose -T 1 assets/sinek_ucuyor.GIF &", w/2 - 100, h/2 - 100, w - 250, 50);
     } else {
-        // İdle/Normal: Standart uçuş
         sprintf(fly_cmd, "fbi -d /dev/fb0 -g 150x150+%d+%d -a -noverbose -T 1 assets/sinek_ucuyor.GIF &", w - 250, 50);
     }
     system(fly_cmd);
 
-    // MESAJ VE İMZA
     if (last_message != NULL) {
         draw_ui_window(last_message, is_day);
         if (strstr(last_message, "[FLY_SIGNATURE_ICON]")) {
