@@ -1,6 +1,9 @@
+// core/utils/formatter.c
 #include <stdio.h>
 #include <unistd.h>
 
+// ANKA OS: İNSAN OKUMA HIZI FORMATLAYICI
+// Terminale metinleri "yazılıyormuş" gibi basar.
 void print_human_readable(const char *text) {
     int i = 0;
     while(text[i] != '\0') {
@@ -9,15 +12,18 @@ void print_human_readable(const char *text) {
             putchar(text[i]);
             putchar('\n');
             printf("\n"); // Satır arası boşluk: Gözün dinlenmesi için
+            fflush(stdout); // Yazıyı anında ekrana bas
             usleep(300000); // 0.3 saniye "düşünme/okuma" payı
         } 
         // Paragraf başı veya yeni madde için otomatik boşluk
         else if (text[i] == '\n') {
             putchar('\n');
             printf("\n"); 
+            fflush(stdout);
         }
         else {
             putchar(text[i]);
+            fflush(stdout); // Her harfi anında yaz
         }
         i++;
         // Harf yazma hızı: İnsan okuma hızına yakın bir tıkırtı
