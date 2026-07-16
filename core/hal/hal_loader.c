@@ -3,7 +3,8 @@
 #include <dlfcn.h>
 #include <stddef.h>
 
-AnkaHAL *current_hal = NULL;
+// HATA BURADAYDI: Değişkeni burada tekrar tanımlama, dışarıdan (extern) referans al.
+extern AnkaHAL *current_hal;
 
 // Sinek'in arayacağı donanım sürücüleri (Önce en güçlülerini arar)
 static const char *kCandidateBasenames[] = {
@@ -30,6 +31,7 @@ void hal_loader_init() {
         if (handle) {
             backend = (hal_backend_t*)dlsym(handle, "anka_backend_register");
             if (backend && backend->abi_version == ANKA_HAL_ABI_VERSION) {
+                // Burada artık yukarıdaki extern sayesinde core içindeki değişkene yazıyoruz
                 current_hal = backend->get_hal_interface();
                 printf("[ANKA BOOT] Sürücü yüklendi: %s\n", backend->backend_name);
                 return;
