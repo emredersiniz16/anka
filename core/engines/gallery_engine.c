@@ -1,3 +1,4 @@
+// core/engines/gallery_engine.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,7 @@ int total_photos = 0;
 // 1. KÜTÜPHANEYİ TARA: Gallery klasöründeki fotoğrafları hafızaya alır
 void load_gallery() {
     struct dirent *de;
+    // Proje ana dizinindeki 'gallery' klasörünü okur
     DIR *dr = opendir("gallery");
 
     total_photos = 0;
