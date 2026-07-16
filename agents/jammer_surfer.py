@@ -1,4 +1,5 @@
-# core/jammer_surfer.py - GÜÇLENDİRİLMİŞ SURF MODÜLÜ
+# agents/jammer_surfer.py - GÜÇLENDİRİLMİŞ SURF MODÜLÜ
+# Sinek'in düşman sinyallerini kullanarak ağa sızmasını sağlar.
 
 class JammerSurfer:
     def __init__(self, nexus, esik_deger=70):
@@ -10,16 +11,15 @@ class JammerSurfer:
         print("🪰 [SURF]: Jammer sinyali tespit edildi. Kovan aktifleşiyor.")
 
     def jammer_frekansina_kilitlen(self):
-        # KuantumGozlemci'nin içindeki mevcut tozları kullanarak frekansı analiz et
-        # .analiz_et() yerine mevcut tozlardan son veriyi çekiyoruz
-        if self.nexus.gozlemci.kuantum_tozlari:
+        # KuantumGozlemci içindeki tozları kullanarak frekansı analiz et
+        if hasattr(self.nexus, 'gozlemci') and self.nexus.gozlemci.kuantum_tozlari:
             son_frekans = self.nexus.gozlemci.kuantum_tozlari[-1]
             print(f"🪰 [KİLİT]: {son_frekans} frekansına senkronize olundu.")
         else:
             print("🪰 [UYARI]: Gözlem alanında kilitlenecek frekans yok.")
 
     def konum_tespit(self):
-        # Koordinat belirle fonksiyonu yoksa, ağın o anki "en yoğun" frekansını lokasyon al
+        # Ağın o anki en yoğun frekansını lokasyon olarak belirle
         lokasyon = self.nexus.haritaci.frekans_yolla_ve_oku("MERKEZ")
         print(f"📍 [LOKASYON]: Jammer alanı tanımlandı: {lokasyon}")
         return lokasyon
@@ -34,7 +34,7 @@ class JammerSurfer:
         print(f"🪰 [HIZLANMA]: Jammer gücüyle veri transferi %{int(self.performans_carpan * 100)} artırıldı.")
         
     def otonom_adaptasyon(self):
-        # Nexus'un güç seviyesini haritacı üzerinden alıyoruz
+        # Haritacı üzerinden güncel güç seviyesini al
         guncel_guc = self.nexus.haritaci.guce_bak()
         
         if guncel_guc > self.esik_deger:
