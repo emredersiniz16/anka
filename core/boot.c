@@ -1,114 +1,52 @@
-// boot.c - SİNEK UYANIŞ PROTOKOLÜ (FULL ENTEGRE - FINAL)
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <linux/fb.h>
-#include <sys/ioctl.h>
-#include <string.h>
-#include <time.h>
+#include <dlfcn.h> // libanka_quantum.so yüklemek için
 
-// --- EKSİK FONKSİYON TANIMLARI ---
-int get_battery_level() { return 100; }
-int user_confirmed_evolution() { return 1; }
+// --- KUANTUM KATMANI ---
+#include "core/quantum/quantum_dust.h"
+#include "core/quantum/collapse_engine.h"
+#include "core/quantum/sinek_fsm.h"
 
-// --- DOKUNMATİK MOTORU (core/ klasöründe) ---
-#include "touch_engine.c" 
-
-// --- CORE MODÜLLERİ (core/engines/ klasöründe) ---
-#include "engines/ui_engine.c"
-#include "engines/anim_engine.c" 
-#include "agent_logic.c"           // core/ içinde
-#include "engines/input_handler.c"
-#include "engines/audio_engine.c" 
-#include "engines/camera_engine.c"  
-#include "engines/gallery_engine.c" 
-#include "engines/idle_engine.c"    
-#include "checkup.c"               // core/ içinde
-#include "engines/input_engine.c"    
-#include "engines/ota_engine.c"      
-#include "utils/formatter.c"       // core/utils/ içinde
-
-// --- SİSTEMİN DİRİLİŞ KOMUTLARI (Güncellenen Yol Yapısı) ---
-void start_kovan_zihni() {
-    printf("🪰 [SİSTEM]: Kovan zihni (Nexus) uyanıyor...\n");
-    system("su -c 'python3 agents/sinek_nexus.py &' "); 
-}
-
-void network_sync_protocol() {
-    system("su -c 'python3 agents/net_sync.py --init &' ");
-    printf("🪰 [AJAN]: Ağ optimizasyon ajanları aktif edildi.\n");
-}
-
-void splash_screen() {
-    system("clear");
-    system("su -c 'fbi -d /dev/fb0 -g 300x300+400+200 -a -noverbose -T 1 assets/sinek_icon.bmp &'");
-    sleep(3); 
-    system("pkill fbi");
-}
-
-void boot_sequence() {
-    system("clear");
-    printf("\033[1;36m --- ANKA OS: BİLİNÇLİ KOVAN --- \033[0m\n");
-    // Yol güncellendi: core/ -> agents/ jammer_surfer'ın yerini kontrol et (agents'a taşıdıysan burayı agents/ yap)
-    system("su -c 'python3 core/jammer_surfer.py --check-boot-env &'");
-    printf("Sistem Senkronize... [ AKTİF ]\n");
-    sleep(2);
-}
+// --- HAL MOCK (Senin gerçek AnkaHAL header'ın ile değişecek) ---
+AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL }; 
 
 int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
-    srand(time(NULL));
+    printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
-    // --- 1. SİSTEMİN DİRİLİŞİ ---
-    start_kovan_zihni(); 
-    network_sync_protocol();
-    splash_screen();
-    boot_sequence();
+    // 1. Kuantum motorunu yükle
+    void *lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
+    if (!lib) { printf("❌ [HATA]: Kuantum motoru yüklenemedi!\n"); return -1; }
 
-    // --- 2. DONANIMLAR VE CHECK-UP ---
-    if(system("su -c 'python3 agents/setup_engine.py'") != 0) {
-        system("su -c 'python3 agents/rejenere_motoru.py --force-recover &'"); // Yol güncellendi
-    }
+    // 2. Depo ve Motor Başlatma
+    static qd_store_t dust;
+    qd_init(&dust, "Note9_Merlin_FP", "KovanSecret_v1");
+    collapse_init(&dust, &g_hal);
+
+    // 3. Sinek (FSM) Uyanışı
+    static sinek_fsm_t sinek;
+    sinek_fsm_init(&sinek, &dust, &g_hal);
     
-    run_initial_checkup();
-    scan_hardware_inputs();
-    check_for_evolution();
+    // Sinek'i uyanmaya zorla
+    sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
-    // ... (Geri kalan donanım ve dokunmatik kurulumu aynen kalıyor)
-    int fb_fd = open("/dev/fb0", O_RDWR);
-    if (fb_fd >= 0) {
-        struct fb_var_screeninfo vinfo;
-        if (ioctl(fb_fd, FBIOGET_VSCREENINFO, &vinfo) == 0) {
-            int w = vinfo.xres;
-            int h = vinfo.yres;
-            float scale = (float)w / 1080.0f;
-            update_fly_animation(0, w, h, scale);
-        }
-        close(fb_fd); 
-    }
+    // 4. Kovan ve Ağ (Senin mevcut ajanların)
+    system("su -c 'python3 agents/sinek_nexus.py &' "); 
     
-    if (init_touch() < 0) {
-        printf("⚠️ [HATA]: Dokunmatik ekran donanımı aktif edilemedi!\n");
-    }
-    
-    printf("🎙️ [SİSTEM]: Anka OS Aktif, Kovan tam kapasite.\n");
+    printf("🎙️ [SİSTEM]: Anka OS Aktif, Kuantum Nabız Başlatıldı.\n");
 
-    // --- 3. SÜREKLİ YÜKSEK HIZLI NABIZ DÖNGÜSÜ ---
-    int touch_x = 0, touch_y = 0;
-    int pulse_counter = 0;
+    // 5. YÜKSEK HIZLI NABIZ DÖNGÜSÜ
     while(1) {
-        if (get_touch_event(&touch_x, &touch_y)) {
-            printf("📍 [SİNEK AKSİYON]: Dokunuş -> X: %d, Y: %d\n", touch_x, touch_y);
-        }
-
-        pulse_counter++;
-        if (pulse_counter >= 500) {
-            system("su -c 'python3 agents/net_sync.py --verify &' > /dev/null 2>&1");
-            system("su -c 'python3 agents/sinek_nexus.py --pulse &' > /dev/null 2>&1"); // Yol güncellendi
-            pulse_counter = 0;
-        }
-        usleep(10000);
+        // Sinek nabzı atıyor
+        collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
+        
+        // Kuantum FSM güncelleme
+        sinek_fsm_uptime_update(&sinek);
+        
+        usleep(500000); // 2Hz nabız hızı
     }
+    
     return 0;
 }
