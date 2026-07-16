@@ -1,20 +1,27 @@
+# agents/setup_engine.py - ANKA OS İLK KURULUM SİHİRBAZI
 import json
 import os
 import sys
 
+# Proje ana dizinini importlar için sisteme dahil et
 sys.path.append(os.getcwd())
+
+# Kalıcı verilerin tutulacağı güvenli Android klasörü
+STORAGE_PATH = "/data/local/tmp/"
+SETUP_FLAG = os.path.join(STORAGE_PATH, "installed.flag")
+PROFILE_FILE = os.path.join(STORAGE_PATH, "profil.json")
 
 try:
     from profile_manager import profil_kaydet
 except ImportError:
+    # Eğer profil_manager henüz yoksa yedeği burada devreye girer
     def profil_kaydet(isim, hitap):
-        with open("profil.json", "w") as f:
+        with open(PROFILE_FILE, "w") as f:
             json.dump({"isim": isim, "hitap": hitap}, f)
 
 def kurulum_yap():
-    setup_file = "installed.flag"
-    
-    if os.path.exists(setup_file):
+    # Eğer daha önce kurulduysa tekrar çalıştırma
+    if os.path.exists(SETUP_FLAG):
         return
 
     print("🚀 Anka OS: Sistem Senkronizasyonu Başlıyor...")
@@ -30,7 +37,8 @@ def kurulum_yap():
     
     profil_kaydet(isim, hitap)
     
-    with open(setup_file, "w") as f:
+    # Kurulumun tamamlandığını işaretle
+    with open(SETUP_FLAG, "w") as f:
         f.write("OK")
         
     print(f"Sinek: Donanım ve ağ optimizasyonu tamamlandı {isim}. Artık sistemin daha akıcı.")
