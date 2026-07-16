@@ -1,24 +1,28 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL)
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL - DÜZELTİLMİŞ)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <dlfcn.h> // libanka_quantum.so yüklemek için
+#include <dlfcn.h>
 
-// --- KUANTUM KATMANI ---
-#include "core/quantum/quantum_dust.h"
-#include "core/quantum/collapse_engine.h"
-#include "core/quantum/sinek_fsm.h"
+// Makefile'da -I./core olduğu için yolu şu şekilde kısaltıyoruz:
+#include "quantum/quantum_dust.h"
+#include "quantum/collapse_engine.h"
+#include "quantum/sinek_fsm.h"
 
-// --- HAL MOCK (Senin gerçek AnkaHAL header'ın ile değişecek) ---
+// --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL }; 
 
 int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
-    // 1. Kuantum motorunu yükle
+    // 1. Kuantum motorunu yükle (Artık göreceli yolu düzeltiyoruz)
+    // Eğer binary ana dizindeyse yol şu şekilde olmalı:
     void *lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
-    if (!lib) { printf("❌ [HATA]: Kuantum motoru yüklenemedi!\n"); return -1; }
+    if (!lib) { 
+        fprintf(stderr, "❌ [HATA]: Kuantum motoru yüklenemedi: %s\n", dlerror()); 
+        return -1; 
+    }
 
     // 2. Depo ve Motor Başlatma
     static qd_store_t dust;
@@ -32,20 +36,16 @@ int main() {
     // Sinek'i uyanmaya zorla
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
-    // 4. Kovan ve Ağ (Senin mevcut ajanların)
+    // 4. Kovan ve Ağ
     system("su -c 'python3 agents/sinek_nexus.py &' "); 
     
     printf("🎙️ [SİSTEM]: Anka OS Aktif, Kuantum Nabız Başlatıldı.\n");
 
     // 5. YÜKSEK HIZLI NABIZ DÖNGÜSÜ
     while(1) {
-        // Sinek nabzı atıyor
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
-        
-        // Kuantum FSM güncelleme
         sinek_fsm_uptime_update(&sinek);
-        
-        usleep(500000); // 2Hz nabız hızı
+        usleep(500000); 
     }
     
     return 0;
