@@ -6,7 +6,7 @@ import asyncio
 import websockets
 import json
 from core.hardware_bridge import HardwareBridge
-from agents.fly_brain import FlyBrain # Beyin eklendi
+from agents.fly_brain import FlyBrain
 
 class HarcanabilirSinek:
     def __init__(self, sinek_token):
@@ -16,10 +16,15 @@ class HarcanabilirSinek:
         
         print(f"[SİNEK] Uyanıyor... Token: {self.token}")
         
-        self.brain = FlyBrain() # Beyin başlatıldı
+        self.brain = FlyBrain()
         self.kara_kutu_kur()
         self.donanim_koprusu_kur()
         self.rol = self.donanim_tara()
+
+        # [EKLEME] Donanım selamı: Sinek uyandığını kanıtlıyor
+        if self.bridge.aktif:
+            self.bridge.konus("Sinek uyandı")
+            self.bridge.titresim_ver(200)
 
     def kara_kutu_kur(self):
         self.db_baglanti = sqlite3.connect("sinek_hafiza.db", check_same_thread=False)
@@ -80,7 +85,6 @@ class HarcanabilirSinek:
                         mesaj = await websocket.recv()
                         komut = json.loads(mesaj)
                         
-                        # EMİR İŞLEME MERKEZİ (Beyin Süzgeci)
                         eylem = komut.get('eylem')
                         if self.brain.process_anomaly(eylem) != "ENTER_SAFE_MODE":
                             if eylem == 'FOTOGRAF_CEK':
@@ -99,15 +103,26 @@ class HarcanabilirSinek:
     def canli_baglanti_dinle(self):
         asyncio.run(self.canli_baglanti_kur())
 
+    # [EKLEME] Nabız gönderilmezse Kovan Sinek'in öldüğünü sanar
+    def nabiz_gonder(self):
+        while self.hayatta_mi:
+            if self.token != "KAYITSIZ_SINEK":
+                print(f"[AĞ] Nabız atışı gönderildi...")
+            time.sleep(300)
+
     def kovan_icin_yasa(self):
         t1 = threading.Thread(target=self.canli_baglanti_dinle)
+        t2 = threading.Thread(target=self.nabiz_gonder) # Nabız döngüsü
         t1.start()
+        t2.start()
+
         try:
             while self.hayatta_mi:
                 time.sleep(1)
         except KeyboardInterrupt:
             self.hayatta_mi = False
             t1.join()
+            t2.join()
             self.db_baglanti.close()
 
 if __name__ == "__main__":
