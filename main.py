@@ -1,11 +1,11 @@
 import time
 import threading
-import ctypes
 import sqlite3
 import os
 import asyncio
 import websockets
 import json
+from core.hardware_bridge import HardwareBridge # SİHRİN GELDİĞİ YER
 
 class HarcanabilirSinek:
     def __init__(self, sinek_token):
@@ -18,8 +18,8 @@ class HarcanabilirSinek:
         # 1. Kara Kutuyu Kur (İnternet yoksa veriler buraya yazılacak)
         self.kara_kutu_kur()
         
-        # 2. Kasları (C Motorlarını) Zihne Bağla
-        self.motorlari_atesle()
+        # 2. Donanım Köprüsünü (HAL) Zihne Bağla
+        self.donanim_koprusu_kur()
         
         # 3. Donanımı Tara ve Rolü Al
         self.rol = self.donanim_tara()
@@ -39,16 +39,14 @@ class HarcanabilirSinek:
         self.db_baglanti.commit()
         print("[SİNEK] Kara Kutu (SQLite) devrede.")
 
-    def motorlari_atesle(self):
-        """C Motorlarını Zihne Bağla."""
-        try:
-            self.ses_motoru = ctypes.CDLL('./core/engines/audio_engine.so')
-            self.ses_motoru.safe_speak.argtypes = [ctypes.c_char_p]
-            self.kamera_motoru = ctypes.CDLL('./core/engines/camera_engine.so')
-            self.kamera_motoru.safe_capture_frame.argtypes = [ctypes.c_char_p]
-            print("[SİNEK] Kaslar (Motorlar) zihne bağlandı.")
-        except OSError:
-            print("[SİNEK UYARI] Motorlar (so dosyaları) bulunamadı! Önce 'make' komutunu çalıştır.")
+    def donanim_koprusu_kur(self):
+        """Yeni HAL Mimarisi ile donanıma sızma işlemi."""
+        print("[SİNEK] Donanım köprüsü (HAL) aranıyor...")
+        self.bridge = HardwareBridge()
+        if self.bridge.aktif:
+            print("[SİNEK] Donanım köprüsü başarıyla zihne bağlandı.")
+        else:
+            print("[SİNEK UYARI] Donanım köprüsü aktif değil! Bağımsız mod devrede.")
 
     def token_guncelle(self, yeni_token):
         if self.rotation_aktif:
@@ -68,23 +66,23 @@ class HarcanabilirSinek:
         return "GOREN_SINEK"
 
     def eylem_kamera_cek(self, dosya_adi):
-        if hasattr(self, 'kamera_motoru'):
-            dosya_yolu = f"./{dosya_adi}.jpg"
-            self.kamera_motoru.safe_capture_frame(dosya_yolu.encode('utf-8'))
-            self.veriyi_guvenceye_al("KAMERA_CEKIMI", dosya_yolu)
+        if self.bridge and self.bridge.aktif:
+            dosya_yolu = self.bridge.kamera_cek(dosya_adi)
+            if dosya_yolu:
+                self.veriyi_guvenceye_al("KAMERA_CEKIMI", dosya_yolu)
         else:
-            print("[EYLEM HATA] Kamera motoru aktif değil!")
+            print("[EYLEM HATA] Donanım köprüsü aktif değil, kamera kullanılamıyor!")
 
     def eylem_konus(self, metin):
-        if hasattr(self, 'ses_motoru'):
-            self.ses_motoru.safe_speak(metin.encode('utf-8'))
+        if self.bridge and self.bridge.aktif:
+            self.bridge.konus(metin)
             self.veriyi_guvenceye_al("SES_CIKISI", metin)
         else:
-            print("[EYLEM HATA] Ses motoru aktif değil!")
+            print("[EYLEM HATA] Donanım köprüsü aktif değil, ses çıkışı yok!")
 
     async def canli_baglanti_kur(self):
         """Kovan'a WebSocket üzerinden bağlanır ve emirleri dinler."""
-        uri = "ws://KOVAN_ADRESI:8000/ws/" 
+        uri = "ws://127.0.0.1:8000/ws/" # Telefon (Termux) için lokal IP ayarlandı
         print(f"[AĞ] Kovan aranıyor...")
         
         while self.hayatta_mi:
@@ -97,10 +95,14 @@ class HarcanabilirSinek:
                         komut = json.loads(mesaj)
                         
                         # EMİR İŞLEME MERKEZİ
-                        if komut.get('eylem') == 'FOTOGRAF_CEK':
+                        eylem = komut.get('eylem')
+                        if eylem == 'FOTOGRAF_CEK':
                             self.eylem_kamera_cek(komut.get('dosya_adi', 'default_cekim'))
-                        elif komut.get('eylem') == 'KONUS':
+                        elif eylem == 'KONUS':
                             self.eylem_konus(komut.get('metin', ''))
+                        elif eylem == 'TITRESIM':
+                            if self.bridge and self.bridge.aktif:
+                                self.bridge.titresim_ver(komut.get('ms', 500))
                             
             except Exception as e:
                 print(f"[AĞ HATA] Kovan ile bağ koptu, 10 saniye sonra tekrar deniyorum...")
