@@ -6,11 +6,16 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+
+// ⚠️ DİKKAT KANKA: fly_engine.c listede yoktu! 
+// Eğer bu dosyayı da 'core/engines/' içine taşıdıysan yol doğru.
+// Eğer 'core/' içine attıysan burayı "#include "../fly_engine.c"" olarak düzeltmelisin.
 #include "fly_engine.c" // FlyState ve durum yönetimi eklendi
 
 // --- İMZA MOTORU ---
 void render_fly_signature(int x, int y) {
     char sign_cmd[512];
+    // Not: Uygulama kök dizininden çalışacağı için 'assets/' yolu aynen kalıyor.
     sprintf(sign_cmd, "fbi -d /dev/fb0 -g 32x32+%d+%d -a -noverbose -T 1 assets/sinek_icon.bmp &", x, y);
     system(sign_cmd);
 }
