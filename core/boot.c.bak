@@ -12,12 +12,12 @@
 // Motorlar ve Donanım Katmanı
 #include "anka_env.h"      // Termux python3 bridge (sh bypass)
 #include "quantum/quantum_dust.h"
-extern void collapse_shutdown(void);
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
 #include "ui_engine.h"     // fb_context_t, fb_open, fb_close
 #include "anim_engine.h"   // anim_boot_run
 #include "anka_hal.h"      // AnkaHAL tipi
+extern void collapse_shutdown(void); (eski adı: hal/hal_core.h — YOK)
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };

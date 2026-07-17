@@ -1,5 +1,5 @@
-#include "anka_env.h"
-#include "anka_env.h"
+
+
 // core/engines/system_monitor.c - DONANIM NABIZ MOTORU
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +30,7 @@ void get_sys_status(char *buffer) {
     }
 
     // 🌐 Hat / Sinyal (Network) - Google DNS ping kontrolü
-    int net = (anka_run_python("ping -c 1 8.8.8.8 > /dev/null 2>&1") == 0) ? 1 : 0;
+    int net = (system("ping -c 1 8.8.8.8 > /dev/null 2>&1") == 0) ? 1 : 0;
 
     // Durumu tek satırda mühürle
     sprintf(buffer, "🔋 %d%% | Wi-Fi: %d%% | Hat: %s", 
