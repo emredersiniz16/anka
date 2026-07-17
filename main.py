@@ -1,4 +1,4 @@
-# main.py - SİNEK (OTONOM KUANTUM AJAN) - DÜZELTİLMİŞ
+# main.py - SİNEK (OTONOM KUANTUM AJAN) - GÜNCEL (GÖLGE KATMAN UYUMLU)
 import time
 import threading
 import sqlite3
@@ -29,9 +29,14 @@ class HarcanabilirSinek:
 
     def quantum_init(self):
         try:
-            self.dust = ctypes.CDLL("./core/quantum/libanka_quantum.so")
-            # qd_init, collapse_init vs. C fonksiyonlarını buraya ekleyebilirsin
-            print("[SİNEK] Kuantum Toz deposu (libanka_quantum) hazır.")
+            # Cütüphane yolu düzeltildi (Sistemden bağımsız yükleme)
+            lib_path = os.path.join(os.path.dirname(__file__), "core/quantum/libanka_quantum.so")
+            self.dust = ctypes.CDLL(lib_path)
+            
+            # Animasyon motoru fonksiyonunu tanımla (Opsiyonel: Eğer Python'dan tetiklemek istersen)
+            # self.dust.anim_update_fly_state.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_float]
+            
+            print("[SİNEK] Kuantum motoru (libanka_quantum) hazır.")
         except Exception as e:
             print(f"[HATA] Kuantum motoru yüklenemedi: {e}")
 
@@ -58,14 +63,17 @@ class HarcanabilirSinek:
                         mesaj = await ws.recv()
                         komut = json.loads(mesaj)
                         
-                        # Kuantum Dönüşümü
+                        # Kuantum Dönüşümü (C motoruna pasla)
                         self.dust.qd_seal(None, 2, json.dumps(komut).encode(), len(json.dumps(komut)), None)
                         
                         eylem = komut.get('eylem')
+                        
+                        # Durum değişimi tetiklemesi (FSM)
                         self.dust.sinek_fsm_handle_event(None, 3, None, 0)
                         
                         if self.brain.process_anomaly(eylem) != "ENTER_SAFE_MODE":
-                            if eylem == 'FOTOGRAF_CEK': pass # eylem mantığın buraya
+                            if eylem == 'FOTOGRAF_CEK': 
+                                pass 
             except Exception as e:
                 print(f"[AĞ HATASI] ({e})")
                 await asyncio.sleep(5)
@@ -91,5 +99,7 @@ class HarcanabilirSinek:
                 time.sleep(5)
 
 if __name__ == "__main__":
-    sinek = HarcanabilirSinek(os.getenv("SINEK_TOKEN", "KAYITSIZ_SINEK"))
+    # Sinek kimliğiyle başla
+    token = os.getenv("SINEK_TOKEN", "KAYITSIZ_SINEK")
+    sinek = HarcanabilirSinek(token)
     sinek.kovan_icin_yasa()
