@@ -4,9 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "quantum_dust.h"
-#include "../hal/anka_hal.h" // HAL tanımı burada
+#include "../hal/anka_hal.h"
 
-/* ---- Tipler ve Enumlar (Hataların sebebi burasıydı) ---- */
+#define MAX_RULES 32
+
 typedef enum {
     COLLAPSE_TRIGGER_SENSOR  = 1,
     COLLAPSE_TRIGGER_USER    = 2,
@@ -34,12 +35,22 @@ typedef struct {
     int                active;
 } collapse_rule_t;
 
+typedef struct {
+    long     total_collapses;
+    long     failed_collapses;
+    long     total_actions;
+    long     avg_latency_us;
+    long     max_latency_us;
+    uint32_t last_collapsed_id;
+} collapse_stats_t;
+
 typedef void (*collapse_callback_t)(const collapse_rule_t *rule, const uint8_t *plaintext, size_t len);
 
-/* ---- Public API ---- */
+/* Fonksiyon imzaları */
 int  collapse_init(qd_store_t *dust, AnkaHAL *hal);
 int  collapse_register(collapse_trigger_t trigger, collapse_action_t action, uint32_t dust_id);
+int  collapse_register_ex(collapse_trigger_t trigger, collapse_action_t action, uint32_t dust_id, int arg, const char *text);
 int  collapse_fire(collapse_trigger_t trigger, const char *user_input, int input_len);
-// ... (Diğer fonksiyon imzaların burada kalsın) ...
+void collapse_get_stats(collapse_stats_t *out);
 
 #endif
