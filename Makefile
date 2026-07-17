@@ -1,4 +1,4 @@
-# Makefile - ANKA OS NİHAİ ÇEKİRDEK MÜHÜRLEME
+# Makefile - ANKA OS NİHAİ ÇEKİRDEK MÜHÜRLEME (GÜNCEL - LINKER HATALARI GİDERİLDİ)
 CC = gcc
 
 # Header yolları
@@ -19,11 +19,12 @@ QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
 
-# Kaynaklar
+# Kaynaklar (Grafik ve OTA fonksiyonlarının olduğu dosyalar eklendi)
 SRC_BOOT = core/boot.c \
            core/hal/hal_core.c \
            core/hal/hal_loader.c \
            core/hal/backends/backend_generic.c \
+           core/hal/fb_graphics.c \
            core/ui/ui_engine.c \
            core/ui/anim_engine.c \
            core/engines/audio_engine.c \
