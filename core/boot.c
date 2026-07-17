@@ -1,16 +1,17 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL - DÜZELTİLMİŞ)
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL - MÜHÜRLENMEYE HAZIR)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
 // Motorlar ve Donanım Katmanı
-// Makefile'da -I./core tanımlı olduğu için, core klasörünün altındaki dizin yapısına göre çağırıyoruz.
+// Makefile'da -I./core ve -I./core/ui tanımlı olduğu için 
+// header'ları doğrudan isimleriyle çağırabiliriz.
 #include "quantum/quantum_dust.h"
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
-#include "ui/ui_engine.h"    // Dosyalar core/ui/ içindeyse bu yol doğru
-#include "ui/anim_engine.h"  // Dosyalar core/ui/ içindeyse bu yol doğru
+#include "ui_engine.h"    // Makefile'da -I./core/ui olduğu için bu yeterli
+#include "anim_engine.h"  // Makefile'da -I./core/ui olduğu için bu yeterli
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL }; 
@@ -28,7 +29,6 @@ int main() {
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
     // 2. Kuantum motorunu yükle
-    // Not: Çalıştırma dizinine göre yolun doğruluğundan emin ol
     void *lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
     if (!lib) { 
         fprintf(stderr, "❌ [HATA]: Kuantum motoru yüklenemedi: %s\n", dlerror()); 
