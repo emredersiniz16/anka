@@ -8,7 +8,7 @@
  * Thread-safety: tüm paylaşılan durum g_collapse_mutex ile korunur.
  */
 
-#include "quantum/collapse_engine.h"
+#include "collapse_engine.h"
 
 #include <stdio.h>
 #include <string.h>
