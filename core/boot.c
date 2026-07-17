@@ -1,52 +1,66 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL - DÜZELTİLMİŞ)
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL - BİRLEŞTİRİLMİŞ)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
-// Makefile'da -I./core olduğu için yolu şu şekilde kısaltıyoruz:
+// Motorlar ve Donanım Katmanı
 #include "quantum/quantum_dust.h"
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
+#include "engines/ui_engine.h"
+#include "engines/anim_engine.h"
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL }; 
 
 int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
+
+    // 1. GÖLGE KATMAN BAŞLATMA (Animasyon Motoru İçin)
+    fb_context_t fb;
+    if (fb_open(&fb) == 0) {
+        // Uyanış sekansını çalıştır
+        anim_boot_run(&fb, &g_hal);
+    }
+
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
-    // 1. Kuantum motorunu yükle (Artık göreceli yolu düzeltiyoruz)
-    // Eğer binary ana dizindeyse yol şu şekilde olmalı:
+    // 2. Kuantum motorunu yükle
     void *lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
     if (!lib) { 
         fprintf(stderr, "❌ [HATA]: Kuantum motoru yüklenemedi: %s\n", dlerror()); 
         return -1; 
     }
 
-    // 2. Depo ve Motor Başlatma
+    // 3. Depo ve Motor Başlatma
     static qd_store_t dust;
     qd_init(&dust, "Note9_Merlin_FP", "KovanSecret_v1");
     collapse_init(&dust, &g_hal);
 
-    // 3. Sinek (FSM) Uyanışı
+    // 4. Sinek (FSM) Uyanışı
     static sinek_fsm_t sinek;
     sinek_fsm_init(&sinek, &dust, &g_hal);
     
     // Sinek'i uyanmaya zorla
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
-    // 4. Kovan ve Ağ
+    // 5. Kovan ve Ağ
     system("su -c 'python3 agents/sinek_nexus.py &' "); 
     
     printf("🎙️ [SİSTEM]: Anka OS Aktif, Kuantum Nabız Başlatıldı.\n");
 
-    // 5. YÜKSEK HIZLI NABIZ DÖNGÜSÜ
+    // 6. YÜKSEK HIZLI NABIZ DÖNGÜSÜ
     while(1) {
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
+        
+        // Buraya gerekirse anim_update_fly_state(&fb, state, scale) 
+        // eklenebilir ama şu an loop temiz kalsın dedik.
+        
         usleep(500000); 
     }
     
+    // fb_close(&fb); // Sonsuz döngüden çıkılırsa burası çalışır
     return 0;
 }
