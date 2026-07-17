@@ -1,6 +1,7 @@
-# Makefile - ANKA OS NİHAİ MÜHÜRLEME
+# Makefile - ANKA OS NİHAİ MÜHÜRLEME (Temizlenmiş)
 CC = gcc
 
+# Header yolları - ui klasörü eklendi
 CFLAGS = -Os -fPIC \
          -I. \
          -I./core \
@@ -16,7 +17,7 @@ QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
 
-# Grafik ve OTA dosyalarını buraya ekliyoruz (Dosya adlarını kontrol et!)
+# Kaynaklar
 SRC_BOOT = core/boot.c \
            core/hal/hal_core.c \
            core/hal/hal_loader.c \
@@ -41,10 +42,12 @@ all: $(QUANTUM_LIB) $(TARGET_BIN)
 
 $(QUANTUM_LIB): $(SRC_QUANTUM)
 	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
+	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
 
 $(TARGET_BIN): $(SRC_BOOT) $(QUANTUM_LIB)
 	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ $(QUANTUM_LDFLAGS) $(LDFLAGS)
-	@echo "🪰 [SYSTEM]: Mühürleme Başarılı. Binary Hazır."
+	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi (Binary Hazır)."
 
 clean:
-	rm -f $(TARGET_BIN) $(QUANTUM_LIB) core/quantum/*.o
+	rm -f $(TARGET_BIN) $(QUANTUM_LIB) core/quantum/*.o core/ui/*.o core/hal/*.o core/engines/*.o
+	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
