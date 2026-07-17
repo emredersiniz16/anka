@@ -1,15 +1,16 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL - BİRLEŞTİRİLMİŞ)
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL - DÜZELTİLMİŞ)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
 // Motorlar ve Donanım Katmanı
+// Makefile'da -I./core tanımlı olduğu için doğrudan dosya isimlerini yazıyoruz.
 #include "quantum/quantum_dust.h"
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
-#include "engines/ui_engine.h"
-#include "engines/anim_engine.h"
+#include "ui_engine.h"    // "engines/" prefix'i kaldırıldı
+#include "anim_engine.h"  // "engines/" prefix'i kaldırıldı
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL }; 
@@ -27,6 +28,7 @@ int main() {
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
     // 2. Kuantum motorunu yükle
+    // Not: Çalıştırma dizinine göre yolun doğruluğundan emin ol
     void *lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
     if (!lib) { 
         fprintf(stderr, "❌ [HATA]: Kuantum motoru yüklenemedi: %s\n", dlerror()); 
@@ -55,12 +57,8 @@ int main() {
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
         
-        // Buraya gerekirse anim_update_fly_state(&fb, state, scale) 
-        // eklenebilir ama şu an loop temiz kalsın dedik.
-        
         usleep(500000); 
     }
     
-    // fb_close(&fb); // Sonsuz döngüden çıkılırsa burası çalışır
     return 0;
 }
