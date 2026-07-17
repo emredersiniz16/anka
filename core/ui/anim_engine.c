@@ -71,6 +71,22 @@ int anim_fly_appear(fb_context_t *fb, AnkaHAL *hal, const char *image_path, int 
     
     return bmp_rc;
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+ * anim_boot_run — Varsayılan konfigürasyon ile tam boot sekansı.
+ * boot.c'nin çağırdığı giriş noktası. anim_boot_run_custom'a delege eder.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+int anim_boot_run(fb_context_t *fb, AnkaHAL *hal) {
+    anim_boot_config_t cfg = {
+        .fb             = fb,
+        .hal             = hal,
+        .text_scale      = 3,        /* 24×24 px karakter (1080p için) */
+        .line_delay_ms   = 250,      /* satırlar arası 250ms */
+        .post_delay_ms   = 1000,     /* terminal sonrası 1s bekle */
+        .vibrate_ms      = 400,      /* güçlü uyanış titreşimi */
+        .fly_image_path  = "assets/fly_icon.bmp",
+    };
+    return anim_boot_run_custom(&cfg);
+}
 
 int anim_boot_run_custom(const anim_boot_config_t *cfg) {
     fb_context_t *fb = cfg->fb;
