@@ -3,15 +3,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 
 // Motorlar ve Donanım Katmanı
-// Makefile'da -I./core ve -I./core/ui tanımlı olduğu için 
-// header'ları doğrudan isimleriyle çağırabiliriz.
 #include "quantum/quantum_dust.h"
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
-#include "ui_engine.h"    // Makefile'da -I./core/ui olduğu için bu yeterli
-#include "anim_engine.h"  // Makefile'da -I./core/ui olduğu için bu yeterli
+#include "ui_engine.h"
+#include "anim_engine.h"
+#include "hal/hal_core.h"
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL }; 
@@ -20,10 +20,11 @@ int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     // 1. GÖLGE KATMAN BAŞLATMA (Animasyon Motoru İçin)
-    fb_context_t fb;
-    if (fb_open(&fb) == 0) {
+    int fb_fd = open("/dev/fb0", O_RDWR);
+    if (fb_fd >= 0) {
         // Uyanış sekansını çalıştır
-        anim_boot_run(&fb, &g_hal);
+        anim_boot_run(fb_fd, &g_hal);
+        close(fb_fd);
     }
 
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
