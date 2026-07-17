@@ -1,4 +1,4 @@
-# Makefile - ANKA OS NİHAİ MÜHÜRLEME (Temizlenmiş)
+# Makefile - ANKA OS NİHAİ MÜHÜRLEME (Temizlenmiş + Magisk)
 CC = gcc
 
 # Header yolları - ui klasörü eklendi
@@ -47,6 +47,26 @@ $(TARGET_BIN): $(SRC_BOOT) $(QUANTUM_LIB)
 	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ $(QUANTUM_LDFLAGS) $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi (Binary Hazır)."
 
+# --- MAGISK MODÜLÜ OTOMASYONU ---
+magisk: all
+	@echo "🪰 [SYSTEM]: Magisk Modülü Hazırlanıyor..."
+	@mkdir -p magisk_module/system/bin
+	@mkdir -p magisk_module/system/lib
+	@mkdir -p magisk_module/system/anka_core/agents
+	@mkdir -p magisk_module/system/anka_core/assets
+	@cp magisk_template/module.prop magisk_module/
+	@cp magisk_template/service.sh magisk_module/
+	@cp $(TARGET_BIN) magisk_module/system/bin/anka_os_bin
+	@cp $(QUANTUM_LIB) magisk_module/system/lib/
+	@cp assets/fly_icon.bmp magisk_module/system/anka_core/assets/ 2>/dev/null || true
+	@cp agents/*.py magisk_module/system/anka_core/agents/ 2>/dev/null || true
+	@chmod -R 755 magisk_module
+	@chmod +x magisk_module/service.sh
+	@chmod +x magisk_module/system/bin/anka_os_bin
+	@cd magisk_module && zip -r ../AnkaOS_Quantum_v1.zip . > /dev/null
+	@rm -rf magisk_module
+	@echo "✅ [SYSTEM]: AnkaOS_Quantum_v1.zip Mühürlendi ve Flaşlanmaya Hazır!"
+
 clean:
-	rm -f $(TARGET_BIN) $(QUANTUM_LIB) core/quantum/*.o core/ui/*.o core/hal/*.o core/engines/*.o
+	rm -f $(TARGET_BIN) $(QUANTUM_LIB) core/quantum/*.o core/ui/*.o core/hal/*.o core/engines/*.o AnkaOS_Quantum_v1.zip
 	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
