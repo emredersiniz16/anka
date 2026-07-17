@@ -18,9 +18,7 @@ AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
 // Bunu main'in hemen üstüne ekle kanka:
 extern void ui_render(const char *last_message);
 
-int main() {
     // ...
-
 
 int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
