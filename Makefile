@@ -1,16 +1,17 @@
-# Makefile - ANKA OS NİHAİ ÇEKİRDEK MÜHÜRLEME
+# Makefile - ANKA OS NİHAİ ÇEKİRDEK MÜHÜRLEME (GÜNCEL)
 CC = gcc
 
-# Header yolları
+# Header yolları (core/ui eklendi)
 CFLAGS = -Os -fPIC \
          -I. \
          -I./core \
          -I./core/hal \
          -I./core/utils \
          -I./core/quantum \
-         -I./core/engines
+         -I./core/engines \
+         -I./core/ui
 
-# LDFLAGS: -lm (math kütüphanesi) eklendi (anim_engine için şart)
+# LDFLAGS
 LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm
 QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
 
@@ -18,13 +19,13 @@ QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
 
-# Kaynaklar (Tüm motorları kapsayacak şekilde genişletildi)
+# Kaynaklar (ui klasörü güncellendi)
 SRC_BOOT = core/boot.c \
            core/hal/hal_core.c \
            core/hal/hal_loader.c \
            core/hal/backends/backend_generic.c \
-           core/engines/ui_engine.c \
-           core/engines/anim_engine.c \
+           core/ui/ui_engine.c \
+           core/ui/anim_engine.c \
            core/engines/audio_engine.c \
            core/engines/fly_engine.c \
            core/engines/camera_engine.c \
