@@ -1,3 +1,5 @@
+#include "anka_env.h"
+#include "anka_env.h"
 // core/engines/gallery_engine.c
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,7 +40,7 @@ void load_gallery() {
 void show_current_photo() {
     if (total_photos == 0) {
         // Galeri boşsa ekrana şık bir yazı bas
-        system("clear");
+        anka_run_python("clear");
         printf("📂 [KÜTÜPHANE]: Henüz hiç fotoğraf çekilmemiş kanka!\n");
         return;
     }
@@ -46,7 +48,7 @@ void show_current_photo() {
     char cmd[512];
     // Linux'un en hafif görsel oynatıcısı 'fbi' ile fotoğrafı ekrana gömüyoruz.
     sprintf(cmd, "fbi -d /dev/fb0 -T 1 -noverbose -a %s > /dev/null 2>&1", photo_list[current_photo_index]);
-    system(cmd);
+    anka_run_python(cmd);
     
     printf("🖼️ [GALERİ]: %d/%d fotoğraf gösteriliyor: %s\n", current_photo_index + 1, total_photos, photo_list[current_photo_index]);
 }

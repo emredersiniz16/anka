@@ -1,3 +1,5 @@
+#include "anka_env.h"
+#include "anka_env.h"
 /*
  * core/engines/audio_engine.c
  * 🪰 ANKA OS - BİRLEŞTİRİLMİŞ SES MOTORU
@@ -59,14 +61,14 @@ void record_audio(int duration_seconds) {
     char cmd[256];
     printf("[DONANIM] Mikrofon aktif. %d saniye dinleniyor...\n", duration_seconds);
     sprintf(cmd, "arecord -D plughw:0,0 -d %d -f cd -t wav /data/local/tmp/anka_voice.wav > /dev/null 2>&1", duration_seconds);
-    system(cmd);
+    anka_run_python(cmd);
 }
 
 // 2. AĞIZ: Hoparlör oynatıcı
 void play_audio(const char* filepath) {
     char cmd[256];
     sprintf(cmd, "aplay %s > /dev/null 2>&1", filepath);
-    system(cmd);
+    anka_run_python(cmd);
 }
 
 // 3. SESLENDİR: Espeak (Metin -> Ses)
@@ -74,14 +76,14 @@ void speak(const char* text) {
     char cmd[512];
     printf("[DONANIM] Seslendiriliyor: %s\n", text);
     sprintf(cmd, "espeak -v tr \"%s\" --stdout | aplay > /dev/null 2>&1", text);
-    system(cmd);
+    anka_run_python(cmd);
 }
 
 // 4. UYANDIRMA: Vosk (Wake Word)
 int check_wake_word(const char* wav_path) {
     char cmd[512];
     sprintf(cmd, "vosk-transcriber --model small-model %s > /data/local/tmp/ses_sonuc.txt", wav_path);
-    system(cmd);
+    anka_run_python(cmd);
 
     FILE *fp = fopen("/data/local/tmp/ses_sonuc.txt", "r");
     if (fp) {

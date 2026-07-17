@@ -487,9 +487,10 @@ int fb_load_bmp(fb_context_t *fb, const char *path, int x, int y)
     uint16_t bmp_bpp        = read_u16le(&info_hdr[14]);
     uint32_t compression    = read_u32le(&info_hdr[16]);
 
-    if (compression != 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: Sıkıştırılmış BMP desteklenmiyor: %s\n",
-                path);
+    /* BI_BITFIELDS (3) teknik olarak sıkıştırılmış değil — sadece özel renk maskeleri */
+    if (compression != 0 && compression != 3) {
+        fprintf(stderr, "🪰 [GÖLGE]: Sıkıştırılmış BMP desteklenmiyor (comp=%u): %s\n",
+                (unsigned)compression, path);
         close(fd);
         return -1;
     }
@@ -628,9 +629,10 @@ int fb_load_bmp_centered(fb_context_t *fb, const char *path)
     uint16_t bmp_bpp      = read_u16le(&info_hdr[14]);
     uint32_t compression  = read_u32le(&info_hdr[16]);
 
-    if (compression != 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: Sıkıştırılmış BMP desteklenmiyor: %s\n",
-                path);
+    /* BI_BITFIELDS (3) teknik olarak sıkıştırılmış değil — sadece özel renk maskeleri */
+    if (compression != 0 && compression != 3) {
+        fprintf(stderr, "🪰 [GÖLGE]: Sıkıştırılmış BMP desteklenmiyor (comp=%u): %s\n",
+                (unsigned)compression, path);
         close(fd);
         return -1;
     }
@@ -865,3 +867,4 @@ int user_confirmed_evolution(void)
 {
     return 1;
 }
+

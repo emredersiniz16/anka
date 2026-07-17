@@ -1,11 +1,16 @@
 // boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL)
 // DÜZELTME: hal/hal_core.h → anka_hal.h, fb_open() kullanımı düzeltildi
+// DÜZELTME v2: system("python3") → anka_run_python_bg() (sh bypass)
+// DÜZELTME v2: SIGINT handler eklendi (temiz kapanış)
+// DÜZELTME v2: python3 başarısızsa uyarı + fallback
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <signal.h>
 
 // Motorlar ve Donanım Katmanı
+#include "anka_env.h"      // Termux python3 bridge (sh bypass)
 #include "quantum/quantum_dust.h"
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
@@ -15,16 +20,50 @@
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
-// Bunu main'in hemen üstüne ekle kanka:
+
 extern void ui_render(const char *last_message);
 
-    // ...
+// --- GLOBAL: çalışan ANKA OS durumu (sinyal handler için) ---
+static volatile sig_atomic_t g_running = 1;
+
+// --- SİNYAL HANDLER: SIGINT (Ctrl-C) → temiz kapanış ---
+static void sigint_handler(int sig)
+{
+    (void)sig;
+    g_running = 0;
+    fprintf(stderr, "\n🪰 [SİSTEM]: SIGINT alındı — temiz kapanış başlıyor...\n");
+}
+
+// --- SİNYAL HANDLER: SIGTERM (kill) → temiz kapanış ---
+static void sigterm_handler(int sig)
+{
+    (void)sig;
+    g_running = 0;
+    fprintf(stderr, "\n🪰 [SİSTEM]: SIGTERM alındı — kapanıyor...\n");
+}
 
 int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
 
+    // 0. SİNYAL HANDLER KURULUMU
+    struct sigaction sa_int;
+    memset(&sa_int, 0, sizeof(sa_int));
+    sa_int.sa_handler = sigint_handler;
+    sigemptyset(&sa_int.sa_mask);
+    sa_int.sa_flags = 0;
+    sigaction(SIGINT, &sa_int, NULL);
+
+    struct sigaction sa_term;
+    memset(&sa_term, 0, sizeof(sa_term));
+    sa_term.sa_handler = sigterm_handler;
+    sigemptyset(&sa_term.sa_mask);
+    sa_term.sa_flags = 0;
+    sigaction(SIGTERM, &sa_term, NULL);
+
+    // SIGPIPE'i yoksay (python3 alt processte pipe kırılırsa crash olmasın)
+    signal(SIGPIPE, SIG_IGN);
+
     // 1. GÖLGE KATMAN BAŞLATMA (Animasyon Motoru İçin)
-    // DÜZELTME: raw fd yerine fb_context_t kullan (anim_boot_run bunu bekler)
     fb_context_t fb;
     if (fb_open(&fb) == 0) {
         // Uyanış sekansını çalıştır
@@ -55,24 +94,44 @@ int main() {
     // Sinek'i uyanmaya zorla
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
-    // 5. Kovan ve Ağ
-    system("su -c 'python3 agents/sinek_nexus.py &' ");
+    // 5. Kovan ve Ağ — TERMUX PYTHON3 (sh bypass!)
+    // ESKİ (bozuk): system("su -c 'python3 agents/sinek_nexus.py &' ");
+    // YENİ: anka_run_python_bg() — /system/bin/sh devreye girmez
+    int py_rc = anka_run_python_bg("agents/sinek_nexus.py", NULL);
+    if (py_rc < 0) {
+        fprintf(stderr,
+                "⚠️ [SİNEK]: Python3 (sinek_nexus.py) başlatılamadı — "
+                "yerel modda devam ediliyor.\n");
+        sinek_fsm_handle_event(&sinek, SINEK_EVT_OFFLINE, NULL, 0);
+    } else {
+        fprintf(stderr, "🪰 [SİNEK]: sinek_nexus.py arka planda çalışıyor.\n");
+    }
 
     printf("🎙️ [SİSTEM]: Anka OS Aktif, Kuantum Nabız Başlatıldı.\n");
 
-    // 6. YÜKSEK HIZLI NABIZ DÖNGÜSÜ
-    while(1) {
+    // 6. YÜKSEK HIZLI NABIZ DÖNGÜSÜ — sinyal ile temiz kapanış
+    while (g_running) {
         // 1. Kuantum Nabzı (Arka plan zekası)
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
-        
-        // 2. ARAYÜZÜ EKRANA BAS (İşte OS'i telefonda gösterecek olan bu!)
+
+        // 2. ARAYÜZÜ EKRANA BAS
         ui_render("Sistem Senkronize... Kovan Dinleniyor.");
-        
+
         usleep(500000); // Yarım saniye bekle
     }
 
+    // 7. TEMİZ KAPANIŞ
+    fprintf(stderr, "🪰 [SİSTEM]: Kapanış — FSM ve motorlar temizleniyor...\n");
+    collapse_shutdown();
+    sinek_fsm_destroy(&sinek);
 
+    if (lib) {
+        dlclose(lib);
+        fprintf(stderr, "🪰 [SİSTEM]: Kuantum motoru (.so) kaldırıldı.\n");
+    }
+
+    fprintf(stderr, "🪰 [SİSTEM]: ANKA OS kapatıldı. Hoşça kal sinek.\n");
     return 0;
 }
 

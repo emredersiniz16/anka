@@ -1,8 +1,10 @@
 // core/engines/ota_engine.c - EVRİM VE OTA PROTOKOLÜ (FULL ENTEGRE)
+// DÜZELTME v2: system("su -c 'python3'") → anka_run_python_bg() (sh bypass)
 #include <stdio.h>
 #include <stdlib.h>
 // Yol güncellendi: engines klasöründen bir üst klasöre (core) bakıyor
 #include "../hardware_types.h" 
+#include "anka_env.h"   // Termux python3 bridge (sh bypass)
 
 extern DeviceHardware current_hardware;
 
@@ -32,9 +34,10 @@ void check_for_evolution() {
         if (user_confirmed_evolution()) { 
             printf("👉 [OTA]: Evrim başlatılıyor... Kovan yeniden yapılandırılıyor.\n");
             
-            // YOL GÜNCELLENDİ: Artık agents/ klasörüne bakıyor.
-            // .bin dosyanın bin/ klasöründe olduğunu varsayarak burayı bıraktım.
-            system("su -c 'python3 agents/evrim_motoru.py --payload universal_sinek.bin &'");
+            // ESKİ (bozuk): system("su -c 'python3 agents/evrim_motoru.py --payload ...&'");
+            // YENİ: anka_run_python_bg() — sh bypass
+            char *args[] = {"--payload", "universal_sinek.bin", NULL};
+            anka_run_python_bg("agents/evrim_motoru.py", args);
         } else {
             printf("👉 [OTA]: Evrim ertelendi. Mevcut bilinç korunuyor.\n");
         }
@@ -44,3 +47,5 @@ void check_for_evolution() {
     
     printf("=================================================\n");
 }
+
+

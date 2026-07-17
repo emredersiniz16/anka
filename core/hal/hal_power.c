@@ -1,3 +1,5 @@
+#include "anka_env.h"
+#include "anka_env.h"
 /* core/hal/hal_power.c
  * Anka OS — Kovan Mimarisi — Güç/Ağ İzleme Uygulaması
  */

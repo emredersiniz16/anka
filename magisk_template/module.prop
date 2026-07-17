@@ -1,0 +1,7 @@
+id=anka_os
+name=ANKA OS Bridge
+version=v1.0.0
+versionCode=100
+author=anka
+description=Termux python3 koprusu + boot servisi. sh bypass ile python3 cagrilarini Termux'a yonlendirir, ANKA OS'i her acilista baslatir.
+

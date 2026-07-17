@@ -6,7 +6,7 @@
 #include "quantum_dust.h"
 #include "../hal/anka_hal.h"
 
-#define MAX_RULES 32
+#define MAX_RULES 64
 
 typedef enum {
     COLLAPSE_TRIGGER_SENSOR  = 1,
@@ -54,3 +54,4 @@ int  collapse_fire(collapse_trigger_t trigger, const char *user_input, int input
 void collapse_get_stats(collapse_stats_t *out);
 
 #endif
+

@@ -1,0 +1,5 @@
+#!/sbin/sh
+ui_print "Anka OS Kuruluyor..."
+cp -r /tmp/system/* /system/
+ui_print "Mühürlendi!"
+exit 0

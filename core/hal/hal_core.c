@@ -1,3 +1,5 @@
+#include "anka_env.h"
+#include "anka_env.h"
 // core/hal/hal_core.c
 #include "anka_hal.h"
 #include <stdio.h>

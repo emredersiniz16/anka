@@ -25,7 +25,7 @@
  * Statik (global) motor durumu
  * ========================================================================= */
 
-#define MAX_RULES     32  /* maksimum çöküş kuralı sayısı */
+#define MAX_RULES     64  /* maksimum çöküş kuralı sayısı */
 
 static qd_store_t          *g_dust        = NULL;
 static AnkaHAL             *g_hal         = NULL;
@@ -478,3 +478,4 @@ void collapse_get_stats(collapse_stats_t *out)
     memcpy(out, &g_stats, sizeof(collapse_stats_t));
     pthread_mutex_unlock(&g_collapse_mutex);
 }
+
