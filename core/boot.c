@@ -5,12 +5,12 @@
 #include <dlfcn.h>
 
 // Motorlar ve Donanım Katmanı
-// Makefile'da -I./core tanımlı olduğu için doğrudan dosya isimlerini yazıyoruz.
+// Makefile'da -I./core tanımlı olduğu için, core klasörünün altındaki dizin yapısına göre çağırıyoruz.
 #include "quantum/quantum_dust.h"
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
-#include "ui_engine.h"    // "engines/" prefix'i kaldırıldı
-#include "anim_engine.h"  // "engines/" prefix'i kaldırıldı
+#include "ui/ui_engine.h"    // Dosyalar core/ui/ içindeyse bu yol doğru
+#include "ui/anim_engine.h"  // Dosyalar core/ui/ içindeyse bu yol doğru
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL }; 
