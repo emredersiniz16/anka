@@ -58,11 +58,16 @@ int main() {
 
     // 6. YÜKSEK HIZLI NABIZ DÖNGÜSÜ
     while(1) {
+        // 1. Kuantum Nabzı (Arka plan zekası)
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
-
-        usleep(500000);
+        
+        // 2. ARAYÜZÜ EKRANA BAS (İşte OS'i telefonda gösterecek olan bu!)
+        ui_render("Sistem Senkronize... Kovan Dinleniyor.");
+        
+        usleep(500000); // Yarım saniye bekle
     }
+
 
     return 0;
 }
