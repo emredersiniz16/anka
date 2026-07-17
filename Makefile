@@ -12,8 +12,7 @@ CFLAGS = -Os -fPIC \
          -I./core/ui
 
 LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm
-QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
-
+QUANTUM_LDFLAGS = -L./core/quantum -Wl,-rpath,$(PWD)/core/quantum -lanka_quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
 
