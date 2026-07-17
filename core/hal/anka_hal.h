@@ -1,17 +1,22 @@
 #ifndef ANKA_HAL_H
 #define ANKA_HAL_H
 
-#include <stdint.h> // uint8_t veri tipi için şart
+#include <stdint.h>
 
-// Sinek'in hangi cihazda (Note 9, J7 vb.) olursa olsun kullanacağı temel yetenekler
-// Fonksiyon işaretçileri ile donanım bağımsız mimari (True HAL)
+// Sinek'in donanım yetenekleri (HAL - Hardware Abstraction Layer)
 typedef struct {
     int (*vibrate)(int ms);
     int (*read_touch)(int *x, int *y);
     int (*speak)(const char* text);
-    int (*capture_camera)(const char* output_path); // Sinek'in en önemli donanımı (Kamera)
-    int (*set_brightness)(int level_0_255);         // Kuantum Çöküşü için parlaklık kontrolü (Eklendi)
-    int (*display_blit)(const uint8_t *buf, int width, int height); // Ham piksel yazma katmanı (Eklendi)
+    int (*capture_camera)(const char* output_path);
+    int (*set_brightness)(int level_0_255);
+    int (*display_blit)(const uint8_t *buf, int width, int height);
+    
+    // Hataları engellemek için eksik olan sensör üyelerini de ekledim:
+    int (*get_light_level)(float *lux_out);
+    int (*get_accel)(float *x, float *y, float *z);
+    
+    void *priv; // Donanım sürücüsünün özel verisi için
 } AnkaHAL;
 
 // Kovan'ın (veya Sinek'in) o an hangi donanımı "beden" olarak kullandığı
