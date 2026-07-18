@@ -3,7 +3,7 @@
 import asyncio
 import websockets
 import json
-import datetime
+from datetime import datetime
 
 # Aktif bağlantıları tutan sözlük
 aktif_sinekler = {}
@@ -21,7 +21,7 @@ def start_kovan_zihni():
     - Sistem sağlık kontrolü yapar
     - Skill'leri kaydeder
     """
-    zaman = datetime.datetime.now().strftime("%H:%M:%S")
+    zaman = datetime.now().strftime("%H:%M:%S")
     print(f"\n🧠 [KOVAN ZİHNİ]: Uyanıyor... ({zaman})")
     print( "🧠 [KOVAN ZİHNİ]: Ekosistem tarama başladı.")
     print(f"🧠 [KOVAN ZİHNİ]: Bağlı sinek sayısı: {len(aktif_sinekler)}")

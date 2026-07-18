@@ -152,7 +152,7 @@ class LLMBridge:
                 data=payload,
                 headers={
                     "Content-Type":  "application/json",
-                    "Authorization": f"******",
+                    "Authorization": f"Bearer {OPENAI_KEY}",
                 },
                 method="POST",
             )
