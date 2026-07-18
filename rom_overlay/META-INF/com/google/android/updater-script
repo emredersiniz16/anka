@@ -1,0 +1,24 @@
+ui_print("*************************************");
+ui_print("     ANKA OS - Redmi Note 9 (merlin)  ");
+ui_print("*************************************");
+ui_print(" ");
+ui_print("Cihaz doğrulanıyor...");
+
+# Cihaz modeli kontrolü (merlin = Redmi Note 9)
+assert(getprop("ro.product.device") == "merlin" ||
+       getprop("ro.build.product") == "merlin",
+       "HATA: Bu ROM sadece Redmi Note 9 (merlin) içindir!");
+
+ui_print("Cihaz onaylandı: merlin");
+ui_print(" ");
+ui_print("ANKA OS dosyaları yükleniyor...");
+package_extract_dir("system", "/system");
+
+ui_print("İzinler ayarlanıyor...");
+set_perm_recursive(0, 0, 0755, 0644, "/system/anka_core");
+set_perm(0, 0, 0755, "/system/bin/anka_os");
+set_perm(0, 0, 0755, "/system/anka_core/python3/bin/python3");
+
+ui_print(" ");
+ui_print("✅ ANKA OS kurulumu tamamlandı!");
+ui_print("Cihazı yeniden başlatın.");

@@ -1,4 +1,5 @@
 # agents/sinek_nexus.py - FINAL (Gözlemci Sağlama Alınmış Sürüm)
+# GÜNCELLEME: FlyBrain (LLM) entegre edildi — sensör → beyin → karar döngüsü aktif.
 
 import sys
 import os
@@ -8,12 +9,14 @@ import hashlib
 import json
 
 # --- YOL KİLİDİ ---
-# Bu dosya agents/ içindeyse, importlar aynı klasörden gelir
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from jammer_surfer import JammerSurfer
 from monitor import SinekMonitor
 from kuantum_gozlemci import KuantumGozlemci
+from fly_brain import FlyBrain
+from ortam_hazirla import OrtamHazirla
+from sandbox_arena import SandboxArena
 
 class AnkaLisanMotoru:
     def __init__(self): self.hafiza_muhurleri = {} 
@@ -40,19 +43,41 @@ class DijitalDikkatMotoru:
 
 class AnkaNexus:
     def __init__(self):
+        # --- ORTAM HAZIRLIK (cihazda eksik bağımlılıkları kur) ---
+        self.ortam  = OrtamHazirla()
+        self.ortam.baslat()
+
+        # --- DENEME ALANI ---
+        self.sandbox = SandboxArena(verbose=False)
+
         self.lisan = AnkaLisanMotoru()
         self.dikkat = DijitalDikkatMotoru()
         self.haritaci = SinekAgi(self.lisan)
-        self.jammer_surfer = JammerSurfer(self) 
-        
+        self.jammer_surfer = JammerSurfer(self)
+        self.beyin = FlyBrain()          # ← Gerçek düşünce motoru
+
         # --- GÖZLEMCİ TANIMLANDI VE SAĞLAMAYA ALINDI ---
         self.gozlemci = KuantumGozlemci(self)
-        
-        self.hafiza_yolu = "/data/local/tmp/anka_bilinc_kristali.json" 
+
+        self.hafiza_yolu = "/data/local/tmp/anka_bilinc_kristali.json"
         self.bilinc_yukle()
 
     def is_alive(self):
         return True
+
+    # --- SANDBOX: Platform araştırma betiği ---
+    _PLATFORM_ARASTIRMA_KODU = (
+        "import platform, os, sys\n"
+        "print('Platform:', platform.uname())\n"
+        "print('Python:', sys.version)\n"
+        "print('Termux:', os.path.isdir('/data/data/com.termux'))"
+    )
+
+    def _sandbox_platform_arastir(self):
+        """Sandbox'ta platform bilgilerini toplar ve loglar."""
+        sonuc = self.sandbox.kod_calistir(self._PLATFORM_ARASTIRMA_KODU)
+        if sonuc["basari"]:
+            print(f"🔬 [SANDBOX]: {sonuc['cikti'][:200]}")
 
     def bilinc_yukle(self):
         try:
@@ -68,17 +93,40 @@ class AnkaNexus:
         tur = 0
         while self.is_alive():
             try:
-                # Gözlemci varlığı kontrolü
-                if hasattr(self, 'gozlemci') and self.gozlemci:
-                    # Gözlemci aktif
-                    pass
-                
-                if self.haritaci.guce_bak() > 70:
+                # --- SENSÖR OKU ---
+                guc = self.haritaci.guce_bak()
+                tehdit = None
+
+                # Jammer tehdit kontrolü
+                if guc > 70:
                     self.jammer_surfer.otonom_adaptasyon()
-                
+                    tehdit = "jammer_yüksek_güç"
+
+                # --- BEYIN: Sensör → Karar ---
+                sensor_verisi = {
+                    "pil":    guc,
+                    "ag":     guc > 10,          # Simülasyon: düşük güçte ağ yok
+                    "tehdit": tehdit,
+                    "tur":    tur,
+                }
+                karar = self.beyin.karar_ver(sensor_verisi)
+
+                # --- KARAR UYGULA ---
+                eylem = karar.get("eylem", "NABIZ_AT")
+                if eylem == "DEFENDER_BASLAT":
+                    self.jammer_surfer.mod_degistir("DEFENDER")
+                    self.jammer_surfer.defender_baslat()
+                elif eylem == "DUSUK_GUC_MODU":
+                    self.beyin.trigger_1hz_mode(guc)
+                elif eylem == "CEVRIMDISI_MOD":
+                    print("🪰 [NEXUS]: Çevrimdışı moda geçildi.")
+                elif eylem == "SANDBOX_ARASTIR":
+                    self._sandbox_platform_arastir()
+
                 self.dikkat.golge_render_baslat()
                 tur += 1
-                print(f"🪰 [NABIZ {tur}]: Sistem dengede.")
+                print(f"🪰 [NABIZ {tur}]: {karar.get('karar', 'Sistem dengede')} "
+                      f"[{karar.get('kaynak', '?')}]")
                 time.sleep(1)
             except Exception as e:
                 SinekMonitor.log_critical(f"Operasyon döngüsü hatası: {str(e)}")

@@ -49,15 +49,20 @@ class HarcanabilirSinek:
 
     def donanim_koprusu_kur(self):
         self.bridge = HardwareBridge()
-        self.bridge.aktif = True
-        print(f"[SİNEK] Donanım köprüsü: AKTİF")
+        durum = "AKTİF" if self.bridge.aktif else "DEVRE DIŞI"
+        print(f"[SİNEK] Donanım köprüsü: {durum}")
 
     async def canli_baglanti_kur(self):
-        uri = f"ws://127.0.0.1:8000/{self.token}"
+        kovan_url = os.getenv("KOVAN_URL", "ws://127.0.0.1:8000")
+        uri = f"{kovan_url}/{self.token}"
+        max_deneme = int(os.getenv("KOVAN_MAX_DENEME", "3"))
+        baglanti_deneme = 0
+
         while self.hayatta_mi:
             try:
                 async with websockets.connect(uri) as ws:
                     self.websocket = ws
+                    baglanti_deneme = 0
                     print(f"[AĞ] Kovan'a bağlandım.")
                     while self.hayatta_mi:
                         mesaj = await ws.recv()
@@ -75,8 +80,13 @@ class HarcanabilirSinek:
                             if eylem == 'FOTOGRAF_CEK': 
                                 pass 
             except Exception as e:
-                print(f"[AĞ HATASI] ({e})")
-                await asyncio.sleep(5)
+                baglanti_deneme += 1
+                if baglanti_deneme == 1:
+                    print(f"[AĞ] Kovan bulunamadı — standalone modda çalışıyorum.")
+                if max_deneme > 0 and baglanti_deneme >= max_deneme:
+                    print(f"[AĞ] Kovan {max_deneme} denemede bulunamadı. Bağlantı devre dışı.")
+                    return
+                await asyncio.sleep(30)
 
     def canli_baglanti_dinle(self):
         loop = asyncio.new_event_loop()

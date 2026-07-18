@@ -19,6 +19,7 @@ extern void collapse_shutdown(void);
 #include "ui_engine.h"     // fb_context_t, fb_open, fb_close
 #include "anim_engine.h"   // anim_boot_run
 #include "anka_hal.h"      // AnkaHAL tipi
+#include "engines/tohum_engine.h" // SPRINT 3: tohum→filizlen→büzül döngüsü
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
@@ -88,6 +89,17 @@ int main() {
     static qd_store_t dust;
     qd_init(&dust, "Note9_Merlin_FP", "KovanSecret_v1");
     collapse_init(&dust, &g_hal);
+
+    // SPRINT 3: Tohum Motoru — Güç tuşu yaşam döngüsü
+    static tohum_ctx_t tohum;
+    tohum_init(&tohum);
+    tohum_skill_ekle(&tohum, "kisilik_motoru");
+    tohum_skill_ekle(&tohum, "jammer_surfer");
+    tohum_skill_ekle(&tohum, "kuantum_gozlemci");
+    tohum_skill_ekle(&tohum, "kovan_zihni");
+
+    // Güç tuşu → Anka uyanır → pencereler + skill'ler açılır
+    tohum_guc_tusu(&tohum);
 
     // 4. Sinek (FSM) Uyanışı
     static sinek_fsm_t sinek;
