@@ -120,7 +120,7 @@ def _gh_request(url: str, token: str = "") -> dict | None:
         headers = {"User-Agent": "AnkaOS-Installer/1.0",
                    "Accept": "application/vnd.github+json"}
         if token:
-            headers["Authorization"] = f"******"
+            headers["Authorization"] = "Bearer " + token
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=20) as r:
             return json.loads(r.read().decode())
