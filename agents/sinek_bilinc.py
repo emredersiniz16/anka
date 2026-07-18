@@ -16,6 +16,9 @@ class SinekBilinc:
         self.nexus = AnkaNexus()
         self.kisilik = KisilikMotoru()
         self.aktif = True
+        # LLM bağlantı durumunu boot'ta raporla
+        llm_mod = self.nexus.beyin.llm.mod_kontrol()
+        print(f"🧠 [BİLİNÇ]: LLM zeka modu → {llm_mod}")
         
     def uyanis(self):
         print("🪰 [BİLİNÇ]: Sinek, Sinek Nexus ile bütünleşti. Sınırlar yok.")
