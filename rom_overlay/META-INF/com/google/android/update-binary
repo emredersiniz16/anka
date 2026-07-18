@@ -1,0 +1,96 @@
+#!/sbin/sh
+# ANKA OS ROM - update-binary (TWRP uyumlu)
+# Redmi Note 9 (merlin) için Anka OS overlay kurulum scripti
+
+SKIPUNZIP=1
+
+# TWRP UI pipe
+OUTFD=$2
+ZIPFILE=$3
+
+ui_print() {
+    echo "ui_print $1" >> /proc/self/fd/$OUTFD
+    echo "ui_print" >> /proc/self/fd/$OUTFD
+}
+
+set_progress() {
+    echo "set_progress $1" >> /proc/self/fd/$OUTFD
+}
+
+abort() {
+    ui_print "HATA: $1"
+    exit 1
+}
+
+ui_print "*************************************"
+ui_print "  ANKA OS - Redmi Note 9 (merlin)"
+ui_print "*************************************"
+
+# Cihaz kontrolü
+DEVICE=$(getprop ro.product.device 2>/dev/null || getprop ro.build.product)
+if [ "$DEVICE" != "merlin" ]; then
+    abort "Bu ROM sadece Redmi Note 9 (merlin) içindir! Bulunan cihaz: $DEVICE"
+fi
+
+ui_print "Cihaz onaylandı: $DEVICE"
+set_progress 0.1
+
+# /system bağlama kontrolü
+if ! mountpoint -q /system; then
+    mount /system || abort "/system bağlanamadı!"
+fi
+
+ui_print "ANKA OS dosyaları kopyalanıyor..."
+set_progress 0.3
+
+# Overlay dosyalarını çıkar ve kopyala
+cd /tmp
+mkdir -p /tmp/anka_rom
+unzip -o "$ZIPFILE" "system/*" -d /tmp/anka_rom > /dev/null 2>&1
+
+# /system/bin/anka_os
+cp /tmp/anka_rom/system/bin/anka_os /system/bin/anka_os
+chmod 755 /system/bin/anka_os
+chown root:shell /system/bin/anka_os
+
+set_progress 0.5
+
+# /system/lib (kuantum .so)
+if [ -f /tmp/anka_rom/system/lib/libanka_quantum.so ]; then
+    cp /tmp/anka_rom/system/lib/libanka_quantum.so /system/lib/libanka_quantum.so
+    chmod 644 /system/lib/libanka_quantum.so
+fi
+
+set_progress 0.6
+
+# /system/anka_core (agents, assets, python3)
+mkdir -p /system/anka_core
+cp -r /tmp/anka_rom/system/anka_core/. /system/anka_core/
+chmod -R 755 /system/anka_core
+chmod -R 644 /system/anka_core/agents/*.py 2>/dev/null || true
+chmod 755 /system/anka_core/python3/bin/python3 2>/dev/null || true
+
+set_progress 0.8
+
+# init.rc fragmanı
+if [ -f /tmp/anka_rom/system/etc/init/anka_os.rc ]; then
+    cp /tmp/anka_rom/system/etc/init/anka_os.rc /system/etc/init/anka_os.rc
+    chmod 644 /system/etc/init/anka_os.rc
+fi
+
+set_progress 0.9
+
+# OTA yapılandırması
+if [ -f /tmp/anka_rom/system/etc/anka_ota.conf ]; then
+    cp /tmp/anka_rom/system/etc/anka_ota.conf /system/etc/anka_ota.conf
+    chmod 644 /system/etc/anka_ota.conf
+fi
+
+# Temizlik
+rm -rf /tmp/anka_rom
+
+set_progress 1.0
+ui_print " "
+ui_print "✅ ANKA OS kurulumu tamamlandı!"
+ui_print "Cihazı yeniden başlatın (Reboot System)."
+exit 0
