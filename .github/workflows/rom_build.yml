@@ -22,6 +22,8 @@ jobs:
   build-rom:
     name: ROM Derle & Paketele (merlin)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Kaynak Kodunu İndir
@@ -38,11 +40,16 @@ jobs:
       - name: ROM ZIP Oluştur
         run: make rom
 
+      - name: SHA256 Kontrol Dosyası Oluştur
+        run: sha256sum AnkaOS_ROM_merlin.zip > AnkaOS_ROM_merlin.zip.sha256
+
       - name: ROM Artifact Olarak Yükle
         uses: actions/upload-artifact@v4
         with:
           name: AnkaOS-ROM-merlin-${{ github.sha }}
-          path: AnkaOS_ROM_merlin.zip
+          path: |
+            AnkaOS_ROM_merlin.zip
+            AnkaOS_ROM_merlin.zip.sha256
           retention-days: 30
 
       - name: Sürüm Notunu Hazırla
@@ -66,7 +73,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: release_notes.md
-          files: AnkaOS_ROM_merlin.zip
+          files: |
+            AnkaOS_ROM_merlin.zip
+            AnkaOS_ROM_merlin.zip.sha256
           draft: false
           prerelease: false
         env:

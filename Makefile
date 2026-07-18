@@ -97,6 +97,6 @@ rom: all
 	@chmod 644 rom_build/system/etc/anka_ota.conf
 	@chmod +x rom_build/META-INF/com/google/android/update-binary
 	@# ZIP'i oluştur
-	@cd rom_build && zip -r ../$(ROM_ZIP) . > /dev/null
+	@cd rom_build && zip -r ../$(ROM_ZIP) . > /dev/null || (echo "❌ [ROM]: ZIP oluşturma başarısız!" && exit 1)
 	@rm -rf rom_build
 	@echo "✅ [ROM]: $(ROM_ZIP) hazır — TWRP ile flashlanabilir!"

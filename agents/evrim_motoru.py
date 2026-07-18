@@ -3,6 +3,7 @@ import subprocess
 import sys
 import os
 import json
+import hashlib
 try:
     import urllib.request as _urllib_req
 except ImportError:
@@ -115,17 +116,30 @@ def ota_github_guncelle(nexus=None):
 
     if kanal == "release":
         tag = veri.get("tag_name", "")
-        asset_urls = [a["browser_download_url"] for a in veri.get("assets", [])
-                      if a["name"].endswith(".zip")]
+        assets = veri.get("assets", [])
+        # ROM zip ve varsa SHA256 kontrol dosyasını bul
+        zip_assets = [a for a in assets if a["name"].endswith(".zip")]
+        sha256_assets = [a for a in assets if a["name"].endswith(".sha256")]
         print(f"[OTA] Mevcut sürüm etiket: {tag}")
-        if not asset_urls:
+        if not zip_assets:
             print("[OTA] Bu sürümde indirilebilecek ROM zip bulunamadı.")
             return False
-        rom_url = asset_urls[0]
+        rom_url = zip_assets[0]["browser_download_url"]
+        beklenen_sha256 = None
+        if sha256_assets:
+            try:
+                req_sha = _urllib_req.Request(
+                    sha256_assets[0]["browser_download_url"],
+                    headers={"User-Agent": "AnkaOS-OTA/1.0"})
+                with _urllib_req.urlopen(req_sha, timeout=10) as r:
+                    beklenen_sha256 = r.read().decode().strip().split()[0]
+            except Exception:
+                beklenen_sha256 = None
     else:
         sha = veri.get("sha", "")[:8]
         print(f"[OTA] main SHA: {sha}")
         rom_url = f"https://github.com/{repo}/archive/refs/heads/main.zip"
+        beklenen_sha256 = None
 
     # İndir
     zip_hedef = "/data/local/tmp/anka_ota_update.zip"
@@ -136,11 +150,25 @@ def ota_github_guncelle(nexus=None):
         print(f"[OTA] İndirme hatası: {hata}")
         return False
 
+    # SHA256 doğrulama
+    if beklenen_sha256:
+        h = hashlib.sha256()
+        with open(zip_hedef, "rb") as f:
+            for blok in iter(lambda: f.read(65536), b""):
+                h.update(blok)
+        hesaplanan = h.hexdigest()
+        if hesaplanan != beklenen_sha256:
+            print(f"[OTA] HATA: SHA256 uyuşmazlığı! Beklenen: {beklenen_sha256}, Hesaplanan: {hesaplanan}")
+            os.remove(zip_hedef)
+            return False
+        print(f"[OTA] SHA256 doğrulandı: {hesaplanan}")
+    else:
+        print("[OTA] UYARI: SHA256 kontrol dosyası bulunamadı, doğrulama atlandı.")
+
     print(f"[OTA] Güncelleme indirildi: {zip_hedef}")
     print("[OTA] Kurulum için cihazı TWRP moduna alın ve şu komutu çalıştırın:")
     print(f"      twrp install {zip_hedef}")
     return True
-
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--ota":
