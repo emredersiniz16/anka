@@ -15,6 +15,8 @@ from jammer_surfer import JammerSurfer
 from monitor import SinekMonitor
 from kuantum_gozlemci import KuantumGozlemci
 from fly_brain import FlyBrain
+from ortam_hazirla import OrtamHazirla
+from sandbox_arena import SandboxArena
 
 class AnkaLisanMotoru:
     def __init__(self): self.hafiza_muhurleri = {} 
@@ -41,6 +43,13 @@ class DijitalDikkatMotoru:
 
 class AnkaNexus:
     def __init__(self):
+        # --- ORTAM HAZIRLIK (cihazda eksik bağımlılıkları kur) ---
+        self.ortam  = OrtamHazirla()
+        self.ortam.baslat()
+
+        # --- DENEME ALANI ---
+        self.sandbox = SandboxArena(verbose=False)
+
         self.lisan = AnkaLisanMotoru()
         self.dikkat = DijitalDikkatMotoru()
         self.haritaci = SinekAgi(self.lisan)
@@ -97,6 +106,14 @@ class AnkaNexus:
                     self.beyin.trigger_1hz_mode(guc)
                 elif eylem == "CEVRIMDISI_MOD":
                     print("🪰 [NEXUS]: Çevrimdışı moda geçildi.")
+                elif eylem == "SANDBOX_ARASTIR":
+                    # Ajan, sorunu sandbox'ta araştırır
+                    self.sandbox.kod_calistir(
+                        "import platform, os, sys\n"
+                        "print('Platform:', platform.uname())\n"
+                        "print('Python:', sys.version)\n"
+                        "print('Termux:', os.path.isdir('/data/data/com.termux'))"
+                    )
 
                 self.dikkat.golge_render_baslat()
                 tur += 1
