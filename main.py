@@ -49,8 +49,8 @@ class HarcanabilirSinek:
 
     def donanim_koprusu_kur(self):
         self.bridge = HardwareBridge()
-        self.bridge.aktif = True
-        print(f"[SİNEK] Donanım köprüsü: AKTİF")
+        durum = "AKTİF" if self.bridge.aktif else "DEVRE DIŞI"
+        print(f"[SİNEK] Donanım köprüsü: {durum}")
 
     async def canli_baglanti_kur(self):
         uri = f"ws://127.0.0.1:8000/{self.token}"
