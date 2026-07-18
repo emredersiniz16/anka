@@ -10,6 +10,7 @@ on:
       - 'assets/**'
       - 'kovan/**'
       - 'rom_overlay/**'
+      - 'installer/**'
       - 'Makefile'
   workflow_dispatch:
     inputs:
@@ -80,3 +81,56 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-installer-exe:
+    name: Windows EXE Installer Derle
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Kaynak Kodunu İndir
+        uses: actions/checkout@v4
+
+      - name: Python Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: PyInstaller Kur
+        run: pip install pyinstaller
+
+      - name: EXE Derle
+        working-directory: installer
+        run: |
+          pyinstaller `
+            --onefile `
+            --windowed `
+            --name AnkaOS_Installer `
+            anka_installer.py
+
+      - name: EXE SHA256 Oluştur
+        working-directory: installer
+        run: |
+          $hash = (Get-FileHash dist\AnkaOS_Installer.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  AnkaOS_Installer.exe" | Out-File -Encoding utf8 AnkaOS_Installer.exe.sha256
+
+      - name: EXE Artifact Olarak Yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnkaOS-Installer-Windows-${{ github.sha }}
+          path: |
+            installer/dist/AnkaOS_Installer.exe
+            installer/AnkaOS_Installer.exe.sha256
+          retention-days: 30
+
+      - name: EXE'yi Release'e Ekle (etiket varsa)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installer/dist/AnkaOS_Installer.exe
+            installer/AnkaOS_Installer.exe.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
