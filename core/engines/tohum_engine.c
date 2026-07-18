@@ -83,7 +83,6 @@ static void filizlen_aksiyon(tohum_ctx_t *ctx)
                    i + 1,
                    ctx->skill_ler[i].isim,
                    ctx->skill_ler[i].durum);
-            ctx->skill_ler[i].durum[0] = '\0'; /* "AKTIF" yap */
             snprintf(ctx->skill_ler[i].durum, sizeof(ctx->skill_ler[i].durum), "AKTİF");
             usleep(80000);
         }

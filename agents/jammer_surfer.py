@@ -73,15 +73,15 @@ class JammerSurfer:
         self.tehdit_listesi.clear()
 
         # Simüle edilmiş tehdit tespiti
-        sahte_tehditler = [
+        simulasyon_tehditler = [
             {"ssid": "DEAUTH_AP_01",  "guc": -55, "tip": "DeAuth saldırısı"},
             {"ssid": "EVIL_TWIN_5G",  "guc": -72, "tip": "Kötü ikiz AP"},
             {"ssid": "PROBE_FLOOD",   "guc": -80, "tip": "Probe flood"},
         ]
-        for tehdit in sahte_tehditler:
+        for tehdit in simulasyon_tehditler:
             self.tehdit_listesi.append(tehdit)
             print(f"  📡 [TESPİT]: {tehdit['ssid']} | Güç: {tehdit['guc']} dBm | Tip: {tehdit['tip']}")
-            time.sleep(tarama_suresi / len(sahte_tehditler))
+            time.sleep(tarama_suresi / len(simulasyon_tehditler))
 
         print(f"📡 [RADAR]: Tarama tamamlandı. {len(self.tehdit_listesi)} tehdit bulundu.\n")
         return self.tehdit_listesi
