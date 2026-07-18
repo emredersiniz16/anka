@@ -418,8 +418,8 @@ class KuantumKopru:
 
     def fsm_handle_event(self, olay: int, veri: bytes | None = None) -> int:
         if self.mod == "GERCEK_C":
-            veri_ptr = (ctypes.c_char * len(veri))(*veri) if veri else None
-            veri_len = len(veri) if veri else 0
+            veri_ptr = (ctypes.c_char * len(veri))(*veri) if veri is not None else None
+            veri_len = len(veri) if veri is not None else 0
             return self._lib.sinek_fsm_handle_event(self._fsm_buf, olay, veri_ptr, veri_len)
         else:
             return self._sim_fsm.handle_event(olay)
