@@ -1,8 +1,11 @@
 # Makefile - ANKA OS NİHAİ MÜHÜRLEME (Temizlenmiş + Magisk)
-CC = gcc
+# Redmi Note 9 (merlin) ARM64 hedefi — çapraz derleme
+# Yerel geliştirme (x86_64) için: make CC=gcc
+CC = aarch64-linux-gnu-gcc
 
 # Header yolları - ui klasörü eklendi
 CFLAGS = -Os -fPIC \
+         -DHAVE_OPENSSL \
          -I. \
          -I./core \
          -I./core/hal \
@@ -12,7 +15,7 @@ CFLAGS = -Os -fPIC \
          -I./core/ui
 
 LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm
-QUANTUM_LDFLAGS = -L./core/quantum -Wl,-rpath,$(PWD)/core/quantum -lanka_quantum
+QUANTUM_LDFLAGS = -L./core/quantum -Wl,-rpath,/system/lib -lanka_quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
 
@@ -82,6 +85,8 @@ rom: all
 	@# Overlay'i çalışma dizinine kopyala
 	@rm -rf rom_build
 	@cp -r rom_overlay rom_build
+	@# Dizinleri güvence altına al
+	@mkdir -p rom_build/system/bin rom_build/system/lib
 	@# Derlenmiş binary ve kütüphaneyi ekle
 	@cp $(TARGET_BIN) rom_build/system/bin/anka_os
 	@cp $(QUANTUM_LIB) rom_build/system/lib/libanka_quantum.so
