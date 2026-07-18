@@ -31,7 +31,8 @@ SRC_BOOT = core/boot.c \
            core/engines/input_engine.c \
            core/engines/input_handler.c \
            core/engines/ota_engine.c \
-           core/engines/system_monitor.c
+           core/engines/system_monitor.c \
+           core/engines/tohum_engine.c
 
 SRC_QUANTUM = core/quantum/quantum_dust.c \
               core/quantum/collapse_engine.c \
