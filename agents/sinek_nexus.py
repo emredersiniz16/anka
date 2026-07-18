@@ -65,6 +65,20 @@ class AnkaNexus:
     def is_alive(self):
         return True
 
+    # --- SANDBOX: Platform araştırma betiği ---
+    _PLATFORM_ARASTIRMA_KODU = (
+        "import platform, os, sys\n"
+        "print('Platform:', platform.uname())\n"
+        "print('Python:', sys.version)\n"
+        "print('Termux:', os.path.isdir('/data/data/com.termux'))"
+    )
+
+    def _sandbox_platform_arastir(self):
+        """Sandbox'ta platform bilgilerini toplar ve loglar."""
+        sonuc = self.sandbox.kod_calistir(self._PLATFORM_ARASTIRMA_KODU)
+        if sonuc["basari"]:
+            print(f"🔬 [SANDBOX]: {sonuc['cikti'][:200]}")
+
     def bilinc_yukle(self):
         try:
             if os.path.exists(self.hafiza_yolu):
@@ -107,13 +121,7 @@ class AnkaNexus:
                 elif eylem == "CEVRIMDISI_MOD":
                     print("🪰 [NEXUS]: Çevrimdışı moda geçildi.")
                 elif eylem == "SANDBOX_ARASTIR":
-                    # Ajan, sorunu sandbox'ta araştırır
-                    self.sandbox.kod_calistir(
-                        "import platform, os, sys\n"
-                        "print('Platform:', platform.uname())\n"
-                        "print('Python:', sys.version)\n"
-                        "print('Termux:', os.path.isdir('/data/data/com.termux'))"
-                    )
+                    self._sandbox_platform_arastir()
 
                 self.dikkat.golge_render_baslat()
                 tur += 1

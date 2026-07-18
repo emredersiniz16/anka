@@ -35,9 +35,9 @@ _SANDBOX_KOKU = os.path.join(tempfile.gettempdir(), "anka_sandbox")
 _GECMIS_DOSYA = os.path.join(_SANDBOX_KOKU, "deney_gecmisi.json")
 
 # Güvenlik sınırları
-_MAX_SURE    = 30    # saniye — tek deney için
-_MAX_CIKTI   = 8192  # bayt  — stdout/stderr kırpma
-_MAX_GECMIS  = 100   # kaydedilen deney sayısı
+_MAX_SURE_SANIYE = 30    # saniye — tek deney için
+_MAX_CIKTI       = 8192  # bayt  — stdout/stderr kırpma
+_MAX_GECMIS      = 100   # kaydedilen deney sayısı
 
 
 class SandboxArena:
@@ -56,7 +56,7 @@ class SandboxArena:
     # 1. Kod çalıştırma
     # -----------------------------------------------------------------------
 
-    def kod_calistir(self, kod: str, timeout: int = _MAX_SURE) -> dict:
+    def kod_calistir(self, kod: str, timeout: int = _MAX_SURE_SANIYE) -> dict:
         """
         Verilen Python kodunu izole subprocess'te çalıştırır.
 
@@ -203,7 +203,7 @@ class SandboxArena:
     # 4. Kabuk komutu çalıştırma (salt okunur araçlar için)
     # -----------------------------------------------------------------------
 
-    def kabuk_calistir(self, komut: str, timeout: int = _MAX_SURE) -> dict:
+    def kabuk_calistir(self, komut: str, timeout: int = _MAX_SURE_SANIYE) -> dict:
         """
         Kabuk komutunu izole subprocess'te çalıştırır.
         Yalnızca bilgi toplama komutları için kullan (uname, cat, ls, vb.).
@@ -250,7 +250,11 @@ class SandboxArena:
             son_n: Döndürülecek en son N kayıt
 
         Returns:
-            List[dict]
+            List[dict]: Her kayıt şu alanları içerir:
+                - "tur"   (str):  Deney türü ("KOD", "PAKET", "FETCH", "KABUK")
+                - "girdi" (str):  Çalıştırılan kod/paket/URL/komut (kısaltılmış)
+                - "sonuc" (dict): Türe göre değişen çıktı
+                - "zaman" (str):  ISO 8601 zaman damgası
         """
         kayitlar = self.gecmis
         if tur:
