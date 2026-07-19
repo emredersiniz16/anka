@@ -1,9 +1,8 @@
-# Makefile - ANKA OS NİHAİ MÜHÜRLEME (Temizlenmiş + Magisk)
+# Makefile - ANKA OS NİHAİ MÜHÜRLEME (Statik Bağlama Modu)
 # Redmi Note 9 (merlin) ARM64 hedefi — çapraz derleme
-# Yerel geliştirme (x86_64) için: make CC=gcc
 CC = aarch64-linux-gnu-gcc
 
-# Header yolları - ui klasörü eklendi ve gereksiz uyarılar susturuldu
+# Header yolları ve uyarı yönetimi
 CFLAGS = -Os -fPIC \
          -DHAVE_OPENSSL \
          -Wno-unused-result \
@@ -15,8 +14,9 @@ CFLAGS = -Os -fPIC \
          -I./core/engines \
          -I./core/ui
 
+# Kütüphane bağımlılıkları
 LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm -lc
-QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
+QUANTUM_LDFLAGS = -L./core/quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
 
@@ -48,9 +48,10 @@ $(QUANTUM_LIB): $(SRC_QUANTUM)
 	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
 
+# STATİK BAĞLAMA: libanka_quantum artık binary içine gömülüyor
 $(TARGET_BIN): $(SRC_BOOT) $(QUANTUM_LIB)
-	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ $(QUANTUM_LDFLAGS) $(LDFLAGS)
-	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi (Binary Hazır)."
+	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ $(QUANTUM_LDFLAGS) -Wl,-Bstatic -lanka_quantum -Wl,-Bdynamic $(LDFLAGS)
+	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi (Statik Bağlama ile Binary Hazır)."
 
 # --- MAGISK MODÜLÜ OTOMASYONU ---
 magisk: all
@@ -78,32 +79,25 @@ clean:
 	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
 
 # --- ROM PAKETI (TWRP flashlanabilir .zip) ---
-# Redmi Note 9 (merlin) için tam sistem katmanı
 ROM_ZIP = AnkaOS_ROM_merlin.zip
 
 rom: all
 	@echo "🪰 [ROM]: Redmi Note 9 (merlin) ROM paketi hazırlanıyor..."
-	@# Overlay'i çalışma dizinine kopyala
 	@rm -rf rom_build
 	@cp -r rom_overlay rom_build
-	@# Dizinleri güvence altına al
 	@mkdir -p rom_build/system/bin rom_build/system/lib
-	@# Derlenmiş binary ve kütüphaneyi ekle
 	@cp $(TARGET_BIN) rom_build/system/bin/anka_os
 	@cp $(QUANTUM_LIB) rom_build/system/lib/libanka_quantum.so
-	@# Agent'ları ve asset'leri ekle
 	@mkdir -p rom_build/system/anka_core/agents rom_build/system/anka_core/assets
 	@cp agents/*.py rom_build/system/anka_core/agents/ 2>/dev/null || true
 	@cp assets/fly_icon.bmp rom_build/system/anka_core/assets/ 2>/dev/null || true
 	@cp assets/fly.bmp rom_build/system/anka_core/assets/ 2>/dev/null || true
-	@# İzinleri ayarla
 	@chmod -R 755 rom_build
 	@chmod 755 rom_build/system/bin/anka_os
 	@chmod 644 rom_build/system/lib/libanka_quantum.so
 	@chmod 644 rom_build/system/etc/init/anka_os.rc
 	@chmod 644 rom_build/system/etc/anka_ota.conf
 	@chmod +x rom_build/META-INF/com/google/android/update-binary
-	@# ZIP'i oluştur
 	@cd rom_build && zip -r ../$(ROM_ZIP) . > /dev/null || (echo "❌ [ROM]: ZIP oluşturma başarısız!" && exit 1)
 	@rm -rf rom_build
 	@echo "✅ [ROM]: $(ROM_ZIP) hazır — TWRP ile flashlanabilir!"
