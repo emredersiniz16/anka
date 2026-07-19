@@ -28,13 +28,13 @@ SRC_QUANTUM = core/quantum/quantum_dust.c core/quantum/collapse_engine.c \
 
 all: $(LIB_FILE) $(TARGET_BIN)
 
-# Kuantum motorunu derle (bağımlılıksız, temiz derleme)[span_1](start_span)[span_1](end_span)
+# Kuantum motorunu derle (LDFLAGS'i ekledik, bağımlılıklar çözüldü)[span_0](start_span)[span_0](end_span)
 $(LIB_FILE): $(SRC_QUANTUM)
 	@mkdir -p $(LIB_PATH)
-	$(CC) $(CFLAGS) -shared $^ -o $@
-	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
+	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
+	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) bağımlılıklarla mühürlendi."
 
-# Binary'yi --no-as-needed ile derle (undefined reference hatalarını önler)[span_2](start_span)[span_2](end_span)
+# Binary'yi --no-as-needed ile derle (tüm sembolleri zorla bağlar)[span_1](start_span)[span_1](end_span)
 $(TARGET_BIN): $(SRC_BOOT) $(LIB_FILE)
 	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ -L$(LIB_PATH) -Wl,--no-as-needed -lanka_quantum -Wl,-rpath,'$$ORIGIN' $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi."
