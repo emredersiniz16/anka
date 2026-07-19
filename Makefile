@@ -6,7 +6,7 @@ LIB_PATH = ./core/quantum
 LIB_FILE = $(LIB_PATH)/libanka_quantum.so
 TARGET_BIN = anka_os.bin
 
-# Derleme bayrakları: -Wno-error eklenerek uyarıların derlemeyi durdurması engellendi
+# Derleme bayrakları
 CFLAGS = -Os -fPIC -DHAVE_OPENSSL -Wno-unused-result -Wno-error \
          -I. -I./core -I./core/hal -I./core/utils \
          -I./core/quantum -I./core/engines -I./core/ui
@@ -28,15 +28,15 @@ SRC_QUANTUM = core/quantum/quantum_dust.c core/quantum/collapse_engine.c \
 
 all: $(LIB_FILE) $(TARGET_BIN)
 
-# Kuantum motorunu derle (bağımlılıkları ekledik ki linker hata vermesin)[span_1](start_span)[span_1](end_span)
+# Kuantum motorunu derle (bağımlılıksız, temiz derleme)[span_1](start_span)[span_1](end_span)
 $(LIB_FILE): $(SRC_QUANTUM)
 	@mkdir -p $(LIB_PATH)
-	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
-	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) başarıyla mühürlendi."
+	$(CC) $(CFLAGS) -shared $^ -o $@
+	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
 
-# Binary'yi kütüphane bağımlılığı ile derle
+# Binary'yi --no-as-needed ile derle (undefined reference hatalarını önler)[span_2](start_span)[span_2](end_span)
 $(TARGET_BIN): $(SRC_BOOT) $(LIB_FILE)
-	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ -L$(LIB_PATH) -lanka_quantum -Wl,-rpath,'$$ORIGIN' $(LDFLAGS)
+	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ -L$(LIB_PATH) -Wl,--no-as-needed -lanka_quantum -Wl,-rpath,'$$ORIGIN' $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi."
 
 # --- MAGISK MODÜLÜ OTOMASYONU ---
