@@ -3,9 +3,10 @@
 # Yerel geliştirme (x86_64) için: make CC=gcc
 CC = aarch64-linux-gnu-gcc
 
-# Header yolları - ui klasörü eklendi
+# Header yolları - ui klasörü eklendi ve gereksiz uyarılar susturuldu
 CFLAGS = -Os -fPIC \
          -DHAVE_OPENSSL \
+         -Wno-unused-result \
          -I. \
          -I./core \
          -I./core/hal \
@@ -14,8 +15,8 @@ CFLAGS = -Os -fPIC \
          -I./core/engines \
          -I./core/ui
 
-LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm
-QUANTUM_LDFLAGS = -L./core/quantum -Wl,-rpath,/system/lib -lanka_quantum
+LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm -lc
+QUANTUM_LDFLAGS = -L./core/quantum -lanka_quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
 
