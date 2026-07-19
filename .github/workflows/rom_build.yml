@@ -32,16 +32,13 @@ jobs:
 
       - name: Bağımlılıkları Kur
         run: |
-          sudo apt-get update -qq
           sudo dpkg --add-architecture arm64
-          # Restrict existing sources to amd64 so apt doesn't try to fetch
-          # arm64 packages from security.ubuntu.com (which doesn't serve them).
-          # Handle both DEB822 format (ubuntu.sources) and legacy format.
-          sudo sed -i 's/^Architectures:.*/Architectures: amd64/' \
-            /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || \
-            sudo sed -i '/^\(deb\|deb-src\) /{/\[arch/!s/^\(deb\|deb-src\) /\1 [arch=amd64] /}' \
-            /etc/apt/sources.list 2>/dev/null || true
-          # Add ports.ubuntu.com as the arm64 package source (DEB822 format)
+          
+          # Mevcut Ubuntu (amd64) depolarını sınırla ki arm64 ararken 404 vermesin
+          sudo sed -i 's/Types: deb/Types: deb\nArchitectures: amd64/' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || true
+          sudo sed -i '/^deb / s/^deb /deb [arch=amd64] /' /etc/apt/sources.list 2>/dev/null || true
+          
+          # ARM64 (Telefon) paketleri için doğru adresi (ports.ubuntu.com) sisteme tanıt
           printf '%s\n' \
             'Types: deb' \
             'URIs: http://ports.ubuntu.com/ubuntu-ports' \
@@ -50,10 +47,10 @@ jobs:
             'Architectures: arm64' \
             'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' \
             | sudo tee /etc/apt/sources.list.d/arm64-ports.sources > /dev/null
+          
+          # Listeyi güncelle ve çapraz derleyici araçlarını kur
           sudo apt-get update -qq
-          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip \
-            libssl-dev:arm64 || \
-          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip
+          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip libssl-dev:arm64
 
       - name: ANKA OS Derle
         run: make all
@@ -153,4 +150,3 @@ jobs:
             installer/AnkaOS_Installer.exe.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
