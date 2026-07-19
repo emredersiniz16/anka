@@ -28,11 +28,11 @@ SRC_QUANTUM = core/quantum/quantum_dust.c core/quantum/collapse_engine.c \
 
 all: $(LIB_FILE) $(TARGET_BIN)
 
-# Kuantum motorunu derle
+# Kuantum motorunu derle (LDFLAGS çıkarıldı, bağımlılıksız mühürleniyor)[span_2](start_span)[span_2](end_span)
 $(LIB_FILE): $(SRC_QUANTUM)
 	@mkdir -p $(LIB_PATH)
-	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
-	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
+	$(CC) $(CFLAGS) -shared $^ -o $@
+	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) bağımlılıksız mühürlendi."
 
 # Binary'yi kütüphane bağımlılığı ile derle
 $(TARGET_BIN): $(SRC_BOOT) $(LIB_FILE)
