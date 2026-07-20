@@ -1,20 +1,17 @@
-# ANKA OS - init.rc Servis Fragmanı
+# ANKA OS - init.rc Servis Fragmanı (Nihai Düzeltme)
 # /system/etc/init/anka_os.rc
-# Android init sistemi bu dosyayı otomatik olarak yükler.
-# Redmi Note 9 (merlin) için Anka OS çekirdeği boot servisi.
 
 on property:sys.boot_completed=1
     start anka_os
 
 service anka_os /system/bin/anka_os
-    class late_start
+    class main
     user root
-    group root system
-    seclabel u:r:shell:s0
-    disabled
+    group root system inet net_raw
+    seclabel u:r:su:s0
     oneshot
     writepid /dev/cpuset/foreground/tasks
 
-# Sinek çöküp yeniden başlarsa 10 saniye bekle
+# Sinek çökerse veya kapanırsa 5 saniye bekle ve yeniden dirilt
 on property:init.svc.anka_os=stopped
-    exec_background /system/bin/sh -c "sleep 10 && start anka_os"
+    exec_background /system/bin/sh -c "sleep 5 && start anka_os"
