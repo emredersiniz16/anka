@@ -10,7 +10,7 @@ CFLAGS = -Os -fPIC -DHAVE_OPENSSL -Wno-unused-result -Wno-error \
 
 LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm -lc
 
-# Tüm kaynaklar tek havuzda (Kuantum motoru dahil)
+# Tüm kaynaklar tek havuzda (Kuantum ve Dokunmatik motoru dahil)
 SRC_ALL = core/boot.c \
           core/hal/hal_core.c \
           core/hal/hal_loader.c \
@@ -27,6 +27,7 @@ SRC_ALL = core/boot.c \
           core/engines/ota_engine.c \
           core/engines/system_monitor.c \
           core/engines/tohum_engine.c \
+          core/touch_engine.c \
           core/quantum/quantum_dust.c \
           core/quantum/collapse_engine.c \
           core/quantum/sinek_fsm.c
