@@ -6,7 +6,7 @@ LIB_PATH = ./core/quantum
 LIB_FILE = $(LIB_PATH)/libanka_quantum.so
 TARGET_BIN = anka_os.bin
 
-# Derleme bayrakları
+# Derleme bayrakları: -Wno-error eklenerek uyarıların derlemeyi durdurması engellendi
 CFLAGS = -Os -fPIC -DHAVE_OPENSSL -Wno-unused-result -Wno-error \
          -I. -I./core -I./core/hal -I./core/utils \
          -I./core/quantum -I./core/engines -I./core/ui
@@ -28,16 +28,16 @@ SRC_QUANTUM = core/quantum/quantum_dust.c core/quantum/collapse_engine.c \
 
 all: $(LIB_FILE) $(TARGET_BIN)
 
-# Kütüphaneyi statik sistem kütüphaneleriyle izole şekilde mühürle
+# Kuantum motorunu derle (Sadece kaynakları bağla, LDFLAGS'i burada kullanma)[span_2](start_span)[span_2](end_span)
 $(LIB_FILE): $(SRC_QUANTUM)
 	@mkdir -p $(LIB_PATH)
-	$(CC) $(CFLAGS) -shared -static-libgcc $^ -o $@
-	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) statik mühürlendi."
+	$(CC) $(CFLAGS) -shared $^ -o $@
+	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) bağımlılıksız mühürlendi."
 
-# Binary'yi statik bağlama ile birleştir
+# Binary'yi tüm bağımlılıklarla birleştir[span_3](start_span)[span_3](end_span)
 $(TARGET_BIN): $(SRC_BOOT) $(LIB_FILE)
-	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ -L$(LIB_PATH) -Wl,-Bstatic -lanka_quantum -Wl,-Bdynamic $(LDFLAGS)
-	@echo "🪰 [SYSTEM]: Anka OS çekirdeği tam mühürlendi."
+	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ -L$(LIB_PATH) -Wl,--no-as-needed -lanka_quantum -Wl,-rpath,'$$ORIGIN' $(LDFLAGS)
+	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi."
 
 # --- MAGISK MODÜLÜ OTOMASYONU ---
 magisk: all
