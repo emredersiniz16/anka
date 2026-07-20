@@ -1,4 +1,8 @@
-#include "anka_env.h"
+/*
+ * core/touch_engine.c
+ * ANKA OS - DOKUNMATİK EKRAN MOTORU (Nihai Sürüm)
+ */
+
 #include "anka_env.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,16 +10,13 @@
 #include <fcntl.h>
 #include <linux/input.h>
 
-// ANKA OS: DOKUNMATİK EKRAN MOTORU
-// Cihazın ekranına yapılan fiziksel dokunuşları yakalar ve koordinatlara ayırır.
-
 int touch_fd = -1;
 int current_x = 0;
 int current_y = 0;
 
 // 1. Dokunmatik Sensörü Başlat
 int init_touch() {
-    // Redmi 10X 4G (Note 9) için dokunmatik panel donanım adresi: /dev/input/event4
+    // Redmi Note 9 (merlin) için dokunmatik panel donanım adresi: /dev/input/event4
     touch_fd = open("/dev/input/event4", O_RDONLY | O_NONBLOCK);
     if (touch_fd < 0) {
         printf("⚠️ [SİSTEM UYARISI]: Dokunmatik sensör (/dev/input/event4) şu an okunamıyor.\n");
@@ -23,6 +24,15 @@ int init_touch() {
     }
     printf("✅ [SENSÖR AKTİF]: Dokunmatik yüzey (/dev/input/event4) dinleniyor...\n");
     return 0;
+}
+
+// 1.5. Dokunmatik Sensörü Güvenli Kapatma (Kaynak Yönetimi)
+void close_touch() {
+    if (touch_fd >= 0) {
+        close(touch_fd);
+        touch_fd = -1;
+        printf("🛑 [SENSÖR]: Dokunmatik yüzey bağlantısı güvenle kapatıldı.\n");
+    }
 }
 
 // 2. Parmağın Ekrana Dokunduğu Anı ve Koordinatları Yakala
