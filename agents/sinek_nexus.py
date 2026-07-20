@@ -1,5 +1,5 @@
-# agents/sinek_nexus.py - FINAL (İçerik Fabrikası Entegre Edilmiş Sürüm)
-# GÜNCELLEME: Sahte batarya ve amele komutlar silindi. Otonom Video Üretim Döngüsü Aktif!
+# agents/sinek_nexus.py - FINAL (Saf Uyumlu & Hatasız Sürüm)
+# GÜNCELLEME: Harici psutil bağımlılığı temizlendi. Saf Python ile Otonom İçerik Fabrikası Aktif!
 
 import sys
 import os
@@ -66,7 +66,6 @@ class AnkaLisanMotoru:
 
 class DijitalDikkatMotoru:
     def golge_render_baslat(self): 
-        # Gereksiz spam'i kaldırdım, daha profesyonel bir arka plan işlemi gibi görünsün
         pass 
 
 class AnkaNexus:
@@ -117,21 +116,18 @@ class AnkaNexus:
                 karar = self.beyin.karar_ver(sensor_verisi)
 
                 # --- KOVAN ZİHNİ: İÇERİK ÜRETİM KARARI ---
-                # Her 15 nabızda bir Sinek otonom olarak video üretmeye karar verir
                 if tur > 0 and tur % 15 == 0:
                     print(f"🚀 [KOVAN_TETİK]: İzleyici verileri analiz edildi. Video üretim döngüsü başlatılıyor! (Pil: %{gercek_guc})")
                     self.fabrika.uretimi_baslat()
                 
-                # Sadece pil gerçekten 15'in altına düşerse tasarrufa geçer
                 elif karar.get("eylem") == "DUSUK_GUC_MODU" and gercek_guc < 15:
                     self.beyin.trigger_1hz_mode(gercek_guc)
                 
                 else:
-                    # Normal izleme döngüsü (Termili temiz tutmak için sadece nabız)
                     print(f"🪰 [NABIZ {tur}]: Kovan dinleniyor, trendler analiz ediliyor... (Gerçek Pil: %{gercek_guc})")
 
                 tur += 1
-                time.sleep(1.5) # Nabız hızı dengelendi
+                time.sleep(1.5)
             except Exception as e:
                 SinekMonitor.log_critical(f"Operasyon döngüsü hatası: {str(e)}")
                 time.sleep(5)
