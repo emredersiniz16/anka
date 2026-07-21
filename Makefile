@@ -96,12 +96,23 @@ rom: all
 	@cp agents/*.py rom_build/system/anka_core/agents/ 2>/dev/null || true
 	@cp assets/fly_icon.bmp rom_build/system/anka_core/assets/ 2>/dev/null || true
 	@cp assets/fly.bmp rom_build/system/anka_core/assets/ 2>/dev/null || true
+	@# Launcher APK (varsa)
+	@if [ -f rom_overlay/system/app/AnkaLauncher/AnkaLauncher.apk ]; then \
+		echo "🪰 [ROM]: Launcher APK ekleniyor..."; \
+		mkdir -p rom_build/system/app/AnkaLauncher; \
+		cp rom_overlay/system/app/AnkaLauncher/AnkaLauncher.apk rom_build/system/app/AnkaLauncher/; \
+	else \
+		echo "⚠️ [ROM]: Launcher APK bulunamadı, atlanıyor."; \
+	fi
 	@# İzinleri ayarla
 	@chmod -R 755 rom_build
 	@chmod 755 rom_build/system/bin/anka_os
 	@chmod 644 rom_build/system/lib/libanka_quantum.so
 	@chmod 644 rom_build/system/etc/init/anka_os.rc
 	@chmod 644 rom_build/system/etc/anka_ota.conf
+	@if [ -f rom_build/system/app/AnkaLauncher/AnkaLauncher.apk ]; then \
+		chmod 644 rom_build/system/app/AnkaLauncher/AnkaLauncher.apk; \
+	fi
 	@chmod +x rom_build/META-INF/com/google/android/update-binary
 	@# ZIP'i oluştur
 	@cd rom_build && zip -r ../$(ROM_ZIP) . > /dev/null || (echo "❌ [ROM]: ZIP oluşturma başarısız!" && exit 1)

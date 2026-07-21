@@ -2,9 +2,10 @@ package com.anka.os.launcher;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
 /**
@@ -23,11 +24,22 @@ public class LauncherActivity extends Activity {
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         );
-        getWindow().getDecorView().setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_FULLSCREEN |
-            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        );
+
+        // API 30+ için WindowInsetsController (minSdk 29, target 34)
+        WindowInsetsController insetsController = getWindow().getInsetsController();
+        if (insetsController != null) {
+            insetsController.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+            insetsController.setSystemBarsBehavior(
+                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            );
+        } else {
+            // API 29 fallback
+            getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            );
+        }
 
         setContentView(R.layout.activity_launcher);
 

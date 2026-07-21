@@ -41,7 +41,7 @@ if ! mountpoint -q /system; then
 fi
 
 ui_print "ANKA OS dosyaları kopyalanıyor..."
-set_progress 0.3
+set_progress 0.2
 
 # Overlay dosyalarını çıkar ve kopyala
 cd /tmp
@@ -53,7 +53,7 @@ cp /tmp/anka_rom/system/bin/anka_os /system/bin/anka_os
 chmod 755 /system/bin/anka_os
 chown root:shell /system/bin/anka_os
 
-set_progress 0.5
+set_progress 0.4
 
 # /system/lib (kuantum .so)
 if [ -f /tmp/anka_rom/system/lib/libanka_quantum.so ]; then
@@ -61,14 +61,37 @@ if [ -f /tmp/anka_rom/system/lib/libanka_quantum.so ]; then
     chmod 644 /system/lib/libanka_quantum.so
 fi
 
-set_progress 0.6
+set_progress 0.5
 
 # /system/anka_core (agents, assets, python3)
+ui_print "Anka Core ve Python3 kuruluyor..."
 mkdir -p /system/anka_core
 cp -r /tmp/anka_rom/system/anka_core/. /system/anka_core/
 chmod -R 755 /system/anka_core
 chmod -R 644 /system/anka_core/agents/*.py 2>/dev/null || true
-chmod 755 /system/anka_core/python3/bin/python3 2>/dev/null || true
+
+# Python3 binary izni
+if [ -f /system/anka_core/python3/bin/python3 ]; then
+    chmod 755 /system/anka_core/python3/bin/python3
+    ui_print "Python3 ARM64 kuruldu."
+else
+    ui_print "UYARI: Python3 bulunamadi — agents calislamaz."
+fi
+
+set_progress 0.65
+
+# Launcher APK kurulumu (/system/app/AnkaLauncher/)
+ui_print "Anka Launcher kuruluyor..."
+if [ -f /tmp/anka_rom/system/app/AnkaLauncher/AnkaLauncher.apk ]; then
+    mkdir -p /system/app/AnkaLauncher
+    cp /tmp/anka_rom/system/app/AnkaLauncher/AnkaLauncher.apk \
+       /system/app/AnkaLauncher/AnkaLauncher.apk
+    chmod 644 /system/app/AnkaLauncher/AnkaLauncher.apk
+    chown root:root /system/app/AnkaLauncher/AnkaLauncher.apk
+    ui_print "Launcher APK kuruldu — Ana ekran: Anka OS"
+else
+    ui_print "UYARI: Launcher APK bulunamadi."
+fi
 
 set_progress 0.8
 
@@ -92,5 +115,5 @@ rm -rf /tmp/anka_rom
 set_progress 1.0
 ui_print " "
 ui_print "✅ ANKA OS kurulumu tamamlandı!"
-ui_print "Cihazı yeniden başlatın (Reboot System)."
+ui_print "Yeniden baslatın → Ana ekran seciminde Anka OS secin."
 exit 0

@@ -47,7 +47,7 @@
         <service
             android:name=".AnkaService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse" />
 
     </application>
 </manifest>
