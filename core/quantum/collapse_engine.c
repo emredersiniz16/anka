@@ -111,8 +111,9 @@ static int execute_action(const collapse_rule_t *rule,
 
         case COLLAPSE_ACT_DISPLAY:
             if (g_hal->display_blit && pt_len > 0) {
-                /* plaintext: ham piksel veri (genişlik x yükseklik HAL'a bırakılmış) */
-                rc = g_hal->display_blit(plaintext, 0, 0);
+                /* ABI v2 uyumlu: dosya yolu veya veri, x, y, genişlik, yükseklik */
+                const char *img_path = (rule->action_text[0] != '\0') ? rule->action_text : "/tmp/anka_display.bmp";
+                rc = g_hal->display_blit(img_path, 0, 0, 1080, 2400);
                 fprintf(stderr,
                         "🪰 [ÇÖKÜŞ]: Ekrana yazıldı (%zu byte)\n", pt_len);
             }
@@ -478,4 +479,3 @@ void collapse_get_stats(collapse_stats_t *out)
     memcpy(out, &g_stats, sizeof(collapse_stats_t));
     pthread_mutex_unlock(&g_collapse_mutex);
 }
-
