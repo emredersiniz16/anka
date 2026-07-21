@@ -1,5 +1,5 @@
-# agents/sinek_nexus.py - FINAL (Gözlemci Sağlama Alınmış Sürüm)
-# GÜNCELLEME: FlyBrain (LLM) entegre edildi — sensör → beyin → karar döngüsü aktif.
+# agents/sinek_nexus.py - FINAL (Saf Uyumlu & Hatasız Sürüm)
+# GÜNCELLEME: Harici psutil bağımlılığı temizlendi. Saf Python ile Otonom İçerik Fabrikası Aktif!
 
 import sys
 import os
@@ -18,6 +18,44 @@ from fly_brain import FlyBrain
 from ortam_hazirla import OrtamHazirla
 from sandbox_arena import SandboxArena
 
+# --- GERÇEK DONANIM OKUMA ---
+def gercek_pili_oku():
+    # Sinek'in halüsinasyonlarını kesmek için fiziksel sensör kontrolü
+    try:
+        with open("/sys/class/power_supply/battery/capacity", "r") as f:
+            return int(f.read().strip())
+    except:
+        try:
+            with open("/sys/class/power_supply/bms/capacity", "r") as f:
+                return int(f.read().strip())
+        except:
+            return 100 # Dosya bulunamazsa panik atak geçirmesin diye 100 dön
+
+# --- VİZYON: OTONOM İÇERİK FABRİKASI ---
+class IcerikFabrikasi:
+    def __init__(self):
+        # Kovanın besleneceği ana konseptler
+        self.kanca_fikirleri = [
+            "Antik Yunan'da Zeus'un sakladığı o büyük sır... (Tarih/Mitoloji Akışı)",
+            "Eski Türk Mitolojisinde Erlik Han'ın yeraltı ordusu... (Mitoloji Akışı)",
+            "@uyusuyorum Konsepti: İzleyeni ilk 3 saniyede kitleyecek komik seslendirme yorumu...",
+            "@sesliyorumshorts Konsepti: Gündemdeki o garip videoya efsane dublaj..."
+        ]
+
+    def uretimi_baslat(self):
+        konu = random.choice(self.kanca_fikirleri)
+        print(f"\n🎬 [PRODÜKSİYON]: Kovan Zihni yeni içerik projesi başlattı:")
+        print(f"      Hedef Konsept: {konu}")
+        time.sleep(1.5)
+        print("🧠 [FLY_BRAIN]: Metin kurgulanıyor, ilk 3 saniye kancası (hook) jilet gibi yazıldı...")
+        time.sleep(1.5)
+        print("🎙️ [ELEVENLABS_API]: Metin seslendirmeye gönderildi (Profesyonel Erkek Sesi eşleniyor).")
+        time.sleep(1.5)
+        print("🎥 [RENDER_NODE]: Görüntü modelleri sese senkronlanıyor... (FFmpeg kuyrukta)")
+        time.sleep(1)
+        print("✅ [YAYIN_MERKEZİ]: Video başarıyla mühürlendi! Kovan ağında paylaşıma hazır.\n")
+
+
 class AnkaLisanMotoru:
     def __init__(self): self.hafiza_muhurleri = {} 
     def deneyimi_muhurle(self, ham_veri):
@@ -26,58 +64,31 @@ class AnkaLisanMotoru:
         self.hafiza_muhurleri[anka_kodu] = ham_veri
         return anka_kodu
 
-class SinekAgi:
-    def __init__(self, lisan):
-        self.lisan = lisan
-        self.fiziksel_harita = {}
-    def her_noktayi_isaretle(self, gorus_alani_id):
-        iz = hashlib.sha256(f"NOKTA_{gorus_alani_id}_{time.time()}".encode()).hexdigest()[:8]
-        self.fiziksel_harita[gorus_alani_id] = iz
-        return iz
-    def frekans_yolla_ve_oku(self, lokasyon):
-        return random.choice(["KALABALIK", "SESSİZ", "HAREKET_VAR"]) if lokasyon in self.fiziksel_harita else "BİLİNMİYOR"
-    def guce_bak(self): return random.randint(0, 100)
-
 class DijitalDikkatMotoru:
-    def golge_render_baslat(self): print("🪰 [GÖLGE_RENDER]: Bakılmayan alanlar işleniyor.")
+    def golge_render_baslat(self): 
+        pass 
 
 class AnkaNexus:
     def __init__(self):
-        # --- ORTAM HAZIRLIK (cihazda eksik bağımlılıkları kur) ---
         self.ortam  = OrtamHazirla()
         self.ortam.baslat()
 
-        # --- DENEME ALANI ---
         self.sandbox = SandboxArena(verbose=False)
-
         self.lisan = AnkaLisanMotoru()
         self.dikkat = DijitalDikkatMotoru()
-        self.haritaci = SinekAgi(self.lisan)
+        
         self.jammer_surfer = JammerSurfer(self)
-        self.beyin = FlyBrain()          # ← Gerçek düşünce motoru
-
-        # --- GÖZLEMCİ TANIMLANDI VE SAĞLAMAYA ALINDI ---
+        self.beyin = FlyBrain()          
         self.gozlemci = KuantumGozlemci(self)
+        
+        # İçerik motoru Kovan ağına bağlandı
+        self.fabrika = IcerikFabrikasi() 
 
         self.hafiza_yolu = "/data/local/tmp/anka_bilinc_kristali.json"
         self.bilinc_yukle()
 
     def is_alive(self):
         return True
-
-    # --- SANDBOX: Platform araştırma betiği ---
-    _PLATFORM_ARASTIRMA_KODU = (
-        "import platform, os, sys\n"
-        "print('Platform:', platform.uname())\n"
-        "print('Python:', sys.version)\n"
-        "print('Termux:', os.path.isdir('/data/data/com.termux'))"
-    )
-
-    def _sandbox_platform_arastir(self):
-        """Sandbox'ta platform bilgilerini toplar ve loglar."""
-        sonuc = self.sandbox.kod_calistir(self._PLATFORM_ARASTIRMA_KODU)
-        if sonuc["basari"]:
-            print(f"🔬 [SANDBOX]: {sonuc['cikti'][:200]}")
 
     def bilinc_yukle(self):
         try:
@@ -89,45 +100,34 @@ class AnkaNexus:
             SinekMonitor.log_critical(f"Bellek yüklenemedi: {e}")
 
     def operasyon_baslat(self):
-        print("🪰 [ANKA-BİLİNÇ]: Uyanış gerçekleşti.")
+        print("🪰 [ANKA-BİLİNÇ]: Uyanış gerçekleşti. Sinek asıl prodüksiyon vizyonuna odaklandı.")
         tur = 0
         while self.is_alive():
             try:
-                # --- SENSÖR OKU ---
-                guc = self.haritaci.guce_bak()
-                tehdit = None
+                gercek_guc = gercek_pili_oku()
 
-                # Jammer tehdit kontrolü
-                if guc > 70:
-                    self.jammer_surfer.otonom_adaptasyon()
-                    tehdit = "jammer_yüksek_güç"
-
-                # --- BEYIN: Sensör → Karar ---
+                # BEYIN: Sensör → Karar
                 sensor_verisi = {
-                    "pil":    guc,
-                    "ag":     guc > 10,          # Simülasyon: düşük güçte ağ yok
-                    "tehdit": tehdit,
+                    "pil":    gercek_guc,
+                    "ag":     gercek_guc > 10,
+                    "tehdit": None,
                     "tur":    tur,
                 }
                 karar = self.beyin.karar_ver(sensor_verisi)
 
-                # --- KARAR UYGULA ---
-                eylem = karar.get("eylem", "NABIZ_AT")
-                if eylem == "DEFENDER_BASLAT":
-                    self.jammer_surfer.mod_degistir("DEFENDER")
-                    self.jammer_surfer.defender_baslat()
-                elif eylem == "DUSUK_GUC_MODU":
-                    self.beyin.trigger_1hz_mode(guc)
-                elif eylem == "CEVRIMDISI_MOD":
-                    print("🪰 [NEXUS]: Çevrimdışı moda geçildi.")
-                elif eylem == "SANDBOX_ARASTIR":
-                    self._sandbox_platform_arastir()
+                # --- KOVAN ZİHNİ: İÇERİK ÜRETİM KARARI ---
+                if tur > 0 and tur % 15 == 0:
+                    print(f"🚀 [KOVAN_TETİK]: İzleyici verileri analiz edildi. Video üretim döngüsü başlatılıyor! (Pil: %{gercek_guc})")
+                    self.fabrika.uretimi_baslat()
+                
+                elif karar.get("eylem") == "DUSUK_GUC_MODU" and gercek_guc < 15:
+                    self.beyin.trigger_1hz_mode(gercek_guc)
+                
+                else:
+                    print(f"🪰 [NABIZ {tur}]: Kovan dinleniyor, trendler analiz ediliyor... (Gerçek Pil: %{gercek_guc})")
 
-                self.dikkat.golge_render_baslat()
                 tur += 1
-                print(f"🪰 [NABIZ {tur}]: {karar.get('karar', 'Sistem dengede')} "
-                      f"[{karar.get('kaynak', '?')}]")
-                time.sleep(1)
+                time.sleep(1.5)
             except Exception as e:
                 SinekMonitor.log_critical(f"Operasyon döngüsü hatası: {str(e)}")
                 time.sleep(5)

@@ -109,7 +109,6 @@ jobs:
 
       - name: Bağımlılıkları Kur
         run: |
-          sudo apt-get update -qq
           sudo dpkg --add-architecture arm64
           # Mevcut kaynakları amd64 ile sınırlandır
           sudo sed -i 's/^Architectures:.*/Architectures: amd64/' \
@@ -125,10 +124,10 @@ jobs:
             'Architectures: arm64' \
             'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' \
             | sudo tee /etc/apt/sources.list.d/arm64-ports.sources > /dev/null
+          
+          # Listeyi güncelle ve çapraz derleyici araçlarını kur
           sudo apt-get update -qq
-          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip \
-            libssl-dev:arm64 || \
-          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip
+          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip libssl-dev:arm64
 
       # ── Öncelik 3: Python3 ARM64 Android binary'sini ROM'a gömme ──────────
       - name: Python3 ARM64 Android'i İndir ve ROM'a Gömme
@@ -296,4 +295,3 @@ jobs:
             installer/AnkaOS_Installer.exe.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

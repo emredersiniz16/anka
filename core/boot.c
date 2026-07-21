@@ -1,14 +1,10 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL)
-// DÜZELTME: hal/hal_core.h → anka_hal.h, fb_open() kullanımı düzeltildi
-// DÜZELTME v2: system("python3") → anka_run_python_bg() (sh bypass)
-// DÜZELTME v2: SIGINT handler eklendi (temiz kapanış)
-// DÜZELTME v2: python3 başarısızsa uyarı + fallback
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL + TOUCH INTEGRATED)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
 #include <signal.h>
-
+#include <string.h>
 
 // Motorlar ve Donanım Katmanı
 #include "anka_env.h"      // Termux python3 bridge (sh bypass)
@@ -20,6 +16,7 @@ extern void collapse_shutdown(void);
 #include "anim_engine.h"   // anim_boot_run
 #include "anka_hal.h"      // AnkaHAL tipi
 #include "engines/tohum_engine.h" // SPRINT 3: tohum→filizlen→büzül döngüsü
+#include "touch_engine.h"  // GERÇEK DOKUNMATİK SENSÖR MOTORU
 
 // --- HAL MOCK ---
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
@@ -78,10 +75,16 @@ int main() {
 
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
+    // 1.5. GERÇEK DOKUNMATİK SENSÖRÜ BAŞLAT (/dev/input/event4)
+    if (init_touch() < 0) {
+        fprintf(stderr, "⚠️ [DOKUNMATİK]: Sensör başlatılamadı, dokunmatik girdiler pasif.\n");
+    }
+
     // 2. Kuantum motorunu yükle
     void *lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
     if (!lib) {
         fprintf(stderr, "❌ [HATA]: Kuantum motoru yüklenemedi: %s\n", dlerror());
+        close_touch();
         return -1;
     }
 
@@ -109,8 +112,6 @@ int main() {
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
     // 5. Kovan ve Ağ — TERMUX PYTHON3 (sh bypass!)
-    // ESKİ (bozuk): system("su -c 'python3 agents/sinek_nexus.py &' ");
-    // YENİ: anka_run_python_bg() — /system/bin/sh devreye girmez
     int py_rc = anka_run_python_bg("agents/sinek_nexus.py", NULL);
     if (py_rc < 0) {
         fprintf(stderr,
@@ -121,22 +122,31 @@ int main() {
         fprintf(stderr, "🪰 [SİNEK]: sinek_nexus.py arka planda çalışıyor.\n");
     }
 
-    printf("🎙️ [SİSTEM]: Anka OS Aktif, Kuantum Nabız Başlatıldı.\n");
+    printf("🎙️ [SİSTEM]: Anka OS Aktif, Kuantum Nabız ve Dokunmatik Dinleme Başlatıldı.\n");
 
-    // 6. YÜKSEK HIZLI NABIZ DÖNGÜSÜ — sinyal ile temiz kapanış
+    // 6. YÜKSEK HIZLI NABIZ VE DOKUNMATİK DÖNGÜSÜ
+    int touch_x = 0, touch_y = 0;
     while (g_running) {
-        // 1. Kuantum Nabzı (Arka plan zekası)
+        // 1. Gerçek Dokunmatik Girdilerini Kontrol Et
+        if (get_touch_event(&touch_x, &touch_y)) {
+            fprintf(stderr, "👆 [DOKUNMA TESPİT EDİLDİ]: X=%d, Y=%d\n", touch_x, touch_y);
+            // Sinek dokunmaya karşı uyandırıcı/tepkisel FSM olayını tetikler
+            sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, &touch_x, sizeof(touch_x));
+        }
+
+        // 2. Kuantum Nabzı (Arka plan zekası)
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
 
-        // 2. ARAYÜZÜ EKRANA BAS
-        ui_render("Sistem Senkronize... Kovan Dinleniyor.");
+        // 3. ARAYÜZÜ EKRANA BAS
+        ui_render("Sistem Senkronize... Dokunmatik Dinleniyor.");
 
-        usleep(500000); // Yarım saniye bekle
+        usleep(50000); // 50ms döngü hızı (dokunmatik tepki süresi optimize edildi)
     }
 
     // 7. TEMİZ KAPANIŞ
     fprintf(stderr, "🪰 [SİSTEM]: Kapanış — FSM ve motorlar temizleniyor...\n");
+    close_touch(); // Dokunmatik kaynaklarını serbest bırak
     collapse_shutdown();
     sinek_fsm_destroy(&sinek);
 
@@ -148,4 +158,3 @@ int main() {
     fprintf(stderr, "🪰 [SİSTEM]: ANKA OS kapatıldı. Hoşça kal sinek.\n");
     return 0;
 }
-
