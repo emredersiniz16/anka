@@ -3,8 +3,22 @@ pluginManagement {
         google()
         mavenCentral()
         // Mirror/fallback repositories for regional access issues
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven {
+            url = uri('https://maven.aliyun.com/repository/google')
+            content {
+                includeGroupByRegex('com\\.android(\\..*)?')
+                includeGroupByRegex('androidx(\\..*)?')
+                includeGroupByRegex('com\\.google(\\..*)?')
+            }
+        }
+        maven {
+            url = uri('https://maven.aliyun.com/repository/public')
+            content {
+                includeGroupByRegex('com\\.android(\\..*)?')
+                includeGroupByRegex('androidx(\\..*)?')
+                includeGroupByRegex('com\\.google(\\..*)?')
+            }
+        }
         gradlePluginPortal()
     }
     resolutionStrategy {
@@ -17,13 +31,27 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(org.gradle.api.initialization.resolve.RepositoriesMode.PREFER_SETTINGS)
+    repositoriesMode.set(org.gradle.api.initialization.resolve.RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
         // Mirror/fallback repositories for regional access issues
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven {
+            url = uri('https://maven.aliyun.com/repository/google')
+            content {
+                includeGroupByRegex('com\\.android(\\..*)?')
+                includeGroupByRegex('androidx(\\..*)?')
+                includeGroupByRegex('com\\.google(\\..*)?')
+            }
+        }
+        maven {
+            url = uri('https://maven.aliyun.com/repository/public')
+            content {
+                includeGroupByRegex('com\\.android(\\..*)?')
+                includeGroupByRegex('androidx(\\..*)?')
+                includeGroupByRegex('com\\.google(\\..*)?')
+            }
+        }
     }
 }
 
