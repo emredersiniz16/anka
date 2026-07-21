@@ -32,11 +32,26 @@ jobs:
 
       - name: Bağımlılıkları Kur
         run: |
-          sudo apt-get update -qq
           sudo dpkg --add-architecture arm64
+          
+          # Ubuntu depolarını amd64 ile sınırlandır
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i '/Types: deb/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+          fi
+          sudo sed -i '/^\(deb\|deb-src\) /{/\[arch/!s/^\(deb\|deb-src\) /\1 [arch=amd64] /}' /etc/apt/sources.list 2>/dev/null || true
+
+          # ARM64 için ports kaynağını ekle (security çakışmasını önler)
+          printf '%s\n' \
+            'Types: deb' \
+            'URIs: http://ports.ubuntu.com/ubuntu-ports' \
+            'Suites: noble noble-updates noble-security noble-backports' \
+            'Components: main restricted universe multiverse' \
+            'Architectures: arm64' \
+            'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' \
+            | sudo tee /etc/apt/sources.list.d/arm64-ports.sources > /dev/null
+
           sudo apt-get update -qq
-          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip \
-            libssl-dev:arm64 || \
+          sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip libssl-dev:arm64 || \
           sudo apt-get install -y gcc gcc-aarch64-linux-gnu zip
 
       - name: ANKA OS Derle
@@ -137,4 +152,3 @@ jobs:
             installer/AnkaOS_Installer.exe.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
