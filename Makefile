@@ -1,7 +1,7 @@
 # Makefile - ANKA OS NİHAİ MÜHÜRLEME (Temizlenmiş + Magisk)
 # Redmi Note 9 (merlin) ARM64 hedefi — çapraz derleme
 # Yerel geliştirme (x86_64) için: make CC=gcc
-CC = aarch64-linux-gnu-gcc
+CC = clang
 
 # Header yolları - ui klasörü eklendi
 CFLAGS = -Os -fPIC \
