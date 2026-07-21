@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Anka OS sinek simgesi (vektör).
+    Siyah arka plan üzerine cyan renk sinek.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Siyah arka plan -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+
+    <!-- Gövde -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,38 C50,38 47,41 47,45 L47,63 C47,67 50,70 54,70 C58,70 61,67 61,63 L61,45 C61,41 58,38 54,38 Z" />
+
+    <!-- Baş -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,28 C50,28 47,31 47,35 C47,39 50,42 54,42 C58,42 61,39 61,35 C61,31 58,28 54,28 Z" />
+
+    <!-- Sol kanat -->
+    <path
+        android:fillColor="#00E5FF"
+        android:fillAlpha="0.7"
+        android:pathData="M47,46 C40,42 28,40 22,46 C16,52 20,62 30,60 L47,55 Z" />
+
+    <!-- Sağ kanat -->
+    <path
+        android:fillColor="#00E5FF"
+        android:fillAlpha="0.7"
+        android:pathData="M61,46 C68,42 80,40 86,46 C92,52 88,62 78,60 L61,55 Z" />
+
+    <!-- Bacaklar sol -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="2"
+        android:pathData="M47,58 L32,65 M47,62 L34,72" />
+
+    <!-- Bacaklar sağ -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="2"
+        android:pathData="M61,58 L76,65 M61,62 L74,72" />
+
+    <!-- Antenler -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="2"
+        android:pathData="M50,29 L42,20 M58,29 L66,20" />
+
+</vector>

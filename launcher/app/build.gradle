@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.anka.os.launcher'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.anka.os.launcher"
+        minSdk 29          // Android 10 (merlin MIUI 12 bazı)
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug   // CI için debug imzası yeterli
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    // Sadece Android SDK — harici bağımlılık yok
+}

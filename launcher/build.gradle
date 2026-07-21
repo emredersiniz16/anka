@@ -1,0 +1,4 @@
+// Anka OS Launcher — Kök build dosyası
+plugins {
+    id 'com.android.application' version '8.2.2' apply false
+}
