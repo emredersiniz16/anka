@@ -60,6 +60,7 @@ magisk: all
 	@mkdir -p magisk_module/system/anka_core/assets
 	@cp magisk_template/module.prop magisk_module/
 	@cp magisk_template/service.sh magisk_module/
+	@cp magisk_template/sepolicy.rule magisk_module/
 	@cp $(TARGET_BIN) magisk_module/system/bin/anka_os_bin
 	@cp $(QUANTUM_LIB) magisk_module/system/lib/
 	@cp assets/fly_icon.bmp magisk_module/system/anka_core/assets/ 2>/dev/null || true
