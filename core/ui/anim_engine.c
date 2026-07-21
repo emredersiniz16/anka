@@ -3,7 +3,8 @@
  * BİRLEŞTİRİLMİŞ: Uyanış Sekansı + Koordinat Motoru
  */
 
-#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
 #include "anim_engine.h"
 #include "ui_engine.h"
 #include <stdio.h>
