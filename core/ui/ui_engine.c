@@ -144,16 +144,11 @@ static const uint8_t font8x8_basic[96][8] = {
  * SECTION 3: FRAMEBUFFER PRIMITIVES
  * ========================================================================= */
 
-/* -------------------------------------------------------------------------
- * fb_open — /dev/graphics/fb0 açılır; başarısız olursa /dev/fb0 denenir.
- * ------------------------------------------------------------------------- */
 int fb_open(fb_context_t *fb)
 {
     if (!fb) return -1;
-
     memset(fb, 0, sizeof(*fb));
 
-    /* Android path önce, sonra standart Linux */
     const char *paths[] = { "/dev/graphics/fb0", "/dev/fb0", NULL };
     int i;
     for (i = 0; paths[i] != NULL; ++i) {
@@ -162,26 +157,18 @@ int fb_open(fb_context_t *fb)
             fprintf(stderr, "🪰 [GÖLGE]: Framebuffer açıldı: %s\n", paths[i]);
             break;
         }
-        fprintf(stderr, "🪰 [GÖLGE]: %s açılamadı: %s\n",
-                paths[i], strerror(errno));
     }
     if (fb->fd < 0) {
         fprintf(stderr, "🪰 [GÖLGE]: Hiçbir framebuffer aygıtı açılamadı!\n");
         return -1;
     }
 
-    /* Değişken ekran bilgisi */
     if (ioctl(fb->fd, FBIOGET_VSCREENINFO, &fb->vinfo) < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: FBIOGET_VSCREENINFO hatası: %s\n",
-                strerror(errno));
         close(fb->fd);
         return -1;
     }
 
-    /* Sabit ekran bilgisi */
     if (ioctl(fb->fd, FBIOGET_FSCREENINFO, &fb->finfo) < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: FBIOGET_FSCREENINFO hatası: %s\n",
-                strerror(errno));
         close(fb->fd);
         return -1;
     }
@@ -192,31 +179,22 @@ int fb_open(fb_context_t *fb)
     fb->stride   = fb->finfo.line_length;
     fb->smem_len = fb->finfo.smem_len;
 
-    /* Renk kanalı ofsetleri (Android genellikle BGRA = blue_offset=0) */
     fb->red_offset   = fb->vinfo.red.offset;
     fb->green_offset = fb->vinfo.green.offset;
     fb->blue_offset  = fb->vinfo.blue.offset;
 
-    /* mmap */
     fb->map = (uint8_t *)mmap(NULL, fb->smem_len,
                                PROT_READ | PROT_WRITE,
                                MAP_SHARED, fb->fd, 0);
     if (fb->map == MAP_FAILED) {
-        fprintf(stderr, "🪰 [GÖLGE]: mmap hatası: %s\n", strerror(errno));
         close(fb->fd);
         fb->map = NULL;
         return -1;
     }
 
-    fprintf(stderr,
-            "🪰 [GÖLGE]: Framebuffer hazır — %ux%u, %ubpp, stride=%u\n",
-            fb->width, fb->height, fb->bpp, fb->stride);
     return 0;
 }
 
-/* -------------------------------------------------------------------------
- * fb_close — belleği ve dosya tanımlayıcısını temizler.
- * ------------------------------------------------------------------------- */
 void fb_close(fb_context_t *fb)
 {
     if (!fb) return;
@@ -227,11 +205,6 @@ void fb_close(fb_context_t *fb)
     memset(fb, 0, sizeof(*fb));
 }
 
-/* -------------------------------------------------------------------------
- * fb_put_pixel — tek piksel yazar; sınır kontrolü yapar.
- * 32bpp: vinfo'dan gelen ofsetlere göre kanal yerleştirir (varsayılan BGRA).
- * 16bpp: RGB565.
- * ------------------------------------------------------------------------- */
 void fb_put_pixel(fb_context_t *fb, int x, int y,
                   uint8_t r, uint8_t g, uint8_t b)
 {
@@ -245,7 +218,7 @@ void fb_put_pixel(fb_context_t *fb, int x, int y,
         uint32_t color = ((uint32_t)r << fb->red_offset)   |
                          ((uint32_t)g << fb->green_offset)  |
                          ((uint32_t)b << fb->blue_offset)   |
-                         (0xFFu << 24);  /* alpha = opaque */
+                         (0xFFu << 24);
         uint32_t *pixel = (uint32_t *)(fb->map + offset + (uint32_t)x * 4);
         *pixel = color;
     } else if (fb->bpp == 16) {
@@ -255,12 +228,8 @@ void fb_put_pixel(fb_context_t *fb, int x, int y,
         uint16_t *pixel = (uint16_t *)(fb->map + offset + (uint32_t)x * 2);
         *pixel = color;
     }
-    /* Diğer bpp değerleri şimdilik desteklenmiyor */
 }
 
-/* -------------------------------------------------------------------------
- * fb_fill_rect — dikdörtgen bölgeyi tek renkle doldurur.
- * ------------------------------------------------------------------------- */
 void fb_fill_rect(fb_context_t *fb, int x, int y, int w, int h,
                   uint8_t r, uint8_t g, uint8_t b)
 {
@@ -270,7 +239,6 @@ void fb_fill_rect(fb_context_t *fb, int x, int y, int w, int h,
     int x2 = x + w;
     int y2 = y + h;
 
-    /* Kırpma */
     if (x1 < 0) x1 = 0;
     if (y1 < 0) y1 = 0;
     if (x2 > (int)fb->width)  x2 = (int)fb->width;
@@ -302,7 +270,6 @@ void fb_fill_rect(fb_context_t *fb, int x, int y, int w, int h,
                 line[col] = color;
         }
     } else {
-        /* Yavaş yol — bilinmeyen bpp */
         int row, col;
         for (row = y1; row < y2; ++row)
             for (col = x1; col < x2; ++col)
@@ -310,18 +277,12 @@ void fb_fill_rect(fb_context_t *fb, int x, int y, int w, int h,
     }
 }
 
-/* -------------------------------------------------------------------------
- * fb_clear — tüm ekranı verilen renkle doldurur.
- * ------------------------------------------------------------------------- */
 void fb_clear(fb_context_t *fb, uint8_t r, uint8_t g, uint8_t b)
 {
     if (!fb) return;
     fb_fill_rect(fb, 0, 0, (int)fb->width, (int)fb->height, r, g, b);
 }
 
-/* -------------------------------------------------------------------------
- * fb_draw_char_scaled — iç yardımcı; tek karakteri çizer.
- * ------------------------------------------------------------------------- */
 static void fb_draw_char_scaled(fb_context_t *fb, int x, int y,
                                  unsigned char c, int scale,
                                  uint8_t r, uint8_t g, uint8_t b)
@@ -347,18 +308,12 @@ static void fb_draw_char_scaled(fb_context_t *fb, int x, int y,
     }
 }
 
-/* -------------------------------------------------------------------------
- * fb_draw_text — ölçek=1 ile metin çizer.
- * ------------------------------------------------------------------------- */
 void fb_draw_text(fb_context_t *fb, int x, int y, const char *text,
                   uint8_t r, uint8_t g, uint8_t b)
 {
     fb_draw_text_scaled(fb, x, y, text, 1, r, g, b);
 }
 
-/* -------------------------------------------------------------------------
- * fb_draw_text_scaled — verilen ölçek ile metin çizer.
- * ------------------------------------------------------------------------- */
 void fb_draw_text_scaled(fb_context_t *fb, int x, int y, const char *text,
                           int scale, uint8_t r, uint8_t g, uint8_t b)
 {
@@ -380,9 +335,6 @@ void fb_draw_text_scaled(fb_context_t *fb, int x, int y, const char *text,
     }
 }
 
-/* -------------------------------------------------------------------------
- * fb_scroll_up — ekranı N piksel yukarı kaydırır; alt N piksel siyah olur.
- * ------------------------------------------------------------------------- */
 void fb_scroll_up(fb_context_t *fb, int pixels)
 {
     if (!fb || !fb->map || pixels <= 0) return;
@@ -396,36 +348,13 @@ void fb_scroll_up(fb_context_t *fb, int pixels)
     uint32_t src_offset     = (uint32_t)pixels * bytes_per_row;
 
     memmove(fb->map, fb->map + src_offset, move_rows * bytes_per_row);
-
-    /* Alt kısım siyah */
-    uint32_t clear_offset = move_rows * bytes_per_row;
-    memset(fb->map + clear_offset, 0, (uint32_t)pixels * bytes_per_row);
+    memset(fb->map + move_rows * bytes_per_row, 0, (uint32_t)pixels * bytes_per_row);
 }
 
 /* =========================================================================
  * SECTION 4: BMP LOADER
  * ========================================================================= */
 
-/*
- * BMP dosya yapıları (paketlenmemiş — lseek kullanıyoruz):
- *
- * File header (14 byte):
- *   [0-1]  Magic "BM"
- *   [2-5]  Dosya boyutu
- *   [6-9]  Rezerve
- *   [10-13] Piksel verisi ofseti
- *
- * BITMAPINFOHEADER (40 byte):
- *   [0-3]  Başlık boyutu (40)
- *   [4-7]  Genişlik
- *   [8-11] Yükseklik (negatif → yukarıdan aşağı)
- *   [12-13] Renk düzlemi (1)
- *   [14-15] bpp
- *   [16-19] Sıkıştırma (0 = BI_RGB)
- *   [20-39] Geri kalan alanlar (yoksayılır)
- */
-
-/* Küçük-endian yardımcıları */
 static uint16_t read_u16le(const uint8_t *p)
 {
     return (uint16_t)(p[0] | ((uint16_t)p[1] << 8));
@@ -442,42 +371,28 @@ static int32_t read_s32le(const uint8_t *p)
     return (int32_t)read_u32le(p);
 }
 
-/* -------------------------------------------------------------------------
- * fb_load_bmp — BMP'yi (x,y) konumuna çizer.
- * ------------------------------------------------------------------------- */
 int fb_load_bmp(fb_context_t *fb, const char *path, int x, int y)
 {
     if (!fb || !fb->map || !path) return -1;
 
     int fd = open(path, O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP açılamadı '%s': %s\n",
-                path, strerror(errno));
-        return -1;
-    }
+    if (fd < 0) return -1;
 
-    /* --- Dosya başlığı (14 byte) --- */
     uint8_t file_hdr[14];
     if (read(fd, file_hdr, 14) != 14) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP dosya başlığı okunamadı: %s\n",
-                strerror(errno));
         close(fd);
         return -1;
     }
 
     if (file_hdr[0] != 0x42 || file_hdr[1] != 0x4D) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP sihirli sayı hatalı: %s\n", path);
         close(fd);
         return -1;
     }
 
     uint32_t pixel_offset = read_u32le(&file_hdr[10]);
 
-    /* --- Info başlığı (40 byte) --- */
     uint8_t info_hdr[40];
     if (read(fd, info_hdr, 40) != 40) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP info başlığı okunamadı: %s\n",
-                strerror(errno));
         close(fd);
         return -1;
     }
@@ -487,86 +402,55 @@ int fb_load_bmp(fb_context_t *fb, const char *path, int x, int y)
     uint16_t bmp_bpp        = read_u16le(&info_hdr[14]);
     uint32_t compression    = read_u32le(&info_hdr[16]);
 
-    /* BI_BITFIELDS (3) teknik olarak sıkıştırılmış değil — sadece özel renk maskeleri */
     if (compression != 0 && compression != 3) {
-        fprintf(stderr, "🪰 [GÖLGE]: Sıkıştırılmış BMP desteklenmiyor (comp=%u): %s\n",
-                (unsigned)compression, path);
         close(fd);
         return -1;
     }
 
     if (bmp_bpp != 24 && bmp_bpp != 32) {
-        fprintf(stderr,
-                "🪰 [GÖLGE]: BMP %u bpp desteklenmiyor (sadece 24/32): %s\n",
-                (unsigned)bmp_bpp, path);
         close(fd);
         return -1;
     }
 
     int top_down    = (bmp_h_signed < 0);
-    uint32_t bmp_w  = (uint32_t)(bmp_w_signed < 0 ? -bmp_w_signed
-                                                   :  bmp_w_signed);
+    uint32_t bmp_w  = (uint32_t)(bmp_w_signed < 0 ? -bmp_w_signed : bmp_w_signed);
     uint32_t bmp_h  = (uint32_t)(top_down ? -bmp_h_signed : bmp_h_signed);
 
     if (bmp_w == 0 || bmp_h == 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP sıfır boyut: %s\n", path);
         close(fd);
         return -1;
     }
 
     uint32_t bytes_pp = bmp_bpp / 8u;
-    /* 4 byte hizalamalı satır boyutu */
     uint32_t row_size = ((bmp_w * bytes_pp + 3u) / 4u) * 4u;
 
     uint8_t *row_buf = (uint8_t *)malloc(row_size);
     if (!row_buf) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP satır tamponu için bellek yok\n");
         close(fd);
         return -1;
     }
 
-    /* Piksel verisi başlangıcına git */
     if (lseek(fd, (off_t)pixel_offset, SEEK_SET) < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP lseek hatası: %s\n",
-                strerror(errno));
         free(row_buf);
         close(fd);
         return -1;
     }
 
-    /*
-     * Standart BMP alt satırdan başlar (bottom-up).
-     * top_down ise yukarıdan başlar.
-     * Her iki durumda piksel verisi dosyada sıralı —
-     * sadece fb'ye yazarken satır dizinini hesaplarız.
-     */
     uint32_t row_idx;
     for (row_idx = 0; row_idx < bmp_h; ++row_idx) {
         ssize_t bytes_read = read(fd, row_buf, row_size);
-        if (bytes_read != (ssize_t)row_size) {
-            fprintf(stderr, "🪰 [GÖLGE]: BMP satır okuma hatası satır %u\n",
-                    row_idx);
-            break;
-        }
+        if (bytes_read != (ssize_t)row_size) break;
 
-        /* Framebuffer'daki hedef y */
-        int fb_y;
-        if (top_down) {
-            fb_y = y + (int)row_idx;
-        } else {
-            fb_y = y + (int)(bmp_h - 1u - row_idx);
-        }
+        int fb_y = top_down ? (y + (int)row_idx) : (y + (int)(bmp_h - 1u - row_idx));
 
         uint32_t col;
         for (col = 0; col < bmp_w; ++col) {
             int fb_x = x + (int)col;
-
-            /* Ekran dışı pikselleri atla */
             if (fb_x < 0 || (uint32_t)fb_x >= fb->width)  continue;
             if (fb_y < 0 || (uint32_t)fb_y >= fb->height) continue;
 
             uint32_t base = col * bytes_pp;
-            uint8_t pix_b = row_buf[base + 0]; /* BMP: B G R [A] */
+            uint8_t pix_b = row_buf[base + 0];
             uint8_t pix_g = row_buf[base + 1];
             uint8_t pix_r = row_buf[base + 2];
 
@@ -576,50 +460,31 @@ int fb_load_bmp(fb_context_t *fb, const char *path, int x, int y)
 
     free(row_buf);
     close(fd);
-
-    fprintf(stderr,
-            "🪰 [GÖLGE]: BMP yüklendi: %s (%ux%u → %d,%d)\n",
-            path, bmp_w, bmp_h, x, y);
     return 0;
 }
 
-/* -------------------------------------------------------------------------
- * fb_load_bmp_centered — BMP boyutlarını okur, merkezi hesaplar, çizer.
- * Option B: tek geçiş (başlık + piksel verisi aynı açık fd üzerinden).
- * ------------------------------------------------------------------------- */
 int fb_load_bmp_centered(fb_context_t *fb, const char *path)
 {
     if (!fb || !fb->map || !path) return -1;
 
     int fd = open(path, O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP açılamadı '%s': %s\n",
-                path, strerror(errno));
-        return -1;
-    }
+    if (fd < 0) return -1;
 
-    /* --- Dosya başlığı --- */
     uint8_t file_hdr[14];
     if (read(fd, file_hdr, 14) != 14) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP dosya başlığı okunamadı: %s\n",
-                strerror(errno));
         close(fd);
         return -1;
     }
 
     if (file_hdr[0] != 0x42 || file_hdr[1] != 0x4D) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP sihirli sayı hatalı: %s\n", path);
         close(fd);
         return -1;
     }
 
     uint32_t pixel_offset = read_u32le(&file_hdr[10]);
 
-    /* --- Info başlığı --- */
     uint8_t info_hdr[40];
     if (read(fd, info_hdr, 40) != 40) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP info başlığı okunamadı: %s\n",
-                strerror(errno));
         close(fd);
         return -1;
     }
@@ -629,34 +494,25 @@ int fb_load_bmp_centered(fb_context_t *fb, const char *path)
     uint16_t bmp_bpp      = read_u16le(&info_hdr[14]);
     uint32_t compression  = read_u32le(&info_hdr[16]);
 
-    /* BI_BITFIELDS (3) teknik olarak sıkıştırılmış değil — sadece özel renk maskeleri */
     if (compression != 0 && compression != 3) {
-        fprintf(stderr, "🪰 [GÖLGE]: Sıkıştırılmış BMP desteklenmiyor (comp=%u): %s\n",
-                (unsigned)compression, path);
         close(fd);
         return -1;
     }
 
     if (bmp_bpp != 24 && bmp_bpp != 32) {
-        fprintf(stderr,
-                "🪰 [GÖLGE]: BMP %u bpp desteklenmiyor (sadece 24/32): %s\n",
-                (unsigned)bmp_bpp, path);
         close(fd);
         return -1;
     }
 
     int top_down   = (bmp_h_signed < 0);
-    uint32_t bmp_w = (uint32_t)(bmp_w_signed < 0 ? -bmp_w_signed
-                                                  :  bmp_w_signed);
+    uint32_t bmp_w = (uint32_t)(bmp_w_signed < 0 ? -bmp_w_signed : bmp_w_signed);
     uint32_t bmp_h = (uint32_t)(top_down ? -bmp_h_signed : bmp_h_signed);
 
     if (bmp_w == 0 || bmp_h == 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP sıfır boyut: %s\n", path);
         close(fd);
         return -1;
     }
 
-    /* Merkezi hesapla */
     int cx = (int)((fb->width  > bmp_w ? (fb->width  - bmp_w) / 2u : 0u));
     int cy = (int)((fb->height > bmp_h ? (fb->height - bmp_h) / 2u : 0u));
 
@@ -665,15 +521,11 @@ int fb_load_bmp_centered(fb_context_t *fb, const char *path)
 
     uint8_t *row_buf = (uint8_t *)malloc(row_size);
     if (!row_buf) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP satır tamponu için bellek yok\n");
         close(fd);
         return -1;
     }
 
-    /* Piksel verisine git */
     if (lseek(fd, (off_t)pixel_offset, SEEK_SET) < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: BMP lseek hatası: %s\n",
-                strerror(errno));
         free(row_buf);
         close(fd);
         return -1;
@@ -682,24 +534,13 @@ int fb_load_bmp_centered(fb_context_t *fb, const char *path)
     uint32_t row_idx;
     for (row_idx = 0; row_idx < bmp_h; ++row_idx) {
         ssize_t bytes_read = read(fd, row_buf, row_size);
-        if (bytes_read != (ssize_t)row_size) {
-            fprintf(stderr,
-                    "🪰 [GÖLGE]: BMP satır okuma hatası satır %u\n",
-                    row_idx);
-            break;
-        }
+        if (bytes_read != (ssize_t)row_size) break;
 
-        int fb_y;
-        if (top_down) {
-            fb_y = cy + (int)row_idx;
-        } else {
-            fb_y = cy + (int)(bmp_h - 1u - row_idx);
-        }
+        int fb_y = top_down ? (cy + (int)row_idx) : (cy + (int)(bmp_h - 1u - row_idx));
 
         uint32_t col;
         for (col = 0; col < bmp_w; ++col) {
             int fb_x = cx + (int)col;
-
             if (fb_x < 0 || (uint32_t)fb_x >= fb->width)  continue;
             if (fb_y < 0 || (uint32_t)fb_y >= fb->height) continue;
 
@@ -714,88 +555,43 @@ int fb_load_bmp_centered(fb_context_t *fb, const char *path)
 
     free(row_buf);
     close(fd);
-
-    fprintf(stderr,
-            "🪰 [GÖLGE]: BMP ortalanarak yüklendi: %s (%ux%u → %d,%d)\n",
-            path, bmp_w, bmp_h, cx, cy);
     return 0;
 }
 
 /* =========================================================================
  * SECTION 5: SCREEN TAKEOVER
- *
- * Bu ekranı tam devralır. surfaceflinger durur. Çökersek ekran siyah kalır
- * — dikkat!
  * ========================================================================= */
 
 int fb_takeover_stop_surfaceflinger(void)
 {
     pid_t pid = fork();
-    if (pid < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: fork hatası (stop sf): %s\n",
-                strerror(errno));
-        return -1;
-    }
+    if (pid < 0) return -1;
     if (pid == 0) {
-        /* Alt süreç */
-        char *const argv[] = {
-            (char *)"su",
-            (char *)"-c",
-            (char *)"stop surfaceflinger",
-            NULL
-        };
+        char *const argv[] = { (char *)"su", (char *)"-c", (char *)"stop surfaceflinger", NULL };
         execvp("su", argv);
-        /* execvp başarısız olursa */
-        fprintf(stderr, "🪰 [GÖLGE]: execvp (stop sf) hatası: %s\n",
-                strerror(errno));
         _exit(127);
     }
-    /* Ebeveyn süreci */
     int status = 0;
     waitpid(pid, &status, 0);
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: surfaceflinger durduruldu.\n");
-        return 0;
-    }
-    fprintf(stderr, "🪰 [GÖLGE]: surfaceflinger durdurma başarısız (kod %d)\n",
-            WEXITSTATUS(status));
-    return -1;
+    return (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? 0 : -1;
 }
 
 int fb_takeover_start_surfaceflinger(void)
 {
     pid_t pid = fork();
-    if (pid < 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: fork hatası (start sf): %s\n",
-                strerror(errno));
-        return -1;
-    }
+    if (pid < 0) return -1;
     if (pid == 0) {
-        char *const argv[] = {
-            (char *)"su",
-            (char *)"-c",
-            (char *)"start surfaceflinger",
-            NULL
-        };
+        char *const argv[] = { (char *)"su", (char *)"-c", (char *)"start surfaceflinger", NULL };
         execvp("su", argv);
-        fprintf(stderr, "🪰 [GÖLGE]: execvp (start sf) hatası: %s\n",
-                strerror(errno));
         _exit(127);
     }
     int status = 0;
     waitpid(pid, &status, 0);
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-        fprintf(stderr, "🪰 [GÖLGE]: surfaceflinger başlatıldı.\n");
-        return 0;
-    }
-    fprintf(stderr,
-            "🪰 [GÖLGE]: surfaceflinger başlatma başarısız (kod %d)\n",
-            WEXITSTATUS(status));
-    return -1;
+    return (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? 0 : -1;
 }
 
 /* =========================================================================
- * SECTION 6: ANKA-SPECIFIC FUNCTIONS (OLDUĞU GİBİ KORUNDU)
+ * SECTION 6: ANKA-SPECIFIC FUNCTIONS
  * ========================================================================= */
 
 void anka_boot_sequence(fb_context_t *fb)
@@ -858,13 +654,7 @@ void ui_render(fb_context_t *fb, const char *last_message)
  * SECTION 7: STUBS FOR UNRESOLVED EXTERNAL REFERENCES
  * ========================================================================= */
 
-/*
- * user_confirmed_evolution — ota_engine.c'nin çağırdığı ama
- * hiçbir dosyada tanımlanmamış fonksiyon. Basit stub: her zaman
- * evet diye döner. İleride gerçek kullanıcı girdisi eklenecek.
- */
 int user_confirmed_evolution(void)
 {
     return 1;
 }
-
