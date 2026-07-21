@@ -2,7 +2,7 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
-        // Bölgesel erişim sorunlarına karşı ayna/fallback depolar
+        // Mirror/fallback repositories for regional access issues
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/public' }
         gradlePluginPortal()
@@ -21,7 +21,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Bölgesel erişim sorunlarına karşı ayna/fallback depolar
+        // Mirror/fallback repositories for regional access issues
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/public' }
     }
