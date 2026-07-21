@@ -39,7 +39,7 @@
  */
 
 #include "../anka_hal.h"
-#include "../anka_hal_ext.h"
+//#include "../anka_hal_ext.h"
 #include "../hal_common.h"
 
 #include <stdio.h>
