@@ -110,24 +110,18 @@ static int execute_action(const collapse_rule_t *rule,
             break;
 
         case COLLAPSE_ACT_DISPLAY:
-            if (g_hal->display_blit && pt_len > 0) {
+            if (g_hal->display_blit) {
                 /* ABI v2 uyumlu: dosya yolu veya veri, x, y, genişlik, yükseklik */
                 const char *img_path = (rule->action_text[0] != '\0') ? rule->action_text : "/tmp/anka_display.bmp";
                 rc = g_hal->display_blit(img_path, 0, 0, 1080, 2400);
                 fprintf(stderr,
-                        "🪰 [ÇÖKÜŞ]: Ekrana yazıldı (%zu byte)\n", pt_len);
+                        "🪰 [ÇÖKÜŞ]: Ekrana yazıldı (Yol: %s)\n", img_path);
             }
             break;
 
         case COLLAPSE_ACT_SYNC:
-            /*
-             * Python kovan_sync.py servisine SIGUSR1 gönder.
-             * PID dosyasından oku ya da sabit PID kullan.
-             * system() yok — kill() sinyali kullan.
-             */
             fprintf(stderr,
                     "🪰 [ÇÖKÜŞ]: Kovan sync tetiklendi (SIGUSR1)\n");
-            /* Gerçek implementasyonda: kill(kovan_sync_pid, SIGUSR1); */
             break;
 
         case COLLAPSE_ACT_DORMANT:
@@ -242,10 +236,8 @@ static int fire_rules(collapse_trigger_t trigger,
 
         matched++;
 
-        /* Hangi bloğu çözeceğiz? */
         uint32_t target_id = rule->dust_block_id;
         if (target_id == 0) {
-            /* Otomatik seçim: tetikleyici tipine göre */
             qd_block_type_t btype = trigger_to_block_type(trigger);
             qd_block_t *blk = qd_find_by_type(g_dust, btype);
             if (blk) target_id = blk->id;
@@ -266,28 +258,23 @@ static int fire_rules(collapse_trigger_t trigger,
             continue;
         }
 
-        /* Çöküş başarılı (veya blok yok ama aksiyon hâlâ çalışır) */
         pthread_mutex_lock(&g_collapse_mutex);
         g_stats.total_collapses++;
         g_stats.last_collapsed_id = target_id;
         pthread_mutex_unlock(&g_collapse_mutex);
 
-        /* HAL aksiyonu */
         execute_action(rule, pt_buf, pt_len);
 
         pthread_mutex_lock(&g_collapse_mutex);
         g_stats.total_actions++;
         pthread_mutex_unlock(&g_collapse_mutex);
 
-        /* Callback */
         collapse_callback_t cb = g_callbacks[(int)trigger];
         if (cb) cb(rule, pt_buf, pt_len);
 
-        /* Güvenli: plaintext'i yığında sıfırla */
         memset(pt_buf, 0, pt_len);
     }
 
-    /* Gecikme ölçümü */
     long elapsed = now_us() - t_start;
     pthread_mutex_lock(&g_collapse_mutex);
     if (g_stats.total_collapses > 0) {
@@ -299,17 +286,9 @@ static int fire_rules(collapse_trigger_t trigger,
         g_stats.max_latency_us = elapsed;
     pthread_mutex_unlock(&g_collapse_mutex);
 
-    fprintf(stderr,
-            "🪰 [ÇÖKÜŞ]: trigger=%d → %d kural, aksiyon tamamlandı "
-            "(gecikme=%ld µs)\n",
-            (int)trigger, matched, elapsed);
-
     return matched > 0 ? 0 : -1;
 }
 
-/* =========================================================================
- * Public API: collapse_fire
- * ========================================================================= */
 int collapse_fire(collapse_trigger_t trigger,
                   const char        *user_input,
                   int                input_len)
@@ -319,9 +298,6 @@ int collapse_fire(collapse_trigger_t trigger,
                       (size_t)(input_len > 0 ? input_len : 0));
 }
 
-/* =========================================================================
- * Public API: collapse_fire_sensor
- * ========================================================================= */
 int collapse_fire_sensor(collapse_trigger_t trigger,
                          const uint8_t     *sensor_data,
                          size_t             len)
@@ -329,21 +305,13 @@ int collapse_fire_sensor(collapse_trigger_t trigger,
     return fire_rules(trigger, sensor_data, len);
 }
 
-/* =========================================================================
- * Public API: collapse_instant — kural araması yok, doğrudan dispatch
- * ========================================================================= */
 int collapse_instant(uint32_t          dust_id,
                      collapse_action_t action,
                      int               arg)
 {
-    /*
-     * 🪰 [ÇÖKÜŞ]: Ultra düşük gecikme yolu.
-     * Kural tablosu atlanır — doğrudan blok çöküşü + aksiyon.
-     */
     if (!g_dust || !g_hal) return -1;
 
     long t_start = now_us();
-
     uint8_t pt_buf[QD_BLOCK_SIZE];
     size_t  pt_len = 0;
 
@@ -360,30 +328,11 @@ int collapse_instant(uint32_t          dust_id,
     memset(pt_buf, 0, pt_len);
 
     long elapsed = now_us() - t_start;
-    fprintf(stderr,
-            "🪰 [ÇÖKÜŞ]: Anlık çöküş (id=%u, action=%d, gecikme=%ld µs)\n",
-            dust_id, (int)action, elapsed);
-
     return rc;
 }
 
-/* =========================================================================
- * Public API: collapse_loop — olay döngüsü
- * =========================================================================
- *
- * poll() tabanlı döngü:
- *   - stdin: kullanıcı komutları
- *   - timerfd: periyodik nabız (1 Hz / 10 Hz)
- *
- * Gerçek uygulamada ağ soketi ve dokunmatik ekran fd'si de eklenir.
- * Bu döngü Sinek'in kalp atışıdır. Her tetikleyici bir çöküş doğurur.
- */
 void collapse_loop(void)
 {
-    fprintf(stderr,
-            "🪰 [ÇÖKÜŞ]: Olay döngüsü başlatıldı — Sinek nabzı atıyor\n");
-
-    /* timerfd: 1 saniyelik periyodik tetik */
     g_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
     if (g_timer_fd >= 0) {
         struct itimerspec its;
@@ -395,16 +344,13 @@ void collapse_loop(void)
     }
 
     g_running = 1;
-
     struct pollfd fds[2];
     int nfds = 0;
 
-    /* stdin: kullanıcı komutları */
     fds[nfds].fd      = STDIN_FILENO;
     fds[nfds].events  = POLLIN;
     nfds++;
 
-    /* timerfd */
     if (g_timer_fd >= 0) {
         fds[nfds].fd     = g_timer_fd;
         fds[nfds].events = POLLIN;
@@ -412,43 +358,18 @@ void collapse_loop(void)
     }
 
     while (g_running) {
-        /* 10 ms zaman aşımı → DORMANT durum denetimi */
         int n = poll(fds, (nfds_t)nfds, 10);
+        if (n <= 0) continue;
 
-        if (n < 0) {
-            if (errno == EINTR) continue;
-            fprintf(stderr,
-                    "❌ [ÇÖKÜŞ]: poll() hatası: %s\n", strerror(errno));
-            break;
-        }
-
-        if (n == 0) {
-            /* Zaman aşımı — DORMANT denetimi (hiçbir şey yapma) */
-            continue;
-        }
-
-        /* stdin olayı → kullanıcı komutu */
         if ((fds[0].revents & POLLIN) && fds[0].fd == STDIN_FILENO) {
             char cmd_buf[256];
             ssize_t r = read(STDIN_FILENO, cmd_buf, sizeof(cmd_buf) - 1);
             if (r > 0) {
                 cmd_buf[r] = '\0';
-                /* Satır sonu temizle */
                 for (ssize_t i = 0; i < r; i++)
                     if (cmd_buf[i] == '\n') { cmd_buf[i] = '\0'; break; }
-
-                fprintf(stderr,
-                        "🪰 [ÇÖKÜŞ]: Kullanıcı komutu: \"%s\"\n", cmd_buf);
                 collapse_fire(COLLAPSE_TRIGGER_USER, cmd_buf, (int)r);
             }
-        }
-
-        /* timerfd olayı → periyodik nabız */
-        if (nfds > 1 && (fds[1].revents & POLLIN)) {
-            uint64_t expirations;
-            ssize_t r = read(g_timer_fd, &expirations, sizeof(expirations));
-            (void)r; /* sayım önemsiz */
-            collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         }
     }
 
@@ -456,22 +377,13 @@ void collapse_loop(void)
         close(g_timer_fd);
         g_timer_fd = -1;
     }
-
-    fprintf(stderr, "🪰 [ÇÖKÜŞ]: Olay döngüsü durdu\n");
 }
 
-/* =========================================================================
- * Public API: collapse_shutdown
- * ========================================================================= */
 void collapse_shutdown(void)
 {
     g_running = 0;
-    fprintf(stderr, "🪰 [ÇÖKÜŞ]: Motor kapatılıyor...\n");
 }
 
-/* =========================================================================
- * Public API: collapse_get_stats
- * ========================================================================= */
 void collapse_get_stats(collapse_stats_t *out)
 {
     if (!out) return;
