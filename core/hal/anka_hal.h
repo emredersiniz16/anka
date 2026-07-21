@@ -5,7 +5,7 @@
 
 // Sinek'in donanım yetenekleri (HAL - Hardware Abstraction Layer)
 // ABI v1 ve ABI v2 (Otonom Fiziksel Beden Kontrolü) birleştirildi.
-typedef struct {
+typedef struct AnkaHAL {
     // --- ABI v1 (Klasik Yetenekler) ---
     int (*vibrate)(int ms);
     int (*read_touch)(int *x, int *y);

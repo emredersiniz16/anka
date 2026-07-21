@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Anka OS</string>
+    <string name="status_active">🪰 Kuantum Uyanış Aktif</string>
+    <string name="version">v1.0 — merlin</string>
+</resources>

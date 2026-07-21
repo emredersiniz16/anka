@@ -1,0 +1,24 @@
+# ANKA OS — Magisk SELinux Policy Enjeksiyonu
+# Bu dosya Magisk tarafından boot sırasında otomatik yüklenir.
+# MIUI/HyperOS SELinux kısıtlamalarını aşar.
+
+# anka_os binary'sinin çalışmasına izin ver
+allow system_app system_file:file { execute execute_no_trans };
+
+# anka_os'un /data/local/tmp'ye yazmasına izin ver (bellek kristali)
+allow system_app tmpfs:file { create write read open getattr };
+
+# anka_os'un ağ soketleri açmasına izin ver (kovan bağlantısı)
+allow system_app self:tcp_socket { create connect bind read write };
+allow system_app self:udp_socket { create connect bind read write };
+
+# anka_os'un proc'u okumasına izin ver (sistem izleme)
+allow system_app proc:file { read open };
+allow system_app proc_net:file { read open };
+
+# Python3 çalıştırma izni
+allow system_app zygote_exec:file { execute execute_no_trans };
+allow system_app shell_exec:file { execute execute_no_trans };
+
+# Servis başlatma / durdurma izni
+allow system_app init:unix_dgram_socket sendto;
