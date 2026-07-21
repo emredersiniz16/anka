@@ -58,16 +58,16 @@ jobs:
           restore-keys: gradle-
 
       - name: Launcher APK Derle
-        working-directory: launcher
         run: |
-          chmod +x gradlew 2>/dev/null || true
-          # gradlew yoksa wrapper'ı indir
-          if [ ! -f gradlew ]; then
-            gradle wrapper --gradle-version 8.4
-          fi
-          ./gradlew assembleRelease --no-daemon -q
+          test -f launcher/gradlew || { echo "ERROR: launcher/gradlew not found. Commit launcher/gradlew and launcher/gradle/wrapper/* to the repository."; exit 1; }
+          chmod +x launcher/gradlew
+          ./launcher/gradlew \
+            --project-dir launcher \
+            assembleRelease \
+            --no-daemon \
+            -q
           echo "APK hazır:"
-          find . -name "*.apk" | sort
+          find launcher -name "*.apk" | sort
 
       - name: APK'yı Artifact Olarak Yükle
         uses: actions/upload-artifact@v4
