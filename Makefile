@@ -1,7 +1,12 @@
-# Makefile - ANKA OS NİHAİ TEK PARÇA ÇEKİRDEK MÜHÜRLEME
+# Makefile - ANKA OS NİHAİ ÇEKİRDEK VE KÖPRÜ MÜHÜRLEME
 CC = aarch64-linux-gnu-gcc
+# Termux içinde yerel derleme yapıyorsan alttakini kullanabilirsin, cross-compiler için üstteki kalır:
+# CC = gcc
 
 TARGET_BIN = anka_os.bin
+TARGET_HAL = core/hal/anka_hal.so
+BACKEND_SRC = core/hal/backends/backend_legacy_qualcomm_msm.c
+BACKEND_SO = core/hal/backends/libhal_backend_legacy_qualcomm_msm.so
 
 # Derleme bayrakları (-Wno-error ile usleep uyarısı ezildi)
 CFLAGS = -Os -fPIC -DHAVE_OPENSSL -Wno-unused-result -Wno-error \
@@ -32,12 +37,22 @@ SRC_ALL = core/boot.c \
           core/quantum/collapse_engine.c \
           core/quantum/sinek_fsm.c
 
-all: $(TARGET_BIN)
+all: $(TARGET_BIN) $(TARGET_HAL) $(BACKEND_SO)
 
-# Çekirdeği tüm motorlarla birlikte tek seferde mühürle
+# 1. Çekirdeği tüm motorlarla birlikte tek seferde mühürle
 $(TARGET_BIN): $(SRC_ALL)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Anka OS çekirdeği tek parça halinde mühürlendi."
+
+# 2. Python köprüsü için anka_hal.so (Shared Library) mühürlemesi
+$(TARGET_HAL): $(BACKEND_SRC)
+	$(CC) -shared -fPIC $(CFLAGS) $< -o $@
+	@echo "🪰 [SYSTEM]: Python Donanım Köprüsü (anka_hal.so) mühürlendi."
+
+# 3. Hasta Sıfır Qualcomm Backend .so mühürlemesi
+$(BACKEND_SO): $(BACKEND_SRC)
+	$(CC) -shared -fPIC $(CFLAGS) $< -o $@
+	@echo "🪰 [SYSTEM]: Hasta Sıfır Qualcomm Backend mühürlendi."
 
 # --- MAGISK MODÜLÜ OTOMASYONU ---
 magisk: all
@@ -58,7 +73,7 @@ magisk: all
 	@echo "✅ [SYSTEM]: AnkaOS_Quantum_v1.zip Mühürlendi ve Flaşlanmaya Hazır!"
 
 clean:
-	rm -f $(TARGET_BIN) core/quantum/*.o core/ui/*.o core/hal/*.o core/engines/*.o AnkaOS_Quantum_v1.zip $(ROM_ZIP)
+	rm -f $(TARGET_BIN) $(TARGET_HAL) $(BACKEND_SO) core/quantum/*.o core/ui/*.o core/hal/*.o core/engines/*.o AnkaOS_Quantum_v1.zip $(ROM_ZIP)
 	rm -rf rom_build
 	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
 
