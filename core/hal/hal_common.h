@@ -1,4 +1,4 @@
-ç#ifndef ANKA_HAL_COMMON_H
+#ifndef ANKA_HAL_COMMON_H
 #define ANKA_HAL_COMMON_H
 
 // Chatly'nin belirlediği ABI Versiyon Sözleşmesi (ABI v2 Sinek Otonomisi için güncellendi)
