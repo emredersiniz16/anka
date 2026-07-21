@@ -63,7 +63,6 @@ jobs:
           chmod +x launcher/gradlew
           ./launcher/gradlew \
             --project-dir launcher \
-            --settings-file "$GITHUB_WORKSPACE/launcher/settings.gradle" \
             assembleRelease \
             --no-daemon \
             -q
