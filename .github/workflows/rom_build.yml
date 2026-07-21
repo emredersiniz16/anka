@@ -59,7 +59,7 @@ jobs:
 
       - name: Launcher APK Derle
         run: |
-          test -f launcher/gradlew || { echo "❌ launcher/gradlew bulunamadı"; exit 1; }
+          test -f launcher/gradlew || { echo "ERROR: launcher/gradlew not found"; exit 1; }
           chmod +x launcher/gradlew
           ./launcher/gradlew \
             --project-dir launcher \
