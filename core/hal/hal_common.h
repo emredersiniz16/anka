@@ -1,16 +1,13 @@
 #ifndef ANKA_HAL_COMMON_H
 #define ANKA_HAL_COMMON_H
 
-// Chatly'nin belirlediği ABI Versiyon Sözleşmesi
-#define ANKA_HAL_ABI_VERSION 0x00010000
+#include <stdint.h>
+// AnkaHAL tam tanımını buraya dahil ediyoruz; bu sayede
+// yalnızca hal_common.h dahil eden dosyalar da tam tipe erişebilir.
+#include "anka_hal.h"
 
-// Anka'nın Evrensel Yetenekleri
-typedef struct {
-    int (*vibrate)(int ms);
-    int (*read_touch)(int *x, int *y);
-    int (*speak)(const char* text);
-    int (*capture_camera)(const char* output_path);
-} AnkaHAL;
+// Chatly'nin belirlediği ABI Versiyon Sözleşmesi (ABI v2 Sinek Otonomisi için güncellendi)
+#define ANKA_HAL_ABI_VERSION 0x00020000
 
 // Backend'lerin (Sürücülerin) kendilerini Kovan'a tanıtma şablonu (vtable)
 typedef struct {
@@ -18,8 +15,5 @@ typedef struct {
     const char* backend_name;
     AnkaHAL* (*get_hal_interface)(void);
 } hal_backend_t;
-
-// Sistemin o an kullandığı aktif donanım pointer'ı
-extern AnkaHAL *current_hal;
 
 #endif
