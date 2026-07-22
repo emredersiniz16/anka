@@ -1,5 +1,7 @@
 # agents/sinek_nexus.py - FINAL (Gözlemci Sağlama Alınmış Sürüm)
-# GÜNCELLEME: FlyBrain (LLM) entegre edildi — sensör → beyin → karar döngüsü aktif.
+# GÜNCELLEME: FlyBrain (LLM) + OTA Motoru entegre edildi.
+#   - Sensör → beyin → karar döngüsü aktif
+#   - Günde bir kez GitHub Releases kontrolü (arka planda)
 
 import sys
 import os
@@ -17,6 +19,7 @@ from kuantum_gozlemci import KuantumGozlemci
 from fly_brain import FlyBrain
 from ortam_hazirla import OrtamHazirla
 from sandbox_arena import SandboxArena
+from ota_engine import OTAMotoru
 
 class AnkaLisanMotoru:
     def __init__(self): self.hafiza_muhurleri = {} 
@@ -35,7 +38,7 @@ class SinekAgi:
         self.fiziksel_harita[gorus_alani_id] = iz
         return iz
     def frekans_yolla_ve_oku(self, lokasyon):
-        return random.choice(["KALABALIK", "SESSİZ", "HAREKET_VAR"]) if lokasyon in self.fiziksel_harita else "BİLİNMİYOR"
+        return random.choice(["KALABALIK", "SESSİZ", "HAREKET_VAR"]) if lokasyon in self.fiziksel_harita else "BİLİNMYOR"
     def guce_bak(self): return random.randint(0, 100)
 
 class DijitalDikkatMotoru:
@@ -59,6 +62,11 @@ class AnkaNexus:
         # --- GÖZLEMCİ TANIMLANDI VE SAĞLAMAYA ALINDI ---
         self.gozlemci = KuantumGozlemci(self)
 
+        # --- OTA MOTORU (GitHub Releases kontrolü) ---
+        # Arka planda günde bir kontrol yapar, yeni sürüm varsa indirir.
+        self.ota = OTAMotoru(verbose=False)
+        self.ota.gunluk_kontrol_bg()
+
         self.hafiza_yolu = "/data/local/tmp/anka_bilinc_kristali.json"
         self.bilinc_yukle()
 
@@ -70,7 +78,7 @@ class AnkaNexus:
         "import platform, os, sys\n"
         "print('Platform:', platform.uname())\n"
         "print('Python:', sys.version)\n"
-        "print('Termux:', os.path.isdir('/data/data/com.termux'))"
+        "print('Termux:', os.path.isdir('/data/data/com.termux'))\n"
     )
 
     def _sandbox_platform_arastir(self):
@@ -90,6 +98,7 @@ class AnkaNexus:
 
     def operasyon_baslat(self):
         print("🪰 [ANKA-BİLİNÇ]: Uyanış gerçekleşti.")
+        print("🪰 [ANKA-BİLİNÇ]: OTA motoru arka planda aktif (günde bir kontrol).")
         tur = 0
         while self.is_alive():
             try:
