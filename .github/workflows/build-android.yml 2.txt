@@ -1,0 +1,38 @@
+name: Build libanka_quantum.so (Android arm64)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'core/quantum/**'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Build shared library (aarch64-linux-android)
+        run: |
+          cd core/quantum
+          zig cc -target aarch64-linux-android -shared -fPIC -O3 \
+            -o libanka_quantum.so \
+            collapse_engine.c quantum_dust.c sinek_fsm.c
+          file libanka_quantum.so
+          ls -la libanka_quantum.so
+
+      - name: Upload .so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libanka_quantum-so
+          path: core/quantum/libanka_quantum.so
+          if-no-files-found: error
+          retention-days: 30
