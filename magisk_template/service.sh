@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi - late_start sonrasi calisir
+# ANKA OS boot servisi - Cihaz tamamen açıldıktan sonra tetiklenir
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 LOGFILE=/data/adb/anka_os.log
@@ -10,8 +10,17 @@ if pgrep -f "anka_os_bin" > /dev/null; then
     exit 0
 fi
 
-# Termux python3 bekle (max 30 sn, arkaplanda daemon olarak bekle ki boot bloklanmasın)
+# Android'in tamamen açılmasını ve arayüzün yüklenmesini arkaplanda bekle
 (
+    # 1. KURAL: Android kilit ekranı/ana ekran gelene kadar güvenle bekle
+    # Bu kontrol, Anka OS UI motoru ile Android SurfaceFlinger'ın çakışmasını %100 önler
+    while [ "$(getprop sys.boot_completed)" != "1" ]; do
+        sleep 5
+    done
+
+    echo "[ANKA $(date '+%H:%M:%S')] Android sistemi tamamen hazir. Bagimliliklar kontrol ediliyor..." >> "$LOGFILE"
+
+    # Termux python3 kontrolü (Maksimum 30 saniye daha bekle)
     WAIT=0
     while [ ! -f /data/data/com.termux/files/usr/bin/python3 ] && [ $WAIT -lt 30 ]; do
         sleep 2
@@ -37,7 +46,14 @@ fi
         cd "$MODDIR" || exit 1
     fi
 
-    echo "[ANKA $(date '+%H:%M:%S')] Baslatiliyor..." >> "$LOGFILE"
-    nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
-    echo "[ANKA $(date '+%H:%M:%S')] PID: $!" >> "$LOGFILE"
+    echo "[ANKA $(date '+%H:%M:%S')] Anka OS Guvenli Modda Baslatiliyor..." >> "$LOGFILE"
+    
+    # Kökten ayırma (setsid veya çift çatal) ile boot sürecinden bağımsız kılma
+    if command -v setsid > /dev/null; then
+        setsid "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
+    else
+        "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
+    fi
+
+    echo "[ANKA $(date '+%H:%M:%S')] Baslatma komutu arkaplana firlatildi. PID: $!" >> "$LOGFILE"
 ) &
