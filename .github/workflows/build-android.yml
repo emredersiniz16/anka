@@ -3,24 +3,42 @@ name: Anka OS (Merlin) Build & Seal
 on:
   push:
     branches: [main]
-    # Sadece quantum değil, herhangi bir kod değiştiğinde tetiklensin diye paths kısmını kaldırdık
+    tags: ['v*'] # v1.0, v2.1 gibi etiket atıldığında Release tetiklenir
+    paths:
+      - 'core/**'
+      - 'agents/**'
+      - 'assets/**'
+      - 'kovan/**'
+      - 'rom_overlay/**'
+      - 'installer/**'
+      - 'Makefile'
+      - '.github/workflows/build-android.yml'
   workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Yayın kanalı (release veya dev)'
+        required: false
+        default: 'dev'
 
 jobs:
   build-and-seal:
+    name: 🛠️ ROM & Magisk Derle (NDK)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Release oluşturabilmek için gerekli
+
     steps:
-      - name: Checkout
+      - name: 📥 Kaynak Kodunu İndir
         uses: actions/checkout@v4
 
-      - name: Cache Android NDK
+      - name: 📦 Cache Android NDK
         id: cache-ndk
         uses: actions/cache@v4
         with:
           path: /opt/android-ndk
           key: android-ndk-r26d-linux-v1
 
-      - name: Install Android NDK
+      - name: 🛠️ Install Android NDK
         if: steps.cache-ndk.outputs.cache-hit != 'true'
         run: |
           mkdir -p /opt/android-ndk
@@ -30,7 +48,7 @@ jobs:
           mv /opt/android-ndk-tmp/android-ndk-r26d/* /opt/android-ndk/
           rm -rf /opt/android-ndk-tmp android-ndk-r26d-linux.zip
 
-      - name: 🔐 Build Static OpenSSL (For libcrypto fix)
+      - name: 🔐 Build Static OpenSSL
         run: |
           echo "Aarch64 için statik OpenSSL derleniyor..."
           wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz
@@ -38,27 +56,19 @@ jobs:
           cd openssl-1.1.1w
           export ANDROID_NDK_ROOT=/opt/android-ndk
           export PATH=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
-          # API 29 ile aarch64 derlemesi
           ./Configure android-arm64 -D__ANDROID_API__=29
           make build_libs -j$(nproc)
           cd ..
-          
-          # Kütüphane (.a) ve headerları çalışma dizinine hazırla
           mkdir -p external/openssl/lib external/openssl/include
           cp openssl-1.1.1w/libcrypto.a external/openssl/lib/
           cp openssl-1.1.1w/libssl.a external/openssl/lib/
           cp -r openssl-1.1.1w/include/openssl external/openssl/include/
 
-      - name: ⚙️ Build and Seal Anka OS (Magisk & ROM)
+      - name: ⚙️ Build and Seal Anka OS
         run: |
-          # NDK Clang ayarı (API 29)
           export TARGET_CC="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
-          
-          # Makefile içindeki dinamik libcrypto çağrılarını statik olanlarla değiştir
           sed -i 's/-lcrypto -lssl/external\/openssl\/lib\/libssl.a external\/openssl\/lib\/libcrypto.a/g' Makefile
           sed -i 's/-I./-I. -Iexternal\/openssl\/include/g' Makefile
-          
-          # Paketleme için zip aracını kur
           sudo apt-get install -y zip
           
           echo "🪰 Anka OS Magisk Modülü Derleniyor..."
@@ -67,18 +77,99 @@ jobs:
           echo "🪰 Anka OS TWRP ROM Derleniyor..."
           make rom CC="$TARGET_CC"
 
-      - name: 📦 Upload Magisk Module Artifact
+      - name: 🔑 SHA256 Kontrol Dosyaları Oluştur
+        run: |
+          sha256sum AnkaOS_ROM_merlin.zip > AnkaOS_ROM_merlin.zip.sha256
+          sha256sum AnkaOS_Quantum_v1.zip > AnkaOS_Quantum_v1.zip.sha256
+
+      - name: 📦 Artifact Olarak Yükle
         uses: actions/upload-artifact@v4
         with:
-          name: AnkaOS_Quantum_v1_Magisk
-          path: AnkaOS_Quantum_v1.zip
-          if-no-files-found: error
+          name: AnkaOS-Android-Builds-${{ github.sha }}
+          path: |
+            AnkaOS_ROM_merlin.zip
+            AnkaOS_ROM_merlin.zip.sha256
+            AnkaOS_Quantum_v1.zip
+            AnkaOS_Quantum_v1.zip.sha256
           retention-days: 30
 
-      - name: 📦 Upload TWRP ROM Artifact
+      - name: 📝 Sürüm Notunu Hazırla
+        run: |
+          echo "## ANKA OS — Redmi Note 9 (merlin)" > release_notes.md
+          echo "**Commit:** \`${{ github.sha }}\` | **Kanal:** \`${{ github.event.inputs.channel || 'auto' }}\`" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Kurulum (TWRP)" >> release_notes.md
+          echo "1. TWRP Recovery'e girin." >> release_notes.md
+          echo "2. \`AnkaOS_ROM_merlin.zip\` dosyasını flaşlayın." >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Kurulum (Magisk)" >> release_notes.md
+          echo "1. Cihaz açıkken Magisk Manager'a girin." >> release_notes.md
+          echo "2. \`AnkaOS_Quantum_v1.zip\` modülünü kurun ve yeniden başlatın." >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Değişiklikler" >> release_notes.md
+          git log --oneline -10 >> release_notes.md
+
+      - name: 🚀 GitHub Release Oluştur (Etiket Varsa)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: |
+            AnkaOS_ROM_merlin.zip
+            AnkaOS_ROM_merlin.zip.sha256
+            AnkaOS_Quantum_v1.zip
+            AnkaOS_Quantum_v1.zip.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-installer-exe:
+    name: 🪟 Windows EXE Installer Derle
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Kaynak Kodunu İndir
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 🛠️ PyInstaller Kur
+        run: pip install pyinstaller
+
+      - name: ⚙️ EXE Derle
+        working-directory: installer
+        run: |
+          pyinstaller `
+            --onefile `
+            --windowed `
+            --name AnkaOS_Installer `
+            anka_installer.py
+
+      - name: 🔑 EXE SHA256 Oluştur
+        working-directory: installer
+        run: |
+          $hash = (Get-FileHash dist\AnkaOS_Installer.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  AnkaOS_Installer.exe" | Out-File -Encoding utf8 AnkaOS_Installer.exe.sha256
+
+      - name: 📦 EXE Artifact Olarak Yükle
         uses: actions/upload-artifact@v4
         with:
-          name: AnkaOS_ROM_merlin_TWRP
-          path: AnkaOS_ROM_merlin.zip
-          if-no-files-found: error
+          name: AnkaOS-Installer-Windows-${{ github.sha }}
+          path: |
+            installer/dist/AnkaOS_Installer.exe
+            installer/AnkaOS_Installer.exe.sha256
           retention-days: 30
+
+      - name: 🚀 EXE'yi Release'e Ekle (Etiket Varsa)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installer/dist/AnkaOS_Installer.exe
+            installer/AnkaOS_Installer.exe.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
