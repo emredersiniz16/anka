@@ -13,6 +13,9 @@
 #include <unistd.h>
 #include <errno.h>
 
+/* Magisk modül mutlak yol öneki — göreceli assets/ yolları yerine */
+#define ANKA_ASSETS_DIR "/data/adb/modules/anka_os/system/anka_core/assets"
+
 extern int audio_play_awakening(void);
 
 // Terminal akışı ve ASCII yedekler burada (değişmedi)
@@ -41,11 +44,15 @@ void anim_update_fly_state(fb_context_t *fb, int current_state, float scale) {
 
     if (current_state == 0) { // FLY_IDLE
         fprintf(stderr, "🪰 [GÖRSEL]: Sinek koordinata oturtuluyor (%d, %d)\n", pos_x, pos_y);
-        fb_load_bmp(fb, "assets/sinek_ucuyor.bmp", pos_x, pos_y);
+        char path[512];
+        snprintf(path, sizeof(path), "%s/sinek_ucuyor.bmp", ANKA_ASSETS_DIR);
+        fb_load_bmp(fb, path, pos_x, pos_y);
     } 
     else if (current_state == 1) { // FLY_THINK
         fprintf(stderr, "⚡ [BEYİN]: Düşünen Sinek (%d, %d)\n", pos_x, pos_y);
-        fb_load_bmp(fb, "assets/sinek_dusunen.bmp", pos_x, pos_y);
+        char path[512];
+        snprintf(path, sizeof(path), "%s/sinek_dusunen.bmp", ANKA_ASSETS_DIR);
+        fb_load_bmp(fb, path, pos_x, pos_y);
     }
 }
 
@@ -64,7 +71,7 @@ static void draw_boot_line_with_blink(fb_context_t *fb, int x, int y, const char
 }
 
 int anim_fly_appear(fb_context_t *fb, AnkaHAL *hal, const char *image_path, int vibrate_ms) {
-    int bmp_rc = fb_load_bmp_centered(fb, image_path);
+    int bmp_rc = fb_load_bmp_centered(fb, image_path); 
     
     if (hal && hal->vibrate) hal->vibrate(vibrate_ms);
     audio_play_awakening();
@@ -77,6 +84,9 @@ int anim_fly_appear(fb_context_t *fb, AnkaHAL *hal, const char *image_path, int 
  * boot.c'nin çağırdığı giriş noktası. anim_boot_run_custom'a delege eder.
  * ═══════════════════════════════════════════════════════════════════════════ */
 int anim_boot_run(fb_context_t *fb, AnkaHAL *hal) {
+    /* Magisk mutlak yolu: assets/fly_icon.bmp → /data/adb/modules/anka_os/... */
+    static const char *FLY_ICON_PATH = "/data/adb/modules/anka_os/system/anka_core/assets/fly_icon.bmp";
+
     anim_boot_config_t cfg = {
         .fb             = fb,
         .hal             = hal,
@@ -84,7 +94,7 @@ int anim_boot_run(fb_context_t *fb, AnkaHAL *hal) {
         .line_delay_ms   = 250,      /* satırlar arası 250ms */
         .post_delay_ms   = 1000,     /* terminal sonrası 1s bekle */
         .vibrate_ms      = 400,      /* güçlü uyanış titreşimi */
-        .fly_image_path  = "assets/fly_icon.bmp",
+        .fly_image_path  = FLY_ICON_PATH,
     };
     return anim_boot_run_custom(&cfg);
 }
