@@ -6,7 +6,8 @@
 on property:sys.boot_completed=1
     start anka_os
 
-service anka_os /system/bin/anka_os
+# DİKKAT: Çalıştırılacak dosya adı anka_os_bin olarak güncellendi!
+service anka_os /system/bin/anka_os_bin
     class late_start
     user root
     group root system
