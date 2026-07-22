@@ -2,26 +2,13 @@
 #define ANKA_ENV_H
 
 /*
- * ANKA OS — Termux Python3 Bridge (C header)
+ * ANKA OS — Native Python Bridge (TERMUX'A VEDA!)
  * --------------------------------------------------
- * C kodundan python3 cagirirken /system/bin/sh tamamen bypass.
- * system("python3 ...") YERINE anka_run_python() kullan.
+ * Termux tamamen kaldirildi! Artik dogrudan Magisk/ROM icindeki 
+ * gercek "python3" binary'sini kullanir.
  *
  * anka_run_python()      — senkron (waitpid ile bekler)
- * anka_run_python_bg()   — arka plan (beklemez, fork+execve)
- *
- * Kullanim:
- *   #include "anka_env.h"
- *
- *   // Tek script calistir (bekler):
- *   int rc = anka_run_python("agents/sinek_nexus.py", NULL);
- *
- *   // Arka planda calistir (beklemez):
- *   anka_run_python_bg("agents/sinek_nexus.py", NULL);
- *
- *   // Argumanli:
- *   char *args[] = {"--verbose", NULL};
- *   anka_run_python("script.py", args);
+ * anka_run_python_bg()   — arka plan (beklemez, fork+execvp)
  */
 
 #include <unistd.h>
@@ -33,22 +20,11 @@
 
 extern char **environ;
 
-#define TERMUX_PREFIX "/data/data/com.termux/files/usr"
-#define TERMUX_HOME   "/data/data/com.termux/files/home"
-#define TERMUX_PY     TERMUX_PREFIX "/bin/python3"
-
-/* Termux ortam degiskenlerini set et (SADECE CHILD SÜREÇTE ÇAĞRILMALI) */
-static void anka_set_termux_env(void) {
-    setenv("PATH", TERMUX_PREFIX "/bin:/system/bin:/system/xbin", 1);
-    setenv("LD_LIBRARY_PATH", TERMUX_PREFIX "/lib", 1);
-    setenv("PREFIX", TERMUX_PREFIX, 1);
-    setenv("HOME", TERMUX_HOME, 1);
-    setenv("TMPDIR", TERMUX_PREFIX "/tmp", 1);
-    setenv("LANG", "en_US.UTF-8", 1);
-}
+// Artik Termux yolu yok. Sistemde kurulu yerel Python3 aranacak.
+#define ANKA_PY "python3"
 
 /*
- * Python3'u fork+execve ile calistir (sh tamamen bypass) — SENKRON
+ * Python3'u fork+execvp ile calistir (sh tamamen bypass) — SENKRON
  * return: 0 basarili, -1 fork fail, 127 exec fail, diger = python exit code
  */
 static int anka_run_python(const char *script_path, char *const args[]) {
@@ -59,12 +35,10 @@ static int anka_run_python(const char *script_path, char *const args[]) {
     }
 
     if (pid == 0) {
-        /* Child Süreç: Ortam değişkenlerini SADECE burada değiştiriyoruz */
-        anka_set_termux_env();
-
+        /* Child Süreç: Çevre değişkeni (env) bozmak yok, yerel PATH kullanılır */
         char *argv[64];
         int i = 0;
-        argv[i++] = (char *)TERMUX_PY;
+        argv[i++] = (char *)ANKA_PY;
         argv[i++] = (char *)script_path;
 
         if (args) {
@@ -75,12 +49,18 @@ static int anka_run_python(const char *script_path, char *const args[]) {
         }
         argv[i] = NULL;
 
-        execve(TERMUX_PY, argv, environ);
-        perror("[ANKA] execve python3 failed");
+        // execvp sistemin kendi PATH'i uzerinden python3'u bulur
+        execvp(ANKA_PY, argv);
+        
+        // Eger PATH'te bulamazsa, Magisk/Sistem mutlak yollarini zorla dener
+        execve("/system/bin/python3", argv, environ);
+        execve("/data/adb/modules/python/system/bin/python3", argv, environ);
+        
+        perror("[ANKA] HATA: python3 bulunamadi! (Magisk Python Modulu kurulu mu?)");
         _exit(127);
     }
 
-    /* Parent: bekle (Anka OS'in kendi ortam değişkenleri bozulmadan kalır) */
+    /* Parent: bekle */
     int status;
     waitpid(pid, &status, 0);
 
@@ -91,8 +71,7 @@ static int anka_run_python(const char *script_path, char *const args[]) {
 
 /*
  * Python3'u arka planda calistir (sh bypass) — ASENKRON
- * waitpid yapmaz, hemen doner. system("... &") yerine kullan.
- * return: 0 basarili fork, -1 fork fail
+ * waitpid yapmaz, hemen doner.
  */
 static int anka_run_python_bg(const char *script_path, char *const args[]) {
     pid_t pid = fork();
@@ -104,13 +83,10 @@ static int anka_run_python_bg(const char *script_path, char *const args[]) {
     if (pid == 0) {
         /* Child — kendi process grubuna gec */
         setsid();
-        
-        /* ÇOK KRİTİK: Termux zehri sadece bu alt sürece veriliyor */
-        anka_set_termux_env();
 
         char *argv[64];
         int i = 0;
-        argv[i++] = (char *)TERMUX_PY;
+        argv[i++] = (char *)ANKA_PY;
         argv[i++] = (char *)script_path;
 
         if (args) {
@@ -121,20 +97,21 @@ static int anka_run_python_bg(const char *script_path, char *const args[]) {
         }
         argv[i] = NULL;
 
-        execve(TERMUX_PY, argv, environ);
-        perror("[ANKA] execve python3 (bg) failed");
+        execvp(ANKA_PY, argv);
+        execve("/system/bin/python3", argv, environ);
+        
+        perror("[ANKA] HATA: python3 (bg) bulunamadi! Lutfen yerel Python kurun.");
         _exit(127);
     }
 
-    /* Parent: bekleme, hemen don (Anka OS yoluna sapasağlam devam eder) */
-    fprintf(stderr, "[ANKA] Python arka plan baslatildi (PID=%d): %s\n",
+    /* Parent: bekleme, hemen don */
+    fprintf(stderr, "🪰 [ANKA] Kovan Ajani (Python) arka planda baslatildi (PID=%d): %s\n",
             (int)pid, script_path);
     return 0;
 }
 
 /*
- * Fallback: system() ile ama dogru env + mutlak yol
- * (Ana süreci zehirlememek için bunu da fork içine aldık)
+ * Fallback: system() ile saf cagirilis
  */
 static int anka_run_python_system(const char *cmd) {
     pid_t pid = fork();
@@ -143,9 +120,8 @@ static int anka_run_python_system(const char *cmd) {
     }
     
     if (pid == 0) {
-        anka_set_termux_env();
         char full_cmd[2048];
-        snprintf(full_cmd, sizeof(full_cmd), "%s %s", TERMUX_PY, cmd);
+        snprintf(full_cmd, sizeof(full_cmd), "python3 %s", cmd);
         exit(system(full_cmd));
     }
     
