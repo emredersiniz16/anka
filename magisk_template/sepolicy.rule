@@ -1,0 +1,51 @@
+# ANKA OS — Magisk SELinux Policy Rules
+# Bu dosya Magisk tarafindan boot'ta otomatik yuklenir (magiskpolicy --apply).
+# service.sh'teki --live komutlarina ek olarak kalici kurallar.
+#
+# Format: <action> <source> <target>:<class> <perms>
+# Kaynak context: magisk_service (Magisk late_start servisleri)
+# Hedefler: framebuffer, input, sound, leds, timed_output, sysfs, power_supply
+
+# --- Framebuffer (/dev/graphics/fb0) ---
+allow magisk_service graphics_device:chr_file { read write open ioctl };
+allow magisk graphics_device:chr_file { read write open ioctl };
+
+# --- Input cihazlari (/dev/input/event*) ---
+allow magisk_service input_device:chr_file { read write open ioctl };
+allow magisk_service event_device:chr_file { read write open ioctl };
+allow magisk input_device:chr_file { read write open ioctl };
+allow magisk event_device:chr_file { read write open ioctl };
+
+# --- Ses donanimlari (/dev/snd/*) ---
+allow magisk_service sound_device:chr_file { read write open ioctl };
+allow magisk sound_device:chr_file { read write open ioctl };
+
+# --- Titresim motoru (/sys/class/timed_output/vibrator/, /sys/class/leds/vibrator/) ---
+allow magisk_service timed_output_device:dir { search read };
+allow magisk_service timed_output_device:chr_file { read write open };
+allow magisk timed_output_device:dir { search read };
+allow magisk timed_output_device:chr_file { read write open };
+allow magisk_service leds_device:dir { search read write };
+allow magisk_service leds_device:chr_file { read write open };
+allow magisk leds_device:dir { search read write };
+allow magisk leds_device:chr_file { read write open };
+
+# --- Backlight (/sys/class/backlight/...) ---
+allow magisk_service sysfs:dir { search read write };
+allow magisk_service sysfs:file { read write open };
+allow magisk sysfs:dir { search read write };
+allow magisk sysfs:file { read write open };
+
+# --- Power supply / pil bilgisi (/sys/class/power_supply/...) ---
+allow magisk_service power_supply_device:dir { search read };
+allow magisk_service power_supply_device:chr_file { read write open };
+allow magisk power_supply_device:dir { search read };
+allow magisk power_supply_device:chr_file { read write open };
+
+# --- Process capabilities (raw I/O, sys_admin, sched) ---
+allow magisk_service self:capability { sys_admin sys_rawio sys_nice };
+allow magisk self:capability { sys_admin sys_rawio sys_nice };
+
+# --- /proc/cpuinfo (cihaz parmak izi icin) ---
+allow magisk_service proc:file { read open };
+allow magisk proc:file { read open };
