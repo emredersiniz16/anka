@@ -4,6 +4,7 @@
 // DÜZELTME v2: SIGINT handler eklendi (temiz kapanış)
 // DÜZELTME v2: python3 başarısızsa uyarı + fallback
 // DÜZELTME v3: Magisk absolute path güncellemeleri (Kuantum Motoru ve Python Ajanı)
+// DÜZELTME v4: anka_env.h yorumu düzeltildi — Termux referansı kaldırıldı
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,7 +13,7 @@
 #include <string.h>
 
 // Motorlar ve Donanım Katmanı
-#include "anka_env.h"      // Termux python3 bridge (sh bypass)
+#include "anka_env.h"      // Native Python3 bridge (fork+execvp, sh bypass)
 #include "quantum/quantum_dust.h"
 extern void collapse_shutdown(void);
 #include "quantum/collapse_engine.h"
@@ -120,7 +121,7 @@ int main() {
     // Sinek'i uyanmaya zorla
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
-    // 5. Kovan ve Ağ — TERMUX PYTHON3 (sh bypass!)
+    // 5. Kovan ve Ağ — NATIVE PYTHON3 (sh bypass!)
     // Python dosyasının Magisk içindeki mutlak (absolute) yolunu verdik
     int py_rc = anka_run_python_bg("/data/adb/modules/anka_os/system/anka_core/agents/sinek_nexus.py", NULL);
     if (py_rc < 0) {
