@@ -15,15 +15,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Zig
-        uses: goto-bus-stop/setup-zig@v2
+      - name: Cache Android NDK
+        id: cache-ndk
+        uses: actions/cache@v4
         with:
-          version: 0.13.0
+          path: /opt/android-ndk
+          key: android-ndk-r26d-linux-v1
 
-      - name: Build shared library (aarch64-linux-android)
+      - name: Install Android NDK
+        if: steps.cache-ndk.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /opt/android-ndk
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+          unzip -q android-ndk-r26d-linux.zip -d /opt/android-ndk-tmp
+          mv /opt/android-ndk-tmp/android-ndk-r26d/* /opt/android-ndk/
+          rm -rf /opt/android-ndk-tmp android-ndk-r26d-linux.zip
+
+      - name: Verify NDK layout
+        run: |
+          ls /opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ | head -20
+          ls /opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdio.h
+
+      - name: Build shared library (aarch64-linux-android, API 21)
         run: |
           cd core/quantum
-          zig cc -target aarch64-linux-android -shared -fPIC -O3 \
+          NDK_TOOLCHAIN="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          CC="$NDK_TOOLCHAIN/aarch64-linux-android21-clang"
+          "$CC" -shared -fPIC -O3 \
             -o libanka_quantum.so \
             collapse_engine.c quantum_dust.c sinek_fsm.c
           file libanka_quantum.so
