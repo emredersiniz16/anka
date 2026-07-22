@@ -33,6 +33,7 @@
 #include <linux/fb.h>
 #include <time.h>
 #define ANKA_ASSETS_DIR "/data/adb/modules/anka_os/system/anka_core/assets"
+#define ANKA_ASSETS_DIR "/data/adb/modules/anka_os/system/anka_core/assets"
 
 /* =========================================================================
  * SECTION 2: COMPLETE 8×8 BITMAP FONT (ASCII 32–127, 96 entries)
