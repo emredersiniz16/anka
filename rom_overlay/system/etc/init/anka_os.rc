@@ -14,7 +14,3 @@ service anka_os /system/bin/anka_os
     disabled
     oneshot
     writepid /dev/cpuset/foreground/tasks
-
-# Sinek çöküp yeniden başlarsa 10 saniye bekle
-on property:init.svc.anka_os=stopped
-    exec_background /system/bin/sh -c "sleep 10 && start anka_os"
