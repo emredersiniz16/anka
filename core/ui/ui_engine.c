@@ -32,6 +32,7 @@
 #include <sys/wait.h>
 #include <linux/fb.h>
 #include <time.h>
+#define ANKA_ASSETS_DIR "/data/adb/modules/anka_os/system/anka_core/assets"
 
 /* =========================================================================
  * SECTION 2: COMPLETE 8×8 BITMAP FONT (ASCII 32–127, 96 entries)
@@ -605,7 +606,7 @@ void anka_boot_sequence(fb_context_t *fb)
     fb_draw_text_scaled(fb, 50, 350, "[OK] Omni Sensorler Cevrimici...", 3, 0, 255, 0);
     usleep(800000);
     fb_clear(fb, 0, 0, 0);
-    fb_load_bmp_centered(fb, "assets/sinek_icon.bmp");
+    fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_icon.bmp");
     system("su -c 'echo 150 > /sys/class/timed_output/vibrator/enable' 2>/dev/null");
     system("su -c 'tinyplay assets/awake.wav' 2>/dev/null &");
     usleep(1000000);
@@ -635,17 +636,17 @@ void ui_render(fb_context_t *fb, const char *last_message)
         fb_draw_text_scaled(fb, 50, 50, "[--- SIBERPUNK NEON GECE ---]", 3, 0, 255, 0);
     }
     if (current_state == FLY_MIRROR) {
-        fb_load_bmp_centered(fb, "assets/sinek_ayna.bmp");
+        fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_ayna.bmp");
     } else if (current_state == FLY_THINK) {
-        fb_load_bmp_centered(fb, "assets/sinek_dusunen.bmp");
+        fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_dusunen.bmp");
     } else {
-        fb_load_bmp_centered(fb, "assets/sinek_ucuyor.bmp");
+        fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_ucuyor.bmp");
     }
     if (last_message != NULL) {
         fb_draw_text_scaled(fb, 50, fb->height - 200, "SINEK:", 4, text_r, text_g, text_b);
         fb_draw_text_scaled(fb, 50, fb->height - 130, last_message, 3, text_r, text_g, text_b);
         if (strstr(last_message, "[FLY_SIGNATURE_ICON]")) {
-            fb_load_bmp(fb, "assets/sinek_icon.bmp", fb->width - 150, fb->height - 150);
+            fb_load_bmp(fb, ANKA_ASSETS_DIR "/sinek_icon.bmp", fb->width - 150, fb->height - 150);
         }
     }
 }
