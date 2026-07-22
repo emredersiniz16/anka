@@ -1,6 +1,7 @@
 #!/system/bin/sh
 # ANKA OS boot servisi - late_start sonrasi calisir
-# DÜZELTME v3: Bootloop fix — boot tamamlanana kadar bekle, library path düzelt
+# DÜZELTME v4: SELinux Enforcing modunda kalır — setenforce 0 YOK.
+#              magiskpolicy ile sadece anka_os_bin için gerekli izinler eklenir.
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -15,17 +16,47 @@ while [ "$(getprop sys.boot_completed)" != "1" ] && [ $WAIT_BOOT -lt 60 ]; do
     WAIT_BOOT=$((WAIT_BOOT + 2))
 done
 
-# Boot tamamlanmadıysa başlatma
 if [ "$(getprop sys.boot_completed)" != "1" ]; then
     echo "[ANKA $(date '+%H:%M:%S')] HATA: Boot tamamlanmadi, sinek baslatilmiyor" > "$LOGFILE"
     exit 0
 fi
 
-# 2. SELinux permissive (framebuffer için)
-setenforce 0 2>/dev/null
+# 2. SELinux Enforcing modunda kal — setenforce 0 YOK!
+#    Bunun yerine magiskpolicy ile anka_os_bin için gerekli izinleri ekle.
+#    sepolicy.rule dosyası Magisk tarafından boot'ta yüklenir,
+#    buradaki --live komutları ise runtime'da ek guarantee sağlar.
 
-# 3. Framebuffer izinlerini aç
+# Framebuffer (/dev/graphics/fb0) erişimi
+magiskpolicy --live "allow * graphics_device:chr_file { read write open ioctl }" 2>/dev/null
+
+# Input cihazları (/dev/input/event*)
+magiskpolicy --live "allow * input_device:chr_file { read write open ioctl }" 2>/dev/null
+magiskpolicy --live "allow * event_device:chr_file { read write open ioctl }" 2>/dev/null
+
+# Ses donanımları (/dev/snd/*)
+magiskpolicy --live "allow * sound_device:chr_file { read write open ioctl }" 2>/dev/null
+
+# Titreşim motoru (/sys/class/timed_output/vibrator/, /sys/class/leds/vibrator/)
+magiskpolicy --live "allow * timed_output_device:dir { search read }" 2>/dev/null
+magiskpolicy --live "allow * timed_output_device:chr_file { read write open }" 2>/dev/null
+magiskpolicy --live "allow * leds_device:dir { search read write }" 2>/dev/null
+magiskpolicy --live "allow * leds_device:chr_file { read write open }" 2>/dev/null
+
+# Backlight (/sys/class/backlight/...)
+magiskpolicy --live "allow * sysfs:dir { search read write }" 2>/dev/null
+magiskpolicy --live "allow * sysfs:file { read write open }" 2>/dev/null
+
+# Power supply (pil bilgisi: /sys/class/power_supply/)
+magiskpolicy --live "allow * power_supply_device:dir { search read }" 2>/dev/null
+magiskpolicy --live "allow * power_supply_device:chr_file { read write open }" 2>/dev/null
+
+# Process capabilities (raw I/O, sys_admin)
+magiskpolicy --live "allow * self:capability { sys_admin sys_rawio sys_nice }" 2>/dev/null
+
+# 3. Framebuffer dosya izinleri (SELinux yanında DAC da aç)
 chmod 666 /dev/graphics/fb0 2>/dev/null
+chmod 666 /dev/input/event* 2>/dev/null
+chmod 666 /dev/snd/* 2>/dev/null
 
 # 4. Binary var mı kontrol
 if [ ! -f "$ANKA_BIN" ]; then
@@ -43,11 +74,11 @@ fi
 chmod 755 "$ANKA_BIN"
 chmod 755 "$ANKA_LIB/libanka_quantum.so"
 
-# 7. ANKA core dizinine geç (assets ve agents burada) - Dizin yoksa oluştur
+# 7. ANKA core dizinine geç
 mkdir -p "$ANKA_CORE"
 cd "$ANKA_CORE"
 
-# 8. Library path set et (dlopen ve dynamic linker için)
+# 8. Library path set et
 export LD_LIBRARY_PATH="$ANKA_LIB:$LD_LIBRARY_PATH"
 export ANKA_LIB_PATH="$ANKA_LIB/libanka_quantum.so"
 
@@ -59,19 +90,18 @@ chmod 755 "$ANKA_CORE/core/quantum/libanka_quantum.so"
 # 10. Log başlangıcı
 echo "[ANKA $(date '+%H:%M:%S')] ====================================" > "$LOGFILE"
 echo "[ANKA $(date '+%H:%M:%S')] ANKA OS baslatiliyor..." >> "$LOGFILE"
-echo "[ANKA $(date '+%H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
+echo "[ANKA $(date '+%H:%M:%S')] SELinux: $(getenforce) (Enforcing — magiskpolicy ile izinler eklendi)" >> "$LOGFILE"
 echo "[ANKA $(date '+%H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
 echo "[ANKA $(date '+%H:%M:%S')] Library: $ANKA_LIB/libanka_quantum.so" >> "$LOGFILE"
 echo "[ANKA $(date '+%H:%M:%S')] Core: $ANKA_CORE" >> "$LOGFILE"
 echo "[ANKA $(date '+%H:%M:%S')] Boot: $(getprop sys.boot_completed)" >> "$LOGFILE"
 
-# 11. Sineği arka planda başlat
-# ÖNEMLİ: crash olursa sistem etkilenmesin — nohup + timeout koruması
+# 11. Sineği arka planda başlat (nohup + timeout koruması)
 nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
 PID=$!
 echo "[ANKA $(date '+%H:%M:%S')] Sinek baslatildi PID=$PID" >> "$LOGFILE"
 
-# 12. Sinek çökerse yeniden başlat — ama MAKSİMUM 3 deneme
+# 12. Sinek çökerse yeniden başlat — MAKSİMUM 3 deneme
 RETRY=0
 MAX_RETRY=3
 while [ $RETRY -lt $MAX_RETRY ]; do
