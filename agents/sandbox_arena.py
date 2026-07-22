@@ -24,14 +24,14 @@ import json
 import time
 import shutil
 import hashlib
-import tempfile
 import subprocess
 import urllib.request
 import urllib.error
 from typing import Any
 
-# Sandbox geçici dizini
-_SANDBOX_KOKU = os.path.join(tempfile.gettempdir(), "anka_sandbox")
+# Sandbox geçici dizini — Android/Magisk güvenli yol (tempfile.gettempdir() yerine)
+# /tmp Android'de yok; /data/local/tmp her zaman yazılabilir (root + shell)
+_SANDBOX_KOKU = "/data/local/tmp/anka_os/sandbox"
 _GECMIS_DOSYA = os.path.join(_SANDBOX_KOKU, "deney_gecmisi.json")
 
 # Güvenlik sınırları
@@ -126,8 +126,9 @@ class SandboxArena:
         """
         self._log(f"📥 [SANDBOX]: Paket test kuruluyor → {paket_adi}")
 
-        gecici_dizin = tempfile.mkdtemp(prefix="anka_pkg_", dir=_SANDBOX_KOKU)
+        gecici_dizin = os.path.join(_SANDBOX_KOKU, f"pkg_{hashlib.sha1(paket_adi.encode()).hexdigest()[:8]}")
         try:
+            os.makedirs(gecici_dizin, exist_ok=True)
             baslangic = time.time()
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install",
@@ -285,6 +286,7 @@ class SandboxArena:
             self.gecmis = self.gecmis[-_MAX_GECMIS:]
         # Diske yaz
         try:
+            os.makedirs(os.path.dirname(_GECMIS_DOSYA), exist_ok=True)
             with open(_GECMIS_DOSYA, "w", encoding="utf-8") as f:
                 json.dump(self.gecmis, f, ensure_ascii=False, indent=2)
         except Exception:
