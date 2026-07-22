@@ -1,15 +1,13 @@
-name: Build libanka_quantum.so (Android arm64)
+name: Anka OS (Merlin) Build & Seal
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'core/quantum/**'
-      - '.github/workflows/build-android.yml'
+    # Sadece quantum değil, herhangi bir kod değiştiğinde tetiklensin diye paths kısmını kaldırdık
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-seal:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,26 +30,55 @@ jobs:
           mv /opt/android-ndk-tmp/android-ndk-r26d/* /opt/android-ndk/
           rm -rf /opt/android-ndk-tmp android-ndk-r26d-linux.zip
 
-      - name: Verify NDK layout
+      - name: 🔐 Build Static OpenSSL (For libcrypto fix)
         run: |
-          ls /opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ | head -20
-          ls /opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdio.h
+          echo "Aarch64 için statik OpenSSL derleniyor..."
+          wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz
+          tar xzf openssl-1.1.1w.tar.gz
+          cd openssl-1.1.1w
+          export ANDROID_NDK_ROOT=/opt/android-ndk
+          export PATH=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          # API 29 ile aarch64 derlemesi
+          ./Configure android-arm64 -D__ANDROID_API__=29
+          make build_libs -j$(nproc)
+          cd ..
+          
+          # Kütüphane (.a) ve headerları çalışma dizinine hazırla
+          mkdir -p external/openssl/lib external/openssl/include
+          cp openssl-1.1.1w/libcrypto.a external/openssl/lib/
+          cp openssl-1.1.1w/libssl.a external/openssl/lib/
+          cp -r openssl-1.1.1w/include/openssl external/openssl/include/
 
-      - name: Build shared library (aarch64-linux-android, API 21)
+      - name: ⚙️ Build and Seal Anka OS (Magisk & ROM)
         run: |
-          cd core/quantum
-          NDK_TOOLCHAIN="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          CC="$NDK_TOOLCHAIN/aarch64-linux-android21-clang"
-          "$CC" -shared -fPIC -O3 \
-            -o libanka_quantum.so \
-            collapse_engine.c quantum_dust.c sinek_fsm.c
-          file libanka_quantum.so
-          ls -la libanka_quantum.so
+          # NDK Clang ayarı (API 29)
+          export TARGET_CC="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+          
+          # Makefile içindeki dinamik libcrypto çağrılarını statik olanlarla değiştir
+          sed -i 's/-lcrypto -lssl/external\/openssl\/lib\/libssl.a external\/openssl\/lib\/libcrypto.a/g' Makefile
+          sed -i 's/-I./-I. -Iexternal\/openssl\/include/g' Makefile
+          
+          # Paketleme için zip aracını kur
+          sudo apt-get install -y zip
+          
+          echo "🪰 Anka OS Magisk Modülü Derleniyor..."
+          make magisk CC="$TARGET_CC"
+          
+          echo "🪰 Anka OS TWRP ROM Derleniyor..."
+          make rom CC="$TARGET_CC"
 
-      - name: Upload .so artifact
+      - name: 📦 Upload Magisk Module Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libanka_quantum-so
-          path: core/quantum/libanka_quantum.so
+          name: AnkaOS_Quantum_v1_Magisk
+          path: AnkaOS_Quantum_v1.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 📦 Upload TWRP ROM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnkaOS_ROM_merlin_TWRP
+          path: AnkaOS_ROM_merlin.zip
           if-no-files-found: error
           retention-days: 30
