@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <signal.h>
+#include <string.h>
 
 // Motorlar ve Donanım Katmanı
 #include "anka_env.h"      // Termux python3 bridge (sh bypass)
@@ -77,11 +78,18 @@ int main() {
 
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
-    // 2. Kuantum motorunu yükle (DİNAMİK YOL DÜZELTMESİ)
+    // 2. Kuantum motorunu yükle (Mutlak Path Fallback Düzeltmesi)
     const char *lib_path = getenv("ANKA_LIB_PATH");
-    if (!lib_path) lib_path = "./core/quantum/libanka_quantum.so";
+    if (!lib_path) {
+        lib_path = "/data/adb/modules/anka_os_quantum/system/lib/libanka_quantum.so";
+    }
     void *lib = dlopen(lib_path, RTLD_LAZY);
     
+    if (!lib) {
+        // Son çare olarak göreceli yolu da deneyelim
+        lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
+    }
+
     if (!lib) {
         fprintf(stderr, "❌ [HATA]: Kuantum motoru yüklenemedi: %s\n", dlerror());
         return -1;
@@ -111,8 +119,6 @@ int main() {
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
     // 5. Kovan ve Ağ — TERMUX PYTHON3 (sh bypass!)
-    // ESKİ (bozuk): system("su -c 'python3 agents/sinek_nexus.py &' ");
-    // YENİ: anka_run_python_bg() — /system/bin/sh devreye girmez
     int py_rc = anka_run_python_bg("agents/sinek_nexus.py", NULL);
     if (py_rc < 0) {
         fprintf(stderr,
