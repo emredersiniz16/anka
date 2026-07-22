@@ -37,7 +37,7 @@ extern char **environ;
 #define TERMUX_HOME   "/data/data/com.termux/files/home"
 #define TERMUX_PY     TERMUX_PREFIX "/bin/python3"
 
-/* Termux ortam degiskenlerini set et */
+/* Termux ortam degiskenlerini set et (SADECE CHILD SÜREÇTE ÇAĞRILMALI) */
 static void anka_set_termux_env(void) {
     setenv("PATH", TERMUX_PREFIX "/bin:/system/bin:/system/xbin", 1);
     setenv("LD_LIBRARY_PATH", TERMUX_PREFIX "/lib", 1);
@@ -52,8 +52,6 @@ static void anka_set_termux_env(void) {
  * return: 0 basarili, -1 fork fail, 127 exec fail, diger = python exit code
  */
 static int anka_run_python(const char *script_path, char *const args[]) {
-    anka_set_termux_env();
-
     pid_t pid = fork();
     if (pid < 0) {
         perror("[ANKA] fork failed");
@@ -61,7 +59,9 @@ static int anka_run_python(const char *script_path, char *const args[]) {
     }
 
     if (pid == 0) {
-        /* Child */
+        /* Child Süreç: Ortam değişkenlerini SADECE burada değiştiriyoruz */
+        anka_set_termux_env();
+
         char *argv[64];
         int i = 0;
         argv[i++] = (char *)TERMUX_PY;
@@ -80,7 +80,7 @@ static int anka_run_python(const char *script_path, char *const args[]) {
         _exit(127);
     }
 
-    /* Parent: bekle */
+    /* Parent: bekle (Anka OS'in kendi ortam değişkenleri bozulmadan kalır) */
     int status;
     waitpid(pid, &status, 0);
 
@@ -95,8 +95,6 @@ static int anka_run_python(const char *script_path, char *const args[]) {
  * return: 0 basarili fork, -1 fork fail
  */
 static int anka_run_python_bg(const char *script_path, char *const args[]) {
-    anka_set_termux_env();
-
     pid_t pid = fork();
     if (pid < 0) {
         perror("[ANKA] fork (bg) failed");
@@ -106,6 +104,9 @@ static int anka_run_python_bg(const char *script_path, char *const args[]) {
     if (pid == 0) {
         /* Child — kendi process grubuna gec */
         setsid();
+        
+        /* ÇOK KRİTİK: Termux zehri sadece bu alt sürece veriliyor */
+        anka_set_termux_env();
 
         char *argv[64];
         int i = 0;
@@ -125,7 +126,7 @@ static int anka_run_python_bg(const char *script_path, char *const args[]) {
         _exit(127);
     }
 
-    /* Parent: bekleme, hemen don */
+    /* Parent: bekleme, hemen don (Anka OS yoluna sapasağlam devam eder) */
     fprintf(stderr, "[ANKA] Python arka plan baslatildi (PID=%d): %s\n",
             (int)pid, script_path);
     return 0;
@@ -133,14 +134,26 @@ static int anka_run_python_bg(const char *script_path, char *const args[]) {
 
 /*
  * Fallback: system() ile ama dogru env + mutlak yol
- * (execve kullanamiyorsan)
+ * (Ana süreci zehirlememek için bunu da fork içine aldık)
  */
 static int anka_run_python_system(const char *cmd) {
-    anka_set_termux_env();
-    char full_cmd[2048];
-    snprintf(full_cmd, sizeof(full_cmd), "%s %s", TERMUX_PY, cmd);
-    return system(full_cmd);
+    pid_t pid = fork();
+    if (pid < 0) {
+        return -1;
+    }
+    
+    if (pid == 0) {
+        anka_set_termux_env();
+        char full_cmd[2048];
+        snprintf(full_cmd, sizeof(full_cmd), "%s %s", TERMUX_PY, cmd);
+        exit(system(full_cmd));
+    }
+    
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    return -1;
 }
 
 #endif /* ANKA_ENV_H */
-
