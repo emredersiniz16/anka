@@ -1,0 +1,21 @@
+# ANKA OS — Python bağımlılıkları
+# Kovan ajanı ve agents/ modülleri için gerekli dış kütüphaneler
+# Standart kütüphane modülleri (os, sys, json, subprocess, urllib, threading, vb.) dahil değildir.
+
+# --- ZORUNLU (Kovan sunucusu) ---
+websockets>=12.0           # kovan/server_main.py — Sinek bağlantı protokolü
+sqlalchemy>=2.0.0          # kovan/database.py + models.py — async ORM
+aiosqlite>=0.19.0           # kovan/database.py — async SQLite sürücüsü (DATABASE_URL'de)
+fastapi>=0.110.0           # agents/ortam_hazirla.py — HTTP API katmanı
+uvicorn>=0.27.0            # agents/ortam_hazirla.py — ASGI sunucusu
+requests>=2.31.0           # agents/ortam_hazirla.py — HTTP istemcisi
+
+# --- OPSİYONEL (Performans / yapılandırma) ---
+psutil>=5.9.0              # Sistem metrikleri (pil, CPU, bellek) — yoksa atlanır
+python-dotenv>=1.0.0       # .env dosyasından yapılandırma yükleme
+
+# --- NOTLAR ---
+# llm_bridge.py: urllib.request kullanır (stdlib) — ek paket gerekmez.
+# kuantum_kopru.py: ctypes ile libanka_quantum.so yükler (stdlib) — pip paketi değil.
+# anka_installer.py: tkinter kullanır — Python ile birlikte gelir, pip ile kurulmaz.
+# Tüm diğer agents/*.py dosyaları yalnızca standart kütüphane kullanır.
