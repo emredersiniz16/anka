@@ -4,6 +4,12 @@ MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 LOGFILE=/data/adb/anka_os.log
 
+# KRİTİK EKLENTİ: Termux kütüphanelerini boot ortamına zorla tanıtıyoruz
+# Bu olmazsa C çekirdeği (anka_os_bin) çalışırken çöker ve bootloop yapar!
+export PREFIX=/data/data/com.termux/files/usr
+export PATH=$PREFIX/bin:$PATH
+export LD_LIBRARY_PATH=$PREFIX/lib
+
 # Zaten çalışıyorsa iki kere tetiklenmesin
 if pgrep -f "anka_os_bin" > /dev/null; then
     echo "[ANKA $(date '+%H:%M:%S')] Zaten çalistiriliyor, atlanıyor." >> "$LOGFILE"
@@ -17,6 +23,9 @@ fi
     while [ "$(getprop sys.boot_completed)" != "1" ]; do
         sleep 5
     done
+    
+    # 2. KURAL: Sistem kendine geldikten sonra donanıma girmek için 10 saniye bekle
+    sleep 10
 
     echo "[ANKA $(date '+%H:%M:%S')] Android sistemi tamamen hazir. Bagimliliklar kontrol ediliyor..." >> "$LOGFILE"
 
@@ -48,11 +57,11 @@ fi
 
     echo "[ANKA $(date '+%H:%M:%S')] Anka OS Guvenli Modda Baslatiliyor..." >> "$LOGFILE"
     
-    # Kökten ayırma (setsid veya çift çatal) ile boot sürecinden bağımsız kılma
+    # Kökten ayırma (setsid veya nohup) ile boot sürecinden bağımsız kılma
     if command -v setsid > /dev/null; then
         setsid "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
     else
-        "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
+        nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
     fi
 
     echo "[ANKA $(date '+%H:%M:%S')] Baslatma komutu arkaplana firlatildi. PID: $!" >> "$LOGFILE"
