@@ -9,8 +9,8 @@ class GorunmezlikMotoru:
         """Tüm geçici logları anlık temizle, sistemin varlığını gizle."""
         try:
             # Sinek'in bıraktığı tüm geçici izleri sil
-            # Hataları gizlemek için > /dev/null 2>&1 kullanıyoruz
-            os.system("rm -rf /tmp/sinek_temp/* > /dev/null 2>&1")
+            # Güvenli Magisk yolu: /data/local/tmp/ (Android'de /tmp yok)
+            os.system("rm -rf /data/local/tmp/anka_os/sinek_temp/* > /dev/null 2>&1")
         except Exception:
             # Sessiz kal, hata verme
             pass
