@@ -4,31 +4,40 @@ MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 LOGFILE=/data/adb/anka_os.log
 
-# Termux python3 bekle (max 30 sn)
-WAIT=0
-while [ ! -f /data/data/com.termux/files/usr/bin/python3 ] && [ $WAIT -lt 30 ]; do
-    sleep 2
-    WAIT=$((WAIT + 2))
-done
-
-if [ ! -f /data/data/com.termux/files/usr/bin/python3 ]; then
-    echo "[ANKA $(date '+%H:%M:%S')] HATA: Termux python3 bulunamadi" >> "$LOGFILE"
-    exit 1
+# Zaten çalışıyorsa iki kere tetiklenmesin
+if pgrep -f "anka_os_bin" > /dev/null; then
+    echo "[ANKA $(date '+%H:%M:%S')] Zaten çalistiriliyor, atlanıyor." >> "$LOGFILE"
+    exit 0
 fi
 
-if [ ! -f "$ANKA_BIN" ]; then
-    echo "[ANKA $(date '+%H:%M:%S')] HATA: $ANKA_BIN bulunamadi" >> "$LOGFILE"
-    exit 1
-fi
+# Termux python3 bekle (max 30 sn, arkaplanda daemon olarak bekle ki boot bloklanmasın)
+(
+    WAIT=0
+    while [ ! -f /data/data/com.termux/files/usr/bin/python3 ] && [ $WAIT -lt 30 ]; do
+        sleep 2
+        WAIT=$((WAIT + 2))
+    done
 
-chmod 755 "$ANKA_BIN"
+    if [ ! -f /data/data/com.termux/files/usr/bin/python3 ]; then
+        echo "[ANKA $(date '+%H:%M:%S')] HATA: Termux python3 bulunamadi" >> "$LOGFILE"
+        exit 1
+    fi
 
-# Assets dizinine gec
-if [ -d "$MODDIR/system/anka_core" ]; then
-    cd "$MODDIR/system/anka_core"
-fi
+    if [ ! -f "$ANKA_BIN" ]; then
+        echo "[ANKA $(date '+%H:%M:%S')] HATA: $ANKA_BIN bulunamadi" >> "$LOGFILE"
+        exit 1
+    fi
 
-echo "[ANKA $(date '+%H:%M:%S')] Baslatiliyor..." >> "$LOGFILE"
-nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
-echo "[ANKA $(date '+%H:%M:%S')] PID: $!" >> "$LOGFILE"
+    chmod 755 "$ANKA_BIN"
 
+    # Assets dizinine gec (yoksa modül kökünden devam et)
+    if [ -d "$MODDIR/system/anka_core" ]; then
+        cd "$MODDIR/system/anka_core"
+    else
+        cd "$MODDIR" || exit 1
+    fi
+
+    echo "[ANKA $(date '+%H:%M:%S')] Baslatiliyor..." >> "$LOGFILE"
+    nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
+    echo "[ANKA $(date '+%H:%M:%S')] PID: $!" >> "$LOGFILE"
+) &
