@@ -3,6 +3,7 @@
 // DÜZELTME v2: system("python3") → anka_run_python_bg() (sh bypass)
 // DÜZELTME v2: SIGINT handler eklendi (temiz kapanış)
 // DÜZELTME v2: python3 başarısızsa uyarı + fallback
+// DÜZELTME v3: Magisk absolute path güncellemeleri (Kuantum Motoru ve Python Ajanı)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -81,7 +82,8 @@ int main() {
     // 2. Kuantum motorunu yükle (Mutlak Path Fallback Düzeltmesi)
     const char *lib_path = getenv("ANKA_LIB_PATH");
     if (!lib_path) {
-        lib_path = "/data/adb/modules/anka_os_quantum/system/lib/libanka_quantum.so";
+        // Magisk yolunu tam doğru modül ID'si (anka_os) ile güncelledik
+        lib_path = "/data/adb/modules/anka_os/system/lib/libanka_quantum.so";
     }
     void *lib = dlopen(lib_path, RTLD_LAZY);
     
@@ -119,7 +121,8 @@ int main() {
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
     // 5. Kovan ve Ağ — TERMUX PYTHON3 (sh bypass!)
-    int py_rc = anka_run_python_bg("agents/sinek_nexus.py", NULL);
+    // Python dosyasının Magisk içindeki mutlak (absolute) yolunu verdik
+    int py_rc = anka_run_python_bg("/data/adb/modules/anka_os/system/anka_core/agents/sinek_nexus.py", NULL);
     if (py_rc < 0) {
         fprintf(stderr,
                 "⚠️ [SİNEK]: Python3 (sinek_nexus.py) başlatılamadı — "
