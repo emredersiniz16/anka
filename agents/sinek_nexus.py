@@ -1,7 +1,5 @@
-# agents/sinek_nexus.py - FINAL (Gözlemci Sağlama Alınmış Sürüm)
-# GÜNCELLEME: FlyBrain (LLM) + OTA Motoru entegre edildi.
-#   - Sensör → beyin → karar döngüsü aktif
-#   - Günde bir kez GitHub Releases kontrolü (arka planda)
+# agents/sinek_nexus.py - FINAL (Kovan + OTA + FlyBrain entegre)
+# v3: KovanClient eklendi — websockets ile Kovan'a nabız/veri gönderir.
 
 import sys
 import os
@@ -9,8 +7,9 @@ import time
 import random
 import hashlib
 import json
+import asyncio
+import threading
 
-# --- YOL KİLİDİ ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from jammer_surfer import JammerSurfer
@@ -21,8 +20,106 @@ from ortam_hazirla import OrtamHazirla
 from sandbox_arena import SandboxArena
 from ota_engine import OTAMotoru
 
+try:
+    import websockets
+    HAS_WEBSOCKETS = True
+except ImportError:
+    HAS_WEBSOCKETS = False
+
+
+KOVAN_URL = os.getenv("ANKA_KOVAN_URL", "ws://localhost:8000")
+
+
+class KovanClient:
+    """Kovan sunucusuna websocket ile bağlanır, nabız ve veri gönderir."""
+
+    def __init__(self, sinek_id: str = "anka_sinek_1"):
+        self.sinek_id = sinek_id
+        self.connected = False
+        self.ws = None
+        self._loop = None
+        self._thread = None
+        self._log(f"📡 [KOVAN-CLIENT]: Hazır (hedef: {KOVAN_URL})")
+
+    def _log(self, msg):
+        print(msg)
+
+    def baglan_bg(self):
+        """Arka planda Kovan bağlantı döngüsünü başlatır (daemon thread)."""
+        if not HAS_WEBSOCKETS:
+            self._log("⚠️  [KOVAN-CLIENT]: websockets modülü yok, Kovan'a bağlanılamadı")
+            return None
+        self._thread = threading.Thread(target=self._baglanti_dongusu, daemon=True)
+        self._thread.start()
+        return self._thread
+
+    def _baglanti_dongusu(self):
+        """Sonsuz döngü — Kovan'a bağlan, koparsa 5 sn sonra tekrar dene."""
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        while True:
+            try:
+                self._loop.run_until_complete(self._baglan_ve_dinle())
+            except Exception as e:
+                self._log(f"⚠️  [KOVAN-CLIENT]: Bağlantı koptu: {e}, 5sn sonra tekrar")
+            time.sleep(5)
+
+    async def _baglan_ve_dinle(self):
+        """Kovan'a bağlan, nabız gönder, mesajları dinle."""
+        async with websockets.connect(KOVAN_URL) as ws:
+            self.ws = ws
+            self.connected = True
+            self._log(f"✅ [KOVAN-CLIENT]: Kovan'a bağlandı ({self.sinek_id})")
+
+            # İlk kayıt mesajı
+            await ws.send(json.dumps({
+                "eylem": "KAYIT",
+                "sinek_id": self.sinek_id,
+                "zaman": time.time(),
+            }))
+
+            # Dinleme döngüsü
+            while True:
+                try:
+                    mesaj = await asyncio.wait_for(ws.recv(), timeout=5.0)
+                    data = json.loads(mesaj)
+                    self._log(f"📥 [KOVAN-CLIENT]: Kovan'dan: {data}")
+                except asyncio.TimeoutError:
+                    # Zaman aşımı — nabız gönder
+                    await self.nabiz_gonder()
+                except websockets.exceptions.ConnectionClosed:
+                    break
+
+    async def nabiz_gonder(self):
+        """Kovan'a nabız mesajı gönder."""
+        if not self.ws:
+            return
+        try:
+            await self.ws.send(json.dumps({
+                "eylem": "NABIZ",
+                "sinek_id": self.sinek_id,
+                "zaman": time.time(),
+            }))
+        except Exception as e:
+            self._log(f"⚠️  [KOVAN-CLIENT]: Nabız gönderilemedi: {e}")
+
+    def veri_gonder(self, veri: dict):
+        """Kovan'a veri gönder (thread-safe olmayan, async context'te çağrılmalı)."""
+        if not self.ws:
+            return
+        veri["sinek_id"] = self.sinek_id
+        veri["zaman"] = time.time()
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self.ws.send(json.dumps(veri)),
+                self._loop
+            )
+        except Exception:
+            pass
+
+
 class AnkaLisanMotoru:
-    def __init__(self): self.hafiza_muhurleri = {} 
+    def __init__(self): self.hafiza_muhurleri = {}
     def deneyimi_muhurle(self, ham_veri):
         muhur = hashlib.sha256(str(ham_veri).encode()).hexdigest()[:12]
         anka_kodu = f"ANKA_L_{muhur.upper()}"
@@ -38,7 +135,7 @@ class SinekAgi:
         self.fiziksel_harita[gorus_alani_id] = iz
         return iz
     def frekans_yolla_ve_oku(self, lokasyon):
-        return random.choice(["KALABALIK", "SESSİZ", "HAREKET_VAR"]) if lokasyon in self.fiziksel_harita else "BİLİNMYOR"
+        return random.choice(["KALABALIK", "SESSİZ", "HAREKET_VAR"]) if lokasyon in self.fiziksel_harita else "BİLİNMIYOR"
     def guce_bak(self): return random.randint(0, 100)
 
 class DijitalDikkatMotoru:
@@ -46,8 +143,8 @@ class DijitalDikkatMotoru:
 
 class AnkaNexus:
     def __init__(self):
-        # --- ORTAM HAZIRLIK (cihazda eksik bağımlılıkları kur) ---
-        self.ortam  = OrtamHazirla()
+        # --- ORTAM HAZIRLIK ---
+        self.ortam = OrtamHazirla()
         self.ortam.baslat()
 
         # --- DENEME ALANI ---
@@ -57,13 +154,14 @@ class AnkaNexus:
         self.dikkat = DijitalDikkatMotoru()
         self.haritaci = SinekAgi(self.lisan)
         self.jammer_surfer = JammerSurfer(self)
-        self.beyin = FlyBrain()          # ← Gerçek düşünce motoru
-
-        # --- GÖZLEMCİ TANIMLANDI VE SAĞLAMAYA ALINDI ---
+        self.beyin = FlyBrain()
         self.gozlemci = KuantumGozlemci(self)
 
-        # --- OTA MOTORU (GitHub Releases kontrolü) ---
-        # Arka planda günde bir kontrol yapar, yeni sürüm varsa indirir.
+        # --- KOVAN CLIENT ---
+        self.kovan = KovanClient(sinek_id=f"anka_{hashlib.sha1(str(time.time()).encode()).hexdigest()[:6]}")
+        self.kovan.baglan_bg()
+
+        # --- OTA MOTORU ---
         self.ota = OTAMotoru(verbose=False)
         self.ota.gunluk_kontrol_bg()
 
@@ -73,7 +171,6 @@ class AnkaNexus:
     def is_alive(self):
         return True
 
-    # --- SANDBOX: Platform araştırma betiği ---
     _PLATFORM_ARASTIRMA_KODU = (
         "import platform, os, sys\n"
         "print('Platform:', platform.uname())\n"
@@ -82,7 +179,6 @@ class AnkaNexus:
     )
 
     def _sandbox_platform_arastir(self):
-        """Sandbox'ta platform bilgilerini toplar ve loglar."""
         sonuc = self.sandbox.kod_calistir(self._PLATFORM_ARASTIRMA_KODU)
         if sonuc["basari"]:
             print(f"🔬 [SANDBOX]: {sonuc['cikti'][:200]}")
@@ -98,29 +194,32 @@ class AnkaNexus:
 
     def operasyon_baslat(self):
         print("🪰 [ANKA-BİLİNÇ]: Uyanış gerçekleşti.")
-        print("🪰 [ANKA-BİLİNÇ]: OTA motoru arka planda aktif (günde bir kontrol).")
+        print("🪰 [ANKA-BİLİNÇ]: Kovan client + OTA motoru arka planda aktif.")
         tur = 0
         while self.is_alive():
             try:
-                # --- SENSÖR OKU ---
                 guc = self.haritaci.guce_bak()
                 tehdit = None
 
-                # Jammer tehdit kontrolü
                 if guc > 70:
                     self.jammer_surfer.otonom_adaptasyon()
                     tehdit = "jammer_yüksek_güç"
 
-                # --- BEYIN: Sensör → Karar ---
                 sensor_verisi = {
-                    "pil":    guc,
-                    "ag":     guc > 10,          # Simülasyon: düşük güçte ağ yok
+                    "pil": guc,
+                    "ag": guc > 10,
                     "tehdit": tehdit,
-                    "tur":    tur,
+                    "tur": tur,
                 }
                 karar = self.beyin.karar_ver(sensor_verisi)
 
-                # --- KARAR UYGULA ---
+                # Kovan'a karar verisini gönder
+                self.kovan.veri_gonder({
+                    "eylem": "SENSOR_VERISI",
+                    "karar": karar,
+                    "sensor": sensor_verisi,
+                })
+
                 eylem = karar.get("eylem", "NABIZ_AT")
                 if eylem == "DEFENDER_BASLAT":
                     self.jammer_surfer.mod_degistir("DEFENDER")
