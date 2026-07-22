@@ -4,6 +4,8 @@
 CC = clang
 
 # Header yolları - ui klasörü eklendi
+# NOT: Termux yolu (-I/data/data/com.termux/...) tamamen kaldırıldı.
+#       Magisk/ROM içindeki sistem başlıkları kullanılır.
 CFLAGS = -Os -fPIC \
          -DHAVE_OPENSSL \
          -I. \
@@ -67,6 +69,8 @@ magisk: all
 	@chmod -R 755 magisk_module
 	@chmod +x magisk_module/service.sh
 	@chmod +x magisk_module/system/bin/anka_os_bin
+	@chmod +x magisk_module/system/lib/libanka_quantum.so
+	@chmod +x magisk_module/system/anka_core/agents/*.py 2>/dev/null || true
 	@cd magisk_module && zip -r ../AnkaOS_Quantum_v1.zip . > /dev/null
 	@rm -rf magisk_module
 	@echo "✅ [SYSTEM]: AnkaOS_Quantum_v1.zip Mühürlendi ve Flaşlanmaya Hazır!"
@@ -102,6 +106,7 @@ rom: all
 	@chmod 644 rom_build/system/etc/init/anka_os.rc
 	@chmod 644 rom_build/system/etc/anka_ota.conf
 	@chmod +x rom_build/META-INF/com/google/android/update-binary
+	@chmod +x rom_build/system/anka_core/agents/*.py 2>/dev/null || true
 	@# ZIP'i oluştur
 	@cd rom_build && zip -r ../$(ROM_ZIP) . > /dev/null || (echo "❌ [ROM]: ZIP oluşturma başarısız!" && exit 1)
 	@rm -rf rom_build
