@@ -77,8 +77,11 @@ int main() {
 
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
-    // 2. Kuantum motorunu yükle
-    void *lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
+    // 2. Kuantum motorunu yükle (DİNAMİK YOL DÜZELTMESİ)
+    const char *lib_path = getenv("ANKA_LIB_PATH");
+    if (!lib_path) lib_path = "./core/quantum/libanka_quantum.so";
+    void *lib = dlopen(lib_path, RTLD_LAZY);
+    
     if (!lib) {
         fprintf(stderr, "❌ [HATA]: Kuantum motoru yüklenemedi: %s\n", dlerror());
         return -1;
@@ -147,4 +150,3 @@ int main() {
     fprintf(stderr, "🪰 [SİSTEM]: ANKA OS kapatıldı. Hoşça kal sinek.\n");
     return 0;
 }
-
