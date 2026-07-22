@@ -13,7 +13,7 @@
 #   ANKA        (4) — Phoenix doğdu; tam yetenekli, kalıcı kimlik
 #
 # Dönüşüm şartı:
-#   qd_total_noise_bytes() > TOZA_EŞIK  VE  FlyBrain "FILIZLEN" kararı verdi
+#   qd_total_noise_bytes() > TOZA_EŞİK  VE  FlyBrain "FILIZLEN" kararı verdi
 #
 # Kullanım:
 #   from anka_dogusu import AnkaDogusu
@@ -48,10 +48,10 @@ ASAMA_ISMI = {
     4: "ANKA        🔥",
 }
 
-# Kalıcı kimlik dosyası
+# Kalıcı kimlik dosyası — Magisk/Android güvenli yollar (~/ yerine)
 _KIMLIK_YOLU_TERCIHLERI = [
-    "/data/local/tmp/anka_kimlik.json",
-    os.path.join(os.path.expanduser("~"), ".anka_kimlik.json"),
+    "/data/local/tmp/anka_os/anka_kimlik.json",   # Magisk modülü için güvenli
+    "/data/local/tmp/anka_kimlik.json",          # Eski uyumluluk
 ]
 
 
@@ -363,7 +363,7 @@ if __name__ == "__main__":
     anka.on_donusum(donusum_tamam)
 
     # Manuel hızlandırma: çok sayıda toz mühürle
-    print("[TEST]: Kuantum tozu biriktirilıyor...")
+    print("[TEST]: Kuantum tozu biriktirililiyor...")
     for i in range(20):
         veri = json.dumps({"test": i, "rastgele": random.random()}).encode()
         bid = anka.toz_seal(veri * 50, QdTip.AMBIENT_OBS)  # * 50 → eşiği hızla geç
