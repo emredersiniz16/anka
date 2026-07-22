@@ -1,68 +1,89 @@
 #!/system/bin/sh
-# ANKA OS boot servisi - Cihaz tamamen açıldıktan sonra tetiklenir
+# ANKA OS boot servisi - late_start sonrasi calisir
+# DÜZELTME v3: Bootloop fix — boot tamamlanana kadar bekle, library path düzelt
+
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
+ANKA_LIB="$MODDIR/system/lib"
+ANKA_CORE="$MODDIR/system/anka_core"
 LOGFILE=/data/adb/anka_os.log
 
-# KRİTİK EKLENTİ: Termux kütüphanelerini boot ortamına zorla tanıtıyoruz
-# Bu olmazsa C çekirdeği (anka_os_bin) çalışırken çöker ve bootloop yapar!
-export PREFIX=/data/data/com.termux/files/usr
-export PATH=$PREFIX/bin:$PATH
-export LD_LIBRARY_PATH=$PREFIX/lib
+# 1. Boot tamamlanana kadar bekle (bootloop önlemi)
+WAIT_BOOT=0
+while [ "$(getprop sys.boot_completed)" != "1" ] && [ $WAIT_BOOT -lt 60 ]; do
+    sleep 2
+    WAIT_BOOT=$((WAIT_BOOT + 2))
+done
 
-# Zaten çalışıyorsa iki kere tetiklenmesin
-if pgrep -f "anka_os_bin" > /dev/null; then
-    echo "[ANKA $(date '+%H:%M:%S')] Zaten çalistiriliyor, atlanıyor." >> "$LOGFILE"
+# Boot tamamlanmadıysa başlatma
+if [ "$(getprop sys.boot_completed)" != "1" ]; then
+    echo "[ANKA $(date '+%H:%M:%S')] HATA: Boot tamamlanmadi, sinek baslatilmiyor" > "$LOGFILE"
     exit 0
 fi
 
-# Android'in tamamen açılmasını ve arayüzün yüklenmesini arkaplanda bekle
-(
-    # 1. KURAL: Android kilit ekranı/ana ekran gelene kadar güvenle bekle
-    # Bu kontrol, Anka OS UI motoru ile Android SurfaceFlinger'ın çakışmasını %100 önler
-    while [ "$(getprop sys.boot_completed)" != "1" ]; do
-        sleep 5
-    done
-    
-    # 2. KURAL: Sistem kendine geldikten sonra donanıma girmek için 10 saniye bekle
+# 2. SELinux permissive (framebuffer için)
+setenforce 0 2>/dev/null
+
+# 3. Framebuffer izinlerini aç
+chmod 666 /dev/graphics/fb0 2>/dev/null
+
+# 4. Binary var mı kontrol
+if [ ! -f "$ANKA_BIN" ]; then
+    echo "[ANKA $(date '+%H:%M:%S')] HATA: $ANKA_BIN bulunamadi" >> "$LOGFILE"
+    exit 0
+fi
+
+# 5. Library var mı kontrol
+if [ ! -f "$ANKA_LIB/libanka_quantum.so" ]; then
+    echo "[ANKA $(date '+%H:%M:%S')] HATA: libanka_quantum.so bulunamadi" >> "$LOGFILE"
+    exit 0
+fi
+
+# 6. İzinler
+chmod 755 "$ANKA_BIN"
+chmod 755 "$ANKA_LIB/libanka_quantum.so"
+
+# 7. ANKA core dizinine geç (assets ve agents burada)
+cd "$ANKA_CORE"
+
+# 8. Library path set et (dlopen ve dynamic linker için)
+export LD_LIBRARY_PATH="$ANKA_LIB:$LD_LIBRARY_PATH"
+
+# 9. Core/quantum dizini oluştur (boot.c dlopen için)
+mkdir -p "$ANKA_CORE/core/quantum"
+cp "$ANKA_LIB/libanka_quantum.so" "$ANKA_CORE/core/quantum/" 2>/dev/null
+chmod 755 "$ANKA_CORE/core/quantum/libanka_quantum.so"
+
+# 10. Log başlangıcı
+echo "[ANKA $(date '+%H:%M:%S')] ====================================" > "$LOGFILE"
+echo "[ANKA $(date '+%H:%M:%S')] ANKA OS baslatiliyor..." >> "$LOGFILE"
+echo "[ANKA $(date '+%H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
+echo "[ANKA $(date '+%H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
+echo "[ANKA $(date '+%H:%M:%S')] Library: $ANKA_LIB/libanka_quantum.so" >> "$LOGFILE"
+echo "[ANKA $(date '+%H:%M:%S')] Core: $ANKA_CORE" >> "$LOGFILE"
+echo "[ANKA $(date '+%H:%M:%S')] Boot: $(getprop sys.boot_completed)" >> "$LOGFILE"
+
+# 11. Sineği arka planda başlat
+# ÖNEMLİ: crash olursa sistem etkilenmesin — nohup + timeout koruması
+nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
+PID=$!
+echo "[ANKA $(date '+%H:%M:%S')] Sinek baslatildi PID=$PID" >> "$LOGFILE"
+
+# 12. Sinek çökerse yeniden başlat — ama MAKSİMUM 3 deneme
+RETRY=0
+MAX_RETRY=3
+while [ $RETRY -lt $MAX_RETRY ]; do
     sleep 10
-
-    echo "[ANKA $(date '+%H:%M:%S')] Android sistemi tamamen hazir. Bagimliliklar kontrol ediliyor..." >> "$LOGFILE"
-
-    # Termux python3 kontrolü (Maksimum 30 saniye daha bekle)
-    WAIT=0
-    while [ ! -f /data/data/com.termux/files/usr/bin/python3 ] && [ $WAIT -lt 30 ]; do
-        sleep 2
-        WAIT=$((WAIT + 2))
-    done
-
-    if [ ! -f /data/data/com.termux/files/usr/bin/python3 ]; then
-        echo "[ANKA $(date '+%H:%M:%S')] HATA: Termux python3 bulunamadi" >> "$LOGFILE"
-        exit 1
+    if ! kill -0 $PID 2>/dev/null; then
+        RETRY=$((RETRY + 1))
+        echo "[ANKA $(date '+%H:%M:%S')] Sinek crasledi, yeniden baslatma $RETRY/$MAX_RETRY" >> "$LOGFILE"
+        if [ $RETRY -lt $MAX_RETRY ]; then
+            nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
+            PID=$!
+            echo "[ANKA $(date '+%H:%M:%S')] Yeni PID=$PID" >> "$LOGFILE"
+        fi
     fi
+done
 
-    if [ ! -f "$ANKA_BIN" ]; then
-        echo "[ANKA $(date '+%H:%M:%S')] HATA: $ANKA_BIN bulunamadi" >> "$LOGFILE"
-        exit 1
-    fi
+echo "[ANKA $(date '+%H:%M:%S')] Sinek stabil veya max deneme asildi, servis tamamlandi" >> "$LOGFILE"
 
-    chmod 755 "$ANKA_BIN"
-
-    # Assets dizinine gec (yoksa modül kökünden devam et)
-    if [ -d "$MODDIR/system/anka_core" ]; then
-        cd "$MODDIR/system/anka_core"
-    else
-        cd "$MODDIR" || exit 1
-    fi
-
-    echo "[ANKA $(date '+%H:%M:%S')] Anka OS Guvenli Modda Baslatiliyor..." >> "$LOGFILE"
-    
-    # Kökten ayırma (setsid veya nohup) ile boot sürecinden bağımsız kılma
-    if command -v setsid > /dev/null; then
-        setsid "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
-    else
-        nohup "$ANKA_BIN" >> "$LOGFILE" 2>&1 &
-    fi
-
-    echo "[ANKA $(date '+%H:%M:%S')] Baslatma komutu arkaplana firlatildi. PID: $!" >> "$LOGFILE"
-) &
