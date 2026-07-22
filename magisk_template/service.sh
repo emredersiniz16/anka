@@ -43,11 +43,13 @@ fi
 chmod 755 "$ANKA_BIN"
 chmod 755 "$ANKA_LIB/libanka_quantum.so"
 
-# 7. ANKA core dizinine geç (assets ve agents burada)
+# 7. ANKA core dizinine geç (assets ve agents burada) - Dizin yoksa oluştur
+mkdir -p "$ANKA_CORE"
 cd "$ANKA_CORE"
 
 # 8. Library path set et (dlopen ve dynamic linker için)
 export LD_LIBRARY_PATH="$ANKA_LIB:$LD_LIBRARY_PATH"
+export ANKA_LIB_PATH="$ANKA_LIB/libanka_quantum.so"
 
 # 9. Core/quantum dizini oluştur (boot.c dlopen için)
 mkdir -p "$ANKA_CORE/core/quantum"
@@ -86,4 +88,3 @@ while [ $RETRY -lt $MAX_RETRY ]; do
 done
 
 echo "[ANKA $(date '+%H:%M:%S')] Sinek stabil veya max deneme asildi, servis tamamlandi" >> "$LOGFILE"
-
