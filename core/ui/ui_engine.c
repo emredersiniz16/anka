@@ -669,6 +669,70 @@ void ui_render(fb_context_t *fb, const char *last_message)
 }
 
 /* =========================================================================
+ * ANKA OS ANA EKRAN (DASHBOARD) RENDER MOTORU
+ * ========================================================================= */
+void ui_render_dashboard(fb_context_t *fb, 
+                         int battery_level, 
+                         const char *time_str, 
+                         int quantum_dust, 
+                         const char *current_mood, 
+                         const char *last_log)
+{
+    if (!fb || !fb->map) return;
+
+    // 1. Arka planı temizle (Siberpunk Koyu Gri/Siyah)
+    fb_clear(fb, 10, 15, 20);
+
+    // --- ÜST BİLGİ ÇUBUĞU (HEADER) ---
+    // Üst bar arka planı (Koyu Yeşilimsi Gri)
+    fb_fill_rect(fb, 0, 0, fb->width, 90, 20, 30, 25);
+
+    // Sol Üst: İşletim Sistemi Adı
+    fb_draw_text_scaled(fb, 30, 30, "[ ANKA OS v1.0 ]", 3, 0, 255, 0);
+
+    // Sağ Üst: Saat ve Pil (Formatlayarak basıyoruz)
+    char header_stats[64];
+    sprintf(header_stats, "SAAT: %s | PIL: %%%d", time_str ? time_str : "--:--", battery_level);
+    
+    // Metin sağa dayalı olsun diye X koordinatını dinamik hesaplıyoruz (Yaklaşık bir değer)
+    int stats_x = fb->width - 550; 
+    fb_draw_text_scaled(fb, stats_x > 0 ? stats_x : 50, 30, header_stats, 3, 0, 255, 255);
+
+    // Üst barı ayıran neon yeşil çizgi
+    fb_fill_rect(fb, 0, 90, fb->width, 4, 0, 255, 0);
+
+    // --- MERKEZ: SİNEK AVATARI VE BİLGİLERİ ---
+    // Sinek'in anlık ruh halini gösteren ikon
+    if (current_mood && strstr(current_mood, "GUCLU SINEK")) {
+        fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_ucuyor.bmp");
+    } else if (current_mood && strstr(current_mood, "KOZALASMA")) {
+        fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_ayna.bmp");
+    } else {
+        fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_dusunen.bmp");
+    }
+
+    // Merkez Altı: Kuantum Tozu ve Anlık Mod
+    char dust_info[128];
+    sprintf(dust_info, "KUANTUM TOZU: %d | MOD: %s", quantum_dust, current_mood ? current_mood : "NORMAL");
+    fb_draw_text_scaled(fb, 50, fb->height / 2 + 250, dust_info, 3, 255, 200, 0);
+
+    // --- ALT KONSOL (DÜŞÜNCE AKIŞI / LOGLAR) ---
+    // Alt konsol çerçevesi
+    fb_fill_rect(fb, 0, fb->height - 250, fb->width, 4, 0, 255, 0); 
+    fb_fill_rect(fb, 0, fb->height - 246, fb->width, 246, 5, 5, 10); 
+
+    // Konsol Başlığı
+    fb_draw_text_scaled(fb, 20, fb->height - 210, ">_ SINEK DUSUNCELERI:", 3, 100, 100, 100);
+    
+    // Gelen son log / düşünce
+    if (last_log) {
+        fb_draw_text_scaled(fb, 20, fb->height - 140, last_log, 3, 0, 255, 0);
+    } else {
+        fb_draw_text_scaled(fb, 20, fb->height - 140, "Bekleniyor...", 3, 100, 100, 100);
+    }
+}
+
+/* =========================================================================
  * SECTION 7: STUBS FOR UNRESOLVED EXTERNAL REFERENCES
  * ========================================================================= */
 
