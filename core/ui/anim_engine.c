@@ -1,6 +1,6 @@
 /*
  * core/ui/anim_engine.c
- * BİRLEŞTİRİLMİŞ: Uyanış Sekansı + Koordinat Motoru
+ * BİRLEŞTİRİLMİŞ: Uyanış Sekansı + Koordinat Motoru + Live Dashboard Köprüsü
  */
 
 #define _DEFAULT_SOURCE
@@ -18,7 +18,7 @@
 
 extern int audio_play_awakening(void);
 
-// Terminal akışı ve ASCII yedekler burada (değişmedi)
+// Terminal akışı ve ASCII yedekler burada
 static const char *BOOT_LINES[] = {
     "[OK] Anka_Core Init...", "[OK] HAL Backend Yuklendi",
     "[OK] Kuantum Tozlari Aktif", "[OK] Sinek Bilinc Uyaniyor",
@@ -57,7 +57,43 @@ void anim_update_fly_state(fb_context_t *fb, int current_state, float scale) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * UYANIŞ VE BOOT SEKANSLARI (Önceki fonksiyonların aynısı)
+ * ANKA OS: DASHBOARD VE ANİMASYON KÖPRÜSÜ
+ * Animasyon motorunun durumunu doğrudan Dashboard üzerine işler.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+void anim_render_live_dashboard(fb_context_t *fb, int current_state, int battery_level, const char *time_str, int quantum_dust, const char *last_log) {
+    if (!fb || !fb->map) return;
+
+    // 1. Ruh haline göre metin belirleme
+    const char *mood_str = "NORMAL";
+    if (current_state == 1) {
+        mood_str = "DUSUNUYOR (THINK)";
+    } else if (current_state == 2) {
+        mood_str = "KOZALASMA (MIRROR)";
+    }
+
+    // ui_engine.c içerisindeki ana dashboard fonksiyonunu çağırıyoruz
+    ui_render_dashboard(fb, battery_level, time_str, quantum_dust, mood_str, last_log);
+
+    // 2. Sinek avatarını anlık duruma göre sağ üst köşeye konumlandırıp basıyoruz
+    int fly_w = 250; 
+    int fly_h = 250; 
+    int pos_x = (int)fb->width - fly_w - 50; 
+    int pos_y = 120; // Üst barın hemen altında
+
+    char path[512];
+    if (current_state == 1) {
+        snprintf(path, sizeof(path), "%s/sinek_dusunen.bmp", ANKA_ASSETS_DIR);
+    } else if (current_state == 2) {
+        snprintf(path, sizeof(path), "%s/sinek_ayna.bmp", ANKA_ASSETS_DIR);
+    } else {
+        snprintf(path, sizeof(path), "%s/sinek_ucuyor.bmp", ANKA_ASSETS_DIR);
+    }
+
+    fb_load_bmp(fb, path, pos_x, pos_y);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * UYANIŞ VE BOOT SEKANSLARI
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 static void delay_ms(int ms) { if (ms <= 0) return; usleep((useconds_t)(ms * 1000)); }
@@ -79,22 +115,18 @@ int anim_fly_appear(fb_context_t *fb, AnkaHAL *hal, const char *image_path, int 
     
     return bmp_rc;
 }
-/* ═══════════════════════════════════════════════════════════════════════════
- * anim_boot_run — Varsayılan konfigürasyon ile tam boot sekansı.
- * boot.c'nin çağırdığı giriş noktası. anim_boot_run_custom'a delege eder.
- * ═══════════════════════════════════════════════════════════════════════════ */
+
 int anim_boot_run(fb_context_t *fb, AnkaHAL *hal) {
-    /* Magisk mutlak yolu: assets/fly_icon.bmp → /data/adb/modules/anka_os/... */
     static const char *FLY_ICON_PATH = "/data/adb/modules/anka_os/system/anka_core/assets/fly_icon.bmp";
 
     anim_boot_config_t cfg = {
         .fb             = fb,
-        .hal             = hal,
-        .text_scale      = 3,        /* 24×24 px karakter (1080p için) */
-        .line_delay_ms   = 250,      /* satırlar arası 250ms */
-        .post_delay_ms   = 1000,     /* terminal sonrası 1s bekle */
-        .vibrate_ms      = 400,      /* güçlü uyanış titreşimi */
-        .fly_image_path  = FLY_ICON_PATH,
+        .hal            = hal,
+        .text_scale     = 3,        
+        .line_delay_ms  = 250,      
+        .post_delay_ms  = 1000,     
+        .vibrate_ms     = 400,      
+        .fly_image_path = FLY_ICON_PATH,
     };
     return anim_boot_run_custom(&cfg);
 }
