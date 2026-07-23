@@ -24,7 +24,9 @@ extern void collapse_shutdown(void);
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
 extern AnkaHAL *current_hal;
 extern void hal_loader_init(void);
-extern void ui_render(const char *last_message);
+
+/* Güncellenen ui_render prototipi (Framebuffer bağlamı eklendi) */
+extern void ui_render(fb_context_t *fb, const char *last_message);
 
 static volatile sig_atomic_t g_running = 1;
 static pid_t g_python_pid = -1;
@@ -56,10 +58,14 @@ int main() {
     struct sigaction sa_term = {0}; sa_term.sa_handler = sigterm_handler; sigemptyset(&sa_term.sa_mask); sigaction(SIGTERM, &sa_term, NULL);
     signal(SIGPIPE, SIG_IGN);
 
-    // 1. GÖLGE KATMAN (Animasyon)
+    // 1. GÖLGE KATMAN (Animasyon ve Framebuffer Açılışı)
     fb_context_t fb;
-    if (fb_open(&fb) == 0) { anim_boot_run(&fb, &g_hal); fb_close(&fb); }
-    else fprintf(stderr, "⚠️ [GÖLGE]: Framebuffer açılamadı\n");
+    int fb_is_open = (fb_open(&fb) == 0);
+    if (fb_is_open) { 
+        anim_boot_run(&fb, &g_hal); 
+    } else { 
+        fprintf(stderr, "⚠️ [GÖLGE]: Framebuffer açılamadı\n"); 
+    }
 
     printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
 
@@ -94,7 +100,7 @@ int main() {
     sinek_fsm_init(&sinek, &dust, active_hal);
     sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
-    // 5. Kovan ve Ağ — sinek_bilinc.py çağır (o nexus + dogus + kisilik başlatır)
+    // 5. Kovan ve Ağ — sinek_bilinc.py çağır
     int py_rc = anka_run_python_bg(
         "/data/adb/modules/anka_os/system/anka_core/agents/sinek_bilinc.py", NULL);
     if (py_rc < 0) {
@@ -111,8 +117,18 @@ int main() {
     while (g_running) {
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
-        ui_render("Sistem Senkronize... Kovan Dinleniyor.");
+        
+        // Framebuffer açık ise canlı render atıyoruz
+        if (fb_is_open) {
+            ui_render(&fb, "Sistem Senkronize... Kovan Dinleniyor.");
+        }
+        
         usleep(500000);
+    }
+
+    // Temizlik: Framebuffer kapatma
+    if (fb_is_open) {
+        fb_close(&fb);
     }
 
     // 7. TEMİZ KAPANIŞ
