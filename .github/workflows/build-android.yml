@@ -50,19 +50,20 @@ jobs:
 
       - name: 🔐 Build Static OpenSSL
         run: |
-          echo "Aarch64 için statik OpenSSL derleniyor..."
-          wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz
-          tar xzf openssl-1.1.1w.tar.gz
-          cd openssl-1.1.1w
+          echo "Aarch64 için statik OpenSSL 3.0.14 derleniyor..."
+          wget https://www.openssl.org/source/openssl-3.0.14.tar.gz
+          tar xzf openssl-3.0.14.tar.gz
+          cd openssl-3.0.14
           export ANDROID_NDK_ROOT=/opt/android-ndk
           export PATH=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          # OpenSSL 3, modern NDK'yı (Clang) yerel olarak tanır, gcc aramaz!
           ./Configure android-arm64 -D__ANDROID_API__=29
           make build_libs -j$(nproc)
           cd ..
           mkdir -p external/openssl/lib external/openssl/include
-          cp openssl-1.1.1w/libcrypto.a external/openssl/lib/
-          cp openssl-1.1.1w/libssl.a external/openssl/lib/
-          cp -r openssl-1.1.1w/include/openssl external/openssl/include/
+          cp openssl-3.0.14/libcrypto.a external/openssl/lib/
+          cp openssl-3.0.14/libssl.a external/openssl/lib/
+          cp -r openssl-3.0.14/include/openssl external/openssl/include/
 
       - name: ⚙️ Build and Seal Anka OS
         run: |
