@@ -73,6 +73,19 @@ void fb_scroll_up(fb_context_t *fb, int pixels);
 int  fb_takeover_stop_surfaceflinger(void);
 int  fb_takeover_start_surfaceflinger(void);
 
+/* ─── Anka OS Özel Arayüz Fonksiyonları ─── */
+void anka_boot_sequence(fb_context_t *fb);
+void ui_render(fb_context_t *fb, const char *last_message);
+void ui_render_dashboard(fb_context_t *fb, 
+                         int battery_level, 
+                         const char *time_str, 
+                         int quantum_dust, 
+                         const char *current_mood, 
+                         const char *last_log);
+
+/* Unresolved External Stub / Evrim Onayı */
+int user_confirmed_evolution(void);
+
 #ifdef __cplusplus
 }
 #endif
