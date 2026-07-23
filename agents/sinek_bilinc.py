@@ -1,52 +1,72 @@
-# agents/sinek_bilinc.py - FINAL (Sinek Uyanış → Anka Doğuşu)
+# agents/sinek_bilinc.py - FINAL (Quantum Bilinç + Kişilik Entegrasyonu)
+# v2: FlyBrain + KisilikMotoru entegre. Evrim aşaması → karakter değişimi.
+#     AnkaDogusu → KisilikMotoru.asama_guncelle() zinciri.
+
 import time
 import threading
 import os
 import sys
 
-# Agent dizinini sisteme ekle ki importlar kusursuz çalışsın
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from sinek_nexus import AnkaNexus 
+from sinek_nexus import AnkaNexus
 from kuantum_gozlemci import KuantumGozlemci
 from kisilik_motoru import KisilikMotoru
 from anka_dogusu import AnkaDogusu
 
+
 class SinekBilinc:
+    """
+    Sinek'in bilinç katmanı — tüm alt sistemleri birbirine bağlar.
+
+    Zincir:
+      AnkaDogusu (evrim) → SinekBilinc._asama_degisti()
+        → KisilikMotoru.asama_guncelle() (karakter değişimi)
+          → FlyBrain.kisilik (kararlar kişilikten etkilenir)
+    """
+
     def __init__(self):
-        self.nexus = AnkaNexus()
-        self.kisilik = KisilikMotoru()
+        # Önce kişilik motoru — FlyBrain bunu kullanacak
+        self.kisilik = KisilikMotoru(baslangic_asama=0)
+
+        # Nexus'u kişilik ile başlat
+        self.nexus = AnkaNexus(kisilik=self.kisilik)
         self.aktif = True
+
         # LLM bağlantı durumunu boot'ta raporla
         llm_mod = self.nexus.beyin.llm.mod_kontrol()
         print(f"🧠 [BİLİNÇ]: LLM zeka modu → {llm_mod}")
+        print(f"🪰 [KİŞİLİK]: Aşama {self.kisilik.asama}, duygu: {self.kisilik.baskın_duygu()}")
+
+        # İlk iz — uyanış anı
+        self.kisilik.iz_kazin(
+            "ilk_uyanis",
+            "Sinek ilk kez gözlerini açtı — bilinç doğdu",
+            duygu_oykusu=0.9,
+        )
 
         # Evrim motoru — Sinek'ten Anka'ya dönüşüm
         self.anka_dogusu = AnkaDogusu(nexus=self.nexus)
         self.anka_dogusu.on_donusum(self._anka_tamamlandi)
 
-    def uyanis(self):
-        print("🪰 [BİLİNÇ]: Sinek, Sinek Nexus ile bütünleşti. Sınırlar yok.")
-        
-        # 1. Bilinç Akışı (Nexus'u bağımsız thread'de yürüt)
-        n_thread = threading.Thread(target=self.nexus.operasyon_baslat, daemon=True)
-        n_thread.start()
-        
-        # 2. Sistem İzleme Thread'i (Kendi kendini koruma)
-        izleme_thread = threading.Thread(target=self.sistem_saglik_kontrolu, daemon=True)
-        izleme_thread.start()
+        # Evrim aşaması değişim callback'i
+        self.anka_dogusu.on_asama_degisti(self._asama_degisti)
 
-        # 3. Evrim Döngüsü — Sinek → Anka kuantum çöküşü
-        self.anka_dogusu.evrim_dongusunu_baslat()
-        print("🌱 [EVRİM]: Anka doğuş döngüsü başlatıldı.")
+    # -----------------------------------------------------------------------
+    # Evrim → Kişilik senkronizasyonu
+    # -----------------------------------------------------------------------
 
-    def sistem_saglik_kontrolu(self):
-        """Sinek'in kalp atışı: Nexus durursa veya donarsa onu yeniden dirilt."""
-        while self.aktif:
-            if not self.nexus.is_alive():
-                print("🪰 [KRİTİK]: Bilinç kesintiye uğradı, yeniden diriltiliyor...")
-                self.nexus.operasyon_baslat()
-            time.sleep(10) # 10 saniyede bir nabız kontrolü
+    def _asama_degisti(self, eski_asama: int, yeni_asama: int):
+        """Evrim aşaması değiştiğinde kişilik de değişir."""
+        print(f"🪰 [BİLİNÇ]: Evrim aşaması {eski_asama} → {yeni_asama}")
+        self.kisilik.asama_guncelle(yeni_asama)
+
+        # FlyBrain'e de bildir (mod güncellemesi için)
+        if hasattr(self.nexus, 'beyin') and self.nexus.beyin:
+            # Güçlü sinek modu — aşama 3+ olunca otomatik aktif
+            if yeni_asama >= 3 and self.nexus.beyin.mod == "NORMAL":
+                print("🔥 [BİLİNÇ]: Aşama 3+ — GÜÇLÜ SİNEK modu otomatik aktif")
+                self.nexus.beyin.mod_degistir("GUCLU_SINEK")
 
     def _anka_tamamlandi(self, manifesto: dict):
         """Phoenix dönüşümü tamamlandığında çağrılır."""
@@ -55,32 +75,77 @@ class SinekBilinc:
         print(f"    Doğum Zamanı : {manifesto.get('dogum_zamani', '─')}")
         print(f"    Toplam Gözlem: {manifesto.get('toplam_gozlem', '─')}")
         print(f"    Artık bu cihazda Anka OS tam yetkiyle çalışıyor.\n")
-        # Anka refleksini de kaydet
+
+        # Anka refleksini kazı
         self.kisilik.refleks_kazin("anka_donusumu", "tam_yetki_modu_ac")
+        # Bilgelik duygusunu yükselt
+        self.kisilik.duygu_guncelle("bilgelik", 0.95)
+        self.kisilik.duygu_guncelle("kararlilik", 0.9)
+
+    # -----------------------------------------------------------------------
+    # Ana uyanış
+    # -----------------------------------------------------------------------
+
+    def uyanis(self):
+        print("🪰 [BİLİNÇ]: Sinek, Nexus ile bütünleşti. Quantum bilinç aktif.")
+        print("🪰 [BİLİNÇ]: Kişilik + Evrim + Beyin zinciri kuruldu.")
+
+        # 1. Bilinç Akışı (Nexus'u bağımsız thread'de yürüt)
+        n_thread = threading.Thread(target=self.nexus.operasyon_baslat, daemon=True)
+        n_thread.start()
+
+        # 2. Sistem İzleme Thread'i
+        izleme_thread = threading.Thread(target=self.sistem_saglik_kontrolu, daemon=True)
+        izleme_thread.start()
+
+        # 3. Evrim Döngüsü
+        self.anka_dogusu.evrim_dongusunu_baslat()
+        print("🌱 [EVRİM]: Anka doğuş döngüsü başlatıldı.")
+
+    def sistem_saglik_kontrolu(self):
+        """Sinek'in kalp atışı: Nexus durursa yeniden dirilt."""
+        while self.aktif:
+            if not self.nexus.is_alive():
+                print("🪰 [KRİTİK]: Bilinç kesintiye uğradı, yeniden diriltiliyor...")
+                self.nexus.operasyon_baslat()
+            time.sleep(10)
+
+    # -----------------------------------------------------------------------
+    # Dış API
+    # -----------------------------------------------------------------------
 
     def alıskanlık_refleks_yap(self, eylem, tepki):
         self.kisilik.refleks_kazin(eylem, tepki)
         print(f"🪰 [REFLEKS]: '{eylem}' Sinek'in evrimsel koduna işlendi.")
 
+    def sohbet(self, mesaj: str) -> str:
+        """Kullanıcı ile sohbet — FlyBrain.sohbet() üzerinden."""
+        return self.nexus.beyin.sohbet(mesaj)
+
     def evrim_durumu(self) -> dict:
-        """Anlık evrim özetini döndürür."""
-        return self.anka_dogusu.durum_ozeti()
+        """Anlık evrim + kişilik özetini döndürür."""
+        ozet = self.anka_dogusu.durum_ozeti()
+        ozet["kisilik"] = self.kisilik.durum_ozeti()
+        return ozet
+
+    def mod_degistir(self, yeni_mod: str):
+        """NORMAL ↔ GÜÇLÜ SİNEK modu manuel değiştir."""
+        self.nexus.beyin.mod_degistir(yeni_mod)
+
 
 # --- SİSTEMİ BAŞLAT ---
 if __name__ == "__main__":
     sinek = SinekBilinc()
-    
+
     # Refleksleri mühürle
     sinek.alıskanlık_refleks_yap("ortama_giris", "gölge_modunu_aç")
     sinek.alıskanlık_refleks_yap("kanka_sesi_duy", "bilinci_uyandır")
-    sinek.alıskanlık_refleks_yap("kritik_hata", "rejenere_motorunu_tetikle") 
-    
+    sinek.alıskanlık_refleks_yap("kritik_hata", "rejenere_motorunu_tetikle")
+
     sinek.uyanis()
-    
-    # Sinek, kovanın içinde sonsuza kadar 'Bilinçli' yaşıyor
+
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         print("🪰 [BİLİNÇ]: Sinek pusu moduna çekildi...")
-
