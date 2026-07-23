@@ -32,6 +32,7 @@
 #include <sys/wait.h>
 #include <linux/fb.h>
 #include <time.h>
+
 #define ANKA_ASSETS_DIR "/data/adb/modules/anka_os/system/anka_core/assets"
 
 /* =========================================================================
@@ -608,7 +609,7 @@ void anka_boot_sequence(fb_context_t *fb)
     fb_clear(fb, 0, 0, 0);
     fb_load_bmp_centered(fb, ANKA_ASSETS_DIR "/sinek_icon.bmp");
     system("su -c 'echo 150 > /sys/class/timed_output/vibrator/enable' 2>/dev/null");
-    system("su -c 'tinyplay assets/awake.wav' 2>/dev/null &");
+    system("su -c 'tinyplay /data/adb/modules/anka_os/system/anka_core/assets/awake.wav' 2>/dev/null &");
     usleep(1000000);
 }
 
