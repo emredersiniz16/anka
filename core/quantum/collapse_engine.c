@@ -369,7 +369,6 @@ int collapse_instant(uint32_t          dust_id,
 
 /* =========================================================================
  * Public API: collapse_loop — olay döngüsü
- * ========================================================================= */
  *
  * poll() tabanlı döngü:
  *   - stdin: kullanıcı komutları
@@ -377,7 +376,7 @@ int collapse_instant(uint32_t          dust_id,
  *
  * Gerçek uygulamada ağ soketi ve dokunmatik ekran fd'si de eklenir.
  * Bu döngü Sinek'in kalp atışıdır. Her tetikleyici bir çöküş doğurur.
- */
+ * ========================================================================= */
 void collapse_loop(void)
 {
     fprintf(stderr,
