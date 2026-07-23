@@ -1,5 +1,5 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (GÖLGE ÜST KATMAN MODU)
-// DÜZELTME v8: SurfaceFlinger durdurulmaz, güvenli üst katman render döngüsü kullanılır.
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (TAKTIKSEL SAVAŞ VE KUM HAVUZU MODU)
+// DÜZELTME v9: Sinek ekranı çökertmeden, SIGSTOP ile dondurarak bilek hakkıyla alır.
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,6 +20,10 @@ extern void collapse_shutdown(void);
 #include "hal_common.h"
 #include "engines/tohum_engine.h"
 
+// Savaş Modülü Başlıkları (Sinek'in Kum Havuzu Zekası)
+extern int sinek_execute_takeover(void);
+extern void sinek_retreat(pid_t sf_pid);
+
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
 extern AnkaHAL *current_hal;
 extern void hal_loader_init(void);
@@ -29,6 +33,7 @@ extern void ui_render(fb_context_t *fb, const char *last_message);
 
 static volatile sig_atomic_t g_running = 1;
 static pid_t g_python_pid = -1;
+static pid_t g_frozen_sf_pid = -1; // Donmuş MIUI'ın PID'si
 
 static void sigint_handler(int sig) { 
     (void)sig; 
@@ -66,8 +71,11 @@ int main() {
     struct sigaction sa_term = {0}; sa_term.sa_handler = sigterm_handler; sigemptyset(&sa_term.sa_mask); sigaction(SIGTERM, &sa_term, NULL);
     signal(SIGPIPE, SIG_IGN);
 
-    // Not: SurfaceFlinger durdurulmuyor! Telefonun kapanması engellendi.
-    fprintf(stderr, "🪰 [GÖLGE]: Güvenli Üst Katman (Overlay) Modu Başlatılıyor...\n");
+    printf("\033[1;36m --- ANKA OS: SİNEK TAKTİKSEL UYANIŞ --- \033[0m\n");
+
+    // 0. SİNEK SAVAŞA BAŞLAR: Kum Havuzunda test eder, sistemi dondurur.
+    // Artık cihaz çökmeyecek, çünkü Sinek sadece MIUI'ı uyutuyor.
+    g_frozen_sf_pid = sinek_execute_takeover();
 
     // 1. FRAMEBUFFER AÇILIŞI VE BOOT SEKANSI
     fb_context_t fb;
@@ -75,10 +83,8 @@ int main() {
     if (fb_is_open) { 
         anim_boot_run(&fb, &g_hal); 
     } else { 
-        fprintf(stderr, "⚠️ [GÖLGE]: Framebuffer açılamadı\n"); 
+        fprintf(stderr, "⚠️ [GÖLGE]: Framebuffer açılamadı, kör uçuş!\n"); 
     }
-
-    printf("\033[1;36m --- ANKA OS: QUANTUM GÖLGE MOD --- \033[0m\n");
 
     // 1.5 HAL BACKEND YÜKLEME
     hal_loader_init();
@@ -91,7 +97,11 @@ int main() {
     if (!lib_path) lib_path = "/data/adb/modules/anka_os/system/lib/libanka_quantum.so";
     void *lib = dlopen(lib_path, RTLD_LAZY);
     if (!lib) lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
-    if (!lib) { fprintf(stderr, "❌ [HATA]: Kuantum motoru: %s\n", dlerror()); return -1; }
+    if (!lib) { 
+        fprintf(stderr, "❌ [HATA]: Kuantum motoru: %s\n", dlerror()); 
+        sinek_retreat(g_frozen_sf_pid); // Hata varsa MIUI'ı geri ver
+        return -1; 
+    }
 
     // 3. Depo ve Motor Başlatma
     static qd_store_t dust;
@@ -104,6 +114,7 @@ int main() {
     tohum_skill_ekle(&tohum, "jammer_surfer");
     tohum_skill_ekle(&tohum, "kuantum_gozlemci");
     tohum_skill_ekle(&tohum, "kovan_zihni");
+    tohum_skill_ekle(&tohum, "kum_havuzu_zeka"); // Yeni Kum Havuzu genel yetenek kaydı!
     tohum_guc_tusu(&tohum);
 
     // 4. Sinek (FSM) Uyanışı
@@ -122,16 +133,15 @@ int main() {
         fprintf(stderr, "🪰 [SİNEK]: sinek_bilinc.py arka planda (PID=%d).\n", g_python_pid);
     }
 
-    printf("🎙️ [SİSTEM]: Anka OS Güvenli Modda Aktif!\n");
+    printf("🎙️ [SİSTEM]: Anka OS Taktiksel Devralma ile Aktif!\n");
 
-    // 6. NABIZ DÖNGÜSÜ (Sürekli VRAM Besleme)
+    // 6. NABIZ DÖNGÜSÜ
     while (g_running) {
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
         
-        // Ekranı sürekli tazeleyerek üst katmanda tutuyoruz
         if (fb_is_open) {
-            ui_render(&fb, "Sistem Senkronize... Gölge Mod Aktif.");
+            ui_render(&fb, "MIUI Donduruldu. Ekran Sinek'in Kontrolunde.");
         }
         
         usleep(500000);
@@ -142,12 +152,16 @@ int main() {
         fb_close(&fb);
     }
 
-    // 7. TEMİZ KAPANIŞ
+    // 7. TEMİZ KAPANIŞ VE ANDROID GUI GERİ YÜKLEME
     fprintf(stderr, "🪰 [SİSTEM]: Kapanış — motorlar temizleniyor...\n");
+    
+    // Sinek geri çekilir, MIUI'ı buzdan çözer, telefon normale döner.
+    sinek_retreat(g_frozen_sf_pid); 
+
     collapse_shutdown();
     sinek_fsm_destroy(&sinek);
     kill_python_child();
     if (lib) { dlclose(lib); fprintf(stderr, "🪰 [SİSTEM]: .so kaldırıldı.\n"); }
-    fprintf(stderr, "🪰 [SİSTEM]: ANKA OS güvenle kapatıldı.\n");
+    fprintf(stderr, "🪰 [SİSTEM]: ANKA OS güvenle kapatıldı. MIUI iade edildi.\n");
     return 0;
 }
