@@ -4,7 +4,7 @@
 /*
  * core/ui/anim_engine.h
  *
- * 🪰 [GÖLGE] Uyanış Animasyon Motoru
+ * 🪰 [GÖLGE] Uyanış Animasyon Motoru & Canlı Dashboard Köprüsü
  *
  * Boot sekansı (görsel akış):
  *
@@ -113,6 +113,10 @@ int anim_fly_appear(fb_context_t *fb, AnkaHAL *hal, const char *image_path,
  *   scale: font ölçeği.
  */
 void anim_draw_ascii_fly(fb_context_t *fb, int cx, int cy, int scale);
+
+/* ─── Sinek Durum ve Canlı Dashboard Köprüsü ─── */
+void anim_update_fly_state(fb_context_t *fb, int current_state, float scale);
+void anim_render_live_dashboard(fb_context_t *fb, int current_state, int battery_level, const char *time_str, int quantum_dust, const char *last_log);
 
 #ifdef __cplusplus
 }
