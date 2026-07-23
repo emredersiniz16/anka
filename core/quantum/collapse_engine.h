@@ -11,22 +11,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "quantum_dust.h"
+#include "anka_hal.h"  /* AnkaHAL tanımı artık tek bir ana merkezden çekiliyor */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* =========================================================================
- * HAL — Donanım Soyutlama Katmanı
- * ========================================================================= */
-
-typedef struct {
-    int (*vibrate)       (int ms);
-    int (*speak)         (const char *text);
-    int (*capture_camera)(const char *output_path);
-    int (*display_blit)  (const uint8_t *data, int x, int y);
-    int (*set_brightness)(int level);
-} AnkaHAL;
 
 /* =========================================================================
  * Tetikleyici Tipleri
