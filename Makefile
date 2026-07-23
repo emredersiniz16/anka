@@ -16,7 +16,7 @@ CFLAGS = -Os -fPIC \
          -I./core/engines \
          -I./core/ui
 
-LDFLAGS = -ldl -lpthread -lcrypto -lssl -lm
+LDFLAGS = -ldl -lcrypto -lssl -lm
 QUANTUM_LDFLAGS = -L./core/quantum -Wl,-rpath,/system/lib -lanka_quantum
 TARGET_BIN = anka_os.bin
 QUANTUM_LIB = core/quantum/libanka_quantum.so
@@ -80,7 +80,7 @@ clean:
 	rm -rf rom_build
 	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
 
-# --- ROM PAKETI (TWRP flashlanabilir .zip) ---
+# --- ROM PAKETİ (TWRP flashlanabilir .zip) ---
 # Redmi Note 9 (merlin) için tam sistem katmanı
 ROM_ZIP = AnkaOS_ROM_merlin.zip
 
