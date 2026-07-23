@@ -7,7 +7,7 @@
  *   2. fb_load_bmp_centered
  *   3. user_confirmed_evolution
  *
- * 🪰 [GÖLGE]: C99, -Wall -Wextra temiz (sistem() uyarıları mevcut koddan).
+ * 🪰 [GÖLGE]: C99, -Wall -Wextra temiz.
  */
 
 /* =========================================================================
@@ -246,6 +246,9 @@ void fb_fill_rect(fb_context_t *fb, int x, int y, int w, int h,
     if (x2 > (int)fb->width)  x2 = (int)fb->width;
     if (y2 > (int)fb->height) y2 = (int)fb->height;
 
+    /* Ekran sınırları dışına taşan geçersiz kırpmaları engelle */
+    if (x1 >= x2 || y1 >= y2) return;
+
     if (fb->bpp == 32) {
         uint32_t color = ((uint32_t)r << fb->red_offset)  |
                          ((uint32_t)g << fb->green_offset) |
@@ -310,12 +313,6 @@ static void fb_draw_char_scaled(fb_context_t *fb, int x, int y,
     }
 }
 
-void fb_draw_text(fb_context_t *fb, int x, int y, const char *text,
-                  uint8_t r, uint8_t g, uint8_t b)
-{
-    fb_draw_text_scaled(fb, x, y, text, 1, r, g, b);
-}
-
 void fb_draw_text_scaled(fb_context_t *fb, int x, int y, const char *text,
                           int scale, uint8_t r, uint8_t g, uint8_t b)
 {
@@ -335,6 +332,12 @@ void fb_draw_text_scaled(fb_context_t *fb, int x, int y, const char *text,
         }
         ++p;
     }
+}
+
+void fb_draw_text(fb_context_t *fb, int x, int y, const char *text,
+                  uint8_t r, uint8_t g, uint8_t b)
+{
+    fb_draw_text_scaled(fb, x, y, text, 1, r, g, b);
 }
 
 void fb_scroll_up(fb_context_t *fb, int pixels)
@@ -441,7 +444,11 @@ int fb_load_bmp(fb_context_t *fb, const char *path, int x, int y)
     uint32_t row_idx;
     for (row_idx = 0; row_idx < bmp_h; ++row_idx) {
         ssize_t bytes_read = read(fd, row_buf, row_size);
-        if (bytes_read != (ssize_t)row_size) break;
+        if (bytes_read != (ssize_t)row_size) {
+            free(row_buf);
+            close(fd);
+            return -1;
+        }
 
         int fb_y = top_down ? (y + (int)row_idx) : (y + (int)(bmp_h - 1u - row_idx));
 
@@ -536,7 +543,11 @@ int fb_load_bmp_centered(fb_context_t *fb, const char *path)
     uint32_t row_idx;
     for (row_idx = 0; row_idx < bmp_h; ++row_idx) {
         ssize_t bytes_read = read(fd, row_buf, row_size);
-        if (bytes_read != (ssize_t)row_size) break;
+        if (bytes_read != (ssize_t)row_size) {
+            free(row_buf);
+            close(fd);
+            return -1;
+        }
 
         int fb_y = top_down ? (cy + (int)row_idx) : (cy + (int)(bmp_h - 1u - row_idx));
 
@@ -623,13 +634,18 @@ void ui_render(fb_context_t *fb, const char *last_message)
     }
     time_t t = time(NULL);
     struct tm *tm = localtime(&t);
-    int is_day = (tm->tm_hour >= 7 && tm->tm_hour <= 18) ? 1 : 0;
+    int is_day = 0;
+    if (tm != NULL) {
+        is_day = (tm->tm_hour >= 7 && tm->tm_hour <= 18) ? 1 : 0;
+    }
+
     uint8_t bg_r = is_day ? 220 : 10;
     uint8_t bg_g = is_day ? 220 : 15;
     uint8_t bg_b = is_day ? 220 : 20;
-    uint8_t text_r = is_day ? 0 : 0;
+    uint8_t text_r = 0;
     uint8_t text_g = is_day ? 0 : 255;
-    uint8_t text_b = is_day ? 0 : 0;
+    uint8_t text_b = 0;
+
     fb_clear(fb, bg_r, bg_g, bg_b);
     if (is_day) {
         fb_draw_text_scaled(fb, 50, 50, "[--- GUNDUZ ARAYUZU ---]", 3, 50, 50, 50);
