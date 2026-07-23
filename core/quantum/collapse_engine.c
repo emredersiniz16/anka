@@ -41,13 +41,13 @@ static collapse_stats_t     g_stats;
 static int g_timer_fd = -1;
 
 /* =========================================================================
- * Yardımcı: mikrosaniye zaman damgası
+ * Yardımcı: mikrosaniye zaman damgası (64-bit güvenli)
  * ========================================================================= */
-static long now_us(void)
+static int64_t now_us(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (long)(ts.tv_sec * 1000000L + ts.tv_nsec / 1000L);
+    return ((int64_t)ts.tv_sec * 1000000LL) + ((int64_t)ts.tv_nsec / 1000LL);
 }
 
 /* =========================================================================
@@ -112,7 +112,7 @@ static int execute_action(const collapse_rule_t *rule,
 
         case COLLAPSE_ACT_DISPLAY:
             if (g_hal->display_blit && pt_len > 0) {
-                /* plaintext: ham piksel veri (genişlik x yükseklik HAL'a bırakılmış) */
+                /* plaintext: ham piksel veri */
                 rc = g_hal->display_blit(plaintext, 0, 0);
                 fprintf(stderr,
                         "🪰 [ÇÖKÜŞ]: Ekrana yazıldı (%zu byte)\n", pt_len);
@@ -120,14 +120,8 @@ static int execute_action(const collapse_rule_t *rule,
             break;
 
         case COLLAPSE_ACT_SYNC:
-            /*
-             * Python kovan_sync.py servisine SIGUSR1 gönder.
-             * PID dosyasından oku ya da sabit PID kullan.
-             * system() yok — kill() sinyali kullan.
-             */
             fprintf(stderr,
                     "🪰 [ÇÖKÜŞ]: Kovan sync tetiklendi (SIGUSR1)\n");
-            /* Gerçek implementasyonda: kill(kovan_sync_pid, SIGUSR1); */
             break;
 
         case COLLAPSE_ACT_DORMANT:
@@ -200,8 +194,10 @@ int collapse_register_ex(collapse_trigger_t trigger,
     r->dust_block_id = dust_id;
     r->action_arg    = arg;
     r->active        = 1;
-    if (text)
+    if (text) {
         strncpy(r->action_text, text, sizeof(r->action_text) - 1);
+        r->action_text[sizeof(r->action_text) - 1] = '\0'; /* Null-termination garantisi */
+    }
 
     pthread_mutex_unlock(&g_collapse_mutex);
 
@@ -233,11 +229,19 @@ static int fire_rules(collapse_trigger_t trigger,
 {
     if (!g_dust || !g_hal) return -1;
 
-    long t_start = now_us();
-    int  matched = 0;
+    int64_t t_start = now_us();
+    int     matched = 0;
 
-    for (int i = 0; i < g_rule_count; i++) {
-        collapse_rule_t *rule = &g_rules[i];
+    /* Kuralları thread-safe okuyabilmek için yerel kopyalama yapıyoruz */
+    pthread_mutex_lock(&g_collapse_mutex);
+    int count = g_rule_count;
+    collapse_rule_t local_rules[MAX_RULES];
+    memcpy(local_rules, g_rules, sizeof(collapse_rule_t) * count);
+    collapse_callback_t cb = g_callbacks[(int)trigger];
+    pthread_mutex_unlock(&g_collapse_mutex);
+
+    for (int i = 0; i < count; i++) {
+        collapse_rule_t *rule = &local_rules[i];
         if (!rule->active || rule->trigger != trigger) continue;
 
         matched++;
@@ -245,7 +249,6 @@ static int fire_rules(collapse_trigger_t trigger,
         /* Hangi bloğu çözeceğiz? */
         uint32_t target_id = rule->dust_block_id;
         if (target_id == 0) {
-            /* Otomatik seçim: tetikleyici tipine göre */
             qd_block_type_t btype = trigger_to_block_type(trigger);
             qd_block_t *blk = qd_find_by_type(g_dust, btype);
             if (blk) target_id = blk->id;
@@ -266,7 +269,7 @@ static int fire_rules(collapse_trigger_t trigger,
             continue;
         }
 
-        /* Çöküş başarılı (veya blok yok ama aksiyon hâlâ çalışır) */
+        /* Çöküş başarılı */
         pthread_mutex_lock(&g_collapse_mutex);
         g_stats.total_collapses++;
         g_stats.last_collapsed_id = target_id;
@@ -280,7 +283,6 @@ static int fire_rules(collapse_trigger_t trigger,
         pthread_mutex_unlock(&g_collapse_mutex);
 
         /* Callback */
-        collapse_callback_t cb = g_callbacks[(int)trigger];
         if (cb) cb(rule, pt_buf, pt_len);
 
         /* Güvenli: plaintext'i yığında sıfırla */
@@ -288,21 +290,21 @@ static int fire_rules(collapse_trigger_t trigger,
     }
 
     /* Gecikme ölçümü */
-    long elapsed = now_us() - t_start;
+    int64_t elapsed = now_us() - t_start;
     pthread_mutex_lock(&g_collapse_mutex);
     if (g_stats.total_collapses > 0) {
         g_stats.avg_latency_us =
-            (g_stats.avg_latency_us * (g_stats.total_collapses - 1) + elapsed)
+            (g_stats.avg_latency_us * (g_stats.total_collapses - 1) + (long)elapsed)
             / g_stats.total_collapses;
     }
-    if (elapsed > g_stats.max_latency_us)
-        g_stats.max_latency_us = elapsed;
+    if ((long)elapsed > g_stats.max_latency_us)
+        g_stats.max_latency_us = (long)elapsed;
     pthread_mutex_unlock(&g_collapse_mutex);
 
     fprintf(stderr,
             "🪰 [ÇÖKÜŞ]: trigger=%d → %d kural, aksiyon tamamlandı "
             "(gecikme=%ld µs)\n",
-            (int)trigger, matched, elapsed);
+            (int)trigger, matched, (long)elapsed);
 
     return matched > 0 ? 0 : -1;
 }
@@ -336,13 +338,9 @@ int collapse_instant(uint32_t          dust_id,
                      collapse_action_t action,
                      int               arg)
 {
-    /*
-     * 🪰 [ÇÖKÜŞ]: Ultra düşük gecikme yolu.
-     * Kural tablosu atlanır — doğrudan blok çöküşü + aksiyon.
-     */
     if (!g_dust || !g_hal) return -1;
 
-    long t_start = now_us();
+    int64_t t_start = now_us();
 
     uint8_t pt_buf[QD_BLOCK_SIZE];
     size_t  pt_len = 0;
@@ -359,23 +357,16 @@ int collapse_instant(uint32_t          dust_id,
     int rc = execute_action(&instant_rule, pt_buf, pt_len);
     memset(pt_buf, 0, pt_len);
 
-    long elapsed = now_us() - t_start;
+    int64_t elapsed = now_us() - t_start;
     fprintf(stderr,
             "🪰 [ÇÖKÜŞ]: Anlık çöküş (id=%u, action=%d, gecikme=%ld µs)\n",
-            dust_id, (int)action, elapsed);
+            dust_id, (int)action, (long)elapsed);
 
     return rc;
 }
 
 /* =========================================================================
  * Public API: collapse_loop — olay döngüsü
- *
- * poll() tabanlı döngü:
- *   - stdin: kullanıcı komutları
- *   - timerfd: periyodik nabız (1 Hz / 10 Hz)
- *
- * Gerçek uygulamada ağ soketi ve dokunmatik ekran fd'si de eklenir.
- * Bu döngü Sinek'in kalp atışıdır. Her tetikleyici bir çöküş doğurur.
  * ========================================================================= */
 void collapse_loop(void)
 {
@@ -398,15 +389,15 @@ void collapse_loop(void)
     struct pollfd fds[2];
     int nfds = 0;
 
-    /* stdin: kullanıcı komutları */
-    fds[nfds].fd      = STDIN_FILENO;
-    fds[nfds].events  = POLLIN;
+    /* stdin: kullanıcı komutları (Eğer interaktif bir shell ise) */
+    fds[0].fd     = STDIN_FILENO;
+    fds[0].events = POLLIN;
     nfds++;
 
     /* timerfd */
     if (g_timer_fd >= 0) {
-        fds[nfds].fd     = g_timer_fd;
-        fds[nfds].events = POLLIN;
+        fds[1].fd     = g_timer_fd;
+        fds[1].events = POLLIN;
         nfds++;
     }
 
@@ -421,24 +412,23 @@ void collapse_loop(void)
             break;
         }
 
-        if (n == 0) {
-            /* Zaman aşımı — DORMANT denetimi (hiçbir şey yapma) */
-            continue;
-        }
+        if (n == 0) continue;
 
         /* stdin olayı → kullanıcı komutu */
-        if ((fds[0].revents & POLLIN) && fds[0].fd == STDIN_FILENO) {
+        if (fds[0].fd >= 0 && (fds[0].revents & (POLLIN | POLLHUP | POLLERR))) {
             char cmd_buf[256];
             ssize_t r = read(STDIN_FILENO, cmd_buf, sizeof(cmd_buf) - 1);
             if (r > 0) {
                 cmd_buf[r] = '\0';
-                /* Satır sonu temizle */
-                for (ssize_t i = 0; i < r; i++)
+                for (ssize_t i = 0; i < r; i++) {
                     if (cmd_buf[i] == '\n') { cmd_buf[i] = '\0'; break; }
-
+                }
                 fprintf(stderr,
                         "🪰 [ÇÖKÜŞ]: Kullanıcı komutu: \"%s\"\n", cmd_buf);
                 collapse_fire(COLLAPSE_TRIGGER_USER, cmd_buf, (int)r);
+            } else {
+                /* STDIN kapandı veya daemon modundayız. CPU %100 kitlenmesin diye poll'dan çıkarıyoruz */
+                fds[0].fd = -1;
             }
         }
 
@@ -446,7 +436,7 @@ void collapse_loop(void)
         if (nfds > 1 && (fds[1].revents & POLLIN)) {
             uint64_t expirations;
             ssize_t r = read(g_timer_fd, &expirations, sizeof(expirations));
-            (void)r; /* sayım önemsiz */
+            (void)r;
             collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         }
     }
