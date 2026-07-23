@@ -1,6 +1,5 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FINAL)
-// DÜZELTME v6: Python ajanı sinek_bilinc.py olarak çağrılıyor
-//               (o sinek_nexus.py + AnkaDogusu + KisilikMotoru'nu başlatır)
+// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (QUANTUM FULL TAKEOVER)
+// DÜZELTME v7: SurfaceFlinger tamamen durdurulur (Tam Devralma Modu)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -25,14 +24,25 @@ AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
 extern AnkaHAL *current_hal;
 extern void hal_loader_init(void);
 
-/* Güncellenen ui_render prototipi (Framebuffer bağlamı eklendi) */
+/* Güncellenen ui_render prototipi */
 extern void ui_render(fb_context_t *fb, const char *last_message);
 
 static volatile sig_atomic_t g_running = 1;
 static pid_t g_python_pid = -1;
 
-static void sigint_handler(int sig) { (void)sig; g_running = 0; fprintf(stderr, "\n🪰 [SİSTEM]: SIGINT — kapanış...\n"); }
-static void sigterm_handler(int sig) { (void)sig; g_running = 0; fprintf(stderr, "\n🪰 [SİSTEM]: SIGTERM — kapanış...\n"); }
+static void sigint_handler(int sig) { 
+    (void)sig; 
+    g_running = 0; 
+    fprintf(stderr, "\n🪰 [SİSTEM]: SIGINT — kapanış ve SurfaceFlinger geri yükleniyor...\n"); 
+    fb_takeover_start_surfaceflinger();
+}
+
+static void sigterm_handler(int sig) { 
+    (void)sig; 
+    g_running = 0; 
+    fprintf(stderr, "\n🪰 [SİSTEM]: SIGTERM — kapanış ve SurfaceFlinger geri yükleniyor...\n"); 
+    fb_takeover_start_surfaceflinger();
+}
 
 static void kill_python_child(void)
 {
@@ -58,7 +68,15 @@ int main() {
     struct sigaction sa_term = {0}; sa_term.sa_handler = sigterm_handler; sigemptyset(&sa_term.sa_mask); sigaction(SIGTERM, &sa_term, NULL);
     signal(SIGPIPE, SIG_IGN);
 
-    // 1. GÖLGE KATMAN (Animasyon ve Framebuffer Açılışı)
+    // 0. TAM DEVRALMA: MIUI SurfaceFlinger'ı durdur ve ekranı ele geçir
+    fprintf(stderr, "🪰 [GÖLGE]: SurfaceFlinger durduruluyor (Tam Devralma)...\n");
+    if (fb_takeover_stop_surfaceflinger() == 0) {
+        fprintf(stderr, "🪰 [GÖLGE]: Ekran başarıyla devralındı!\n");
+    } else {
+        fprintf(stderr, "⚠️ [GÖLGE]: SurfaceFlinger durdurulamadı, gölge modda devam ediliyor...\n");
+    }
+
+    // 1. FRAMEBUFFER AÇILIŞI VE BOOT SEKANSI
     fb_context_t fb;
     int fb_is_open = (fb_open(&fb) == 0);
     if (fb_is_open) { 
@@ -67,7 +85,7 @@ int main() {
         fprintf(stderr, "⚠️ [GÖLGE]: Framebuffer açılamadı\n"); 
     }
 
-    printf("\033[1;36m --- ANKA OS: QUANTUM UYANIŞ --- \033[0m\n");
+    printf("\033[1;36m --- ANKA OS: QUANTUM FULL TAKEOVER --- \033[0m\n");
 
     // 1.5 HAL BACKEND YÜKLEME
     hal_loader_init();
@@ -80,7 +98,7 @@ int main() {
     if (!lib_path) lib_path = "/data/adb/modules/anka_os/system/lib/libanka_quantum.so";
     void *lib = dlopen(lib_path, RTLD_LAZY);
     if (!lib) lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
-    if (!lib) { fprintf(stderr, "❌ [HATA]: Kuantum motoru: %s\n", dlerror()); return -1; }
+    if (!lib) { fprintf(stderr, "❌ [HATA]: Kuantum motoru: %s\n", dlerror()); fb_takeover_start_surfaceflinger(); return -1; }
 
     // 3. Depo ve Motor Başlatma
     static qd_store_t dust;
@@ -111,16 +129,16 @@ int main() {
         fprintf(stderr, "🪰 [SİNEK]: sinek_bilinc.py arka planda (PID=%d).\n", g_python_pid);
     }
 
-    printf("🎙️ [SİSTEM]: Anka OS Aktif, Kuantum Nabız Başlatıldı.\n");
+    printf("🎙️ [SİSTEM]: Anka OS Tam Devralma Modunda Aktif!\n");
 
     // 6. NABIZ DÖNGÜSÜ
     while (g_running) {
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
         
-        // Framebuffer açık ise canlı render atıyoruz
+        // Ekran tamamen bizim, canlı Dashboard akıyor
         if (fb_is_open) {
-            ui_render(&fb, "Sistem Senkronize... Kovan Dinleniyor.");
+            ui_render(&fb, "Sistem Senkronize... Tam Devralma Aktif.");
         }
         
         usleep(500000);
@@ -131,12 +149,14 @@ int main() {
         fb_close(&fb);
     }
 
-    // 7. TEMİZ KAPANIŞ
-    fprintf(stderr, "🪰 [SİSTEM]: Kapanış — motorlar temizleniyor...\n");
+    // 7. TEMİZ KAPANIŞ VE ANDROID GUI GERİ YÜKLEME
+    fprintf(stderr, "🪰 [SİSTEM]: Kapanış — SurfaceFlinger yeniden başlatılıyor...\n");
+    fb_takeover_start_surfaceflinger();
+
     collapse_shutdown();
     sinek_fsm_destroy(&sinek);
     kill_python_child();
     if (lib) { dlclose(lib); fprintf(stderr, "🪰 [SİSTEM]: .so kaldırıldı.\n"); }
-    fprintf(stderr, "🪰 [SİSTEM]: ANKA OS kapatıldı. Hoşça kal sinek.\n");
+    fprintf(stderr, "🪰 [SİSTEM]: ANKA OS kapatıldı. MIUI ekranı geri verildi.\n");
     return 0;
 }
