@@ -47,15 +47,17 @@ SRC_BOOT = core/boot.c \
            core/engines/system_monitor.c \
            core/engines/tohum_engine.c
 
+# Kuantum motoru ve Sinek'in Savaş Modülü (Kum Havuzu Zekası) dahil edildi
 SRC_QUANTUM = core/quantum/quantum_dust.c \
               core/quantum/collapse_engine.c \
-              core/quantum/sinek_fsm.c
+              core/quantum/sinek_fsm.c \
+              core/quantum/sinek_warfare.c
 
 all: $(QUANTUM_LIB) $(TARGET_BIN)
 
 $(QUANTUM_LIB): $(SRC_QUANTUM)
 	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
-	@echo "🪰 [SYSTEM]: Kuantum motoru (.so) mühürlendi."
+	@echo "🪰 [SYSTEM]: Kuantum motoru ve Sinek Savaş Modülü (.so) mühürlendi."
 
 $(TARGET_BIN): $(SRC_BOOT) $(QUANTUM_LIB)
 	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ $(QUANTUM_LDFLAGS) $(LDFLAGS)
