@@ -68,6 +68,7 @@ jobs:
       - name: ⚙️ Build and Seal Anka OS
         run: |
           export TARGET_CC="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+          sed -i 's|LDFLAGS =.*|LDFLAGS = -ldl -lcrypto -lssl -lm|g' Makefile
           sed -i 's/-lcrypto -lssl/external\/openssl\/lib\/libssl.a external\/openssl\/lib\/libcrypto.a/g' Makefile
           sed -i 's/-I./-I. -Iexternal\/openssl\/include/g' Makefile
           sudo apt-get install -y zip
