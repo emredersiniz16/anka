@@ -56,7 +56,6 @@ jobs:
           cd openssl-3.0.14
           export ANDROID_NDK_ROOT=/opt/android-ndk
           export PATH=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
-          # OpenSSL 3, modern NDK'yı (Clang) yerel olarak tanır, gcc aramaz!
           ./Configure android-arm64 -D__ANDROID_API__=29
           make build_libs -j$(nproc)
           cd ..
@@ -68,9 +67,6 @@ jobs:
       - name: ⚙️ Build and Seal Anka OS
         run: |
           export TARGET_CC="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
-          sed -i 's|LDFLAGS =.*|LDFLAGS = -ldl -lcrypto -lssl -lm|g' Makefile
-          sed -i 's/-lcrypto -lssl/external\/openssl\/lib\/libssl.a external\/openssl\/lib\/libcrypto.a/g' Makefile
-          sed -i 's/-I./-I. -Iexternal\/openssl\/include/g' Makefile
           sudo apt-get install -y zip
           
           echo "🪰 Anka OS Magisk Modülü Derleniyor..."
