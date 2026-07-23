@@ -1,5 +1,5 @@
 // boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (TAKTIKSEL SAVAŞ VE KUM HAVUZU MODU)
-// DÜZELTME v9: Sinek ekranı çökertmeden, SIGSTOP ile dondurarak bilek hakkıyla alır.
+// DÜZELTME v9.1: Sinek ekranı çökertmeden, SIGSTOP ile dondurarak bilek hakkıyla alır. Header entegre edildi.
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,15 +14,12 @@
 extern void collapse_shutdown(void);
 #include "quantum/collapse_engine.h"
 #include "quantum/sinek_fsm.h"
+#include "quantum/sinek_warfare.h" /* Savaş Modülü ve Kum Havuzu Zekası eklendi */
 #include "ui_engine.h"
 #include "anim_engine.h"
 #include "anka_hal.h"
 #include "hal_common.h"
 #include "engines/tohum_engine.h"
-
-// Savaş Modülü Başlıkları (Sinek'in Kum Havuzu Zekası)
-extern int sinek_execute_takeover(void);
-extern void sinek_retreat(pid_t sf_pid);
 
 AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
 extern AnkaHAL *current_hal;
