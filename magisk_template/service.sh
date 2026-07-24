@@ -1,7 +1,6 @@
 #!/system/bin/sh
 # ANKA OS boot servisi - late_start sonrasi calisir
-# DÜZELTME v8: SystemUI durdurma — Sinek framebuffer'a yazabilsin diye
-#              Android status bar + launcher Sinek'i 5 sn'de geri silmiyor.
+# DÜZELTME v9: Python PATH ekle + debug.log oluştur (crash loop fix)
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -9,6 +8,7 @@ ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
 LOGFILE=/data/local/tmp/anka_os.log
 KOVANLOG=/cache/anka_os_kovan.log
+DEBUGLOG=/data/local/tmp/debug.log
 
 # 1. Boot tamamlanana kadar bekle
 WAIT_BOOT=0
@@ -21,6 +21,26 @@ if [ "$(getprop sys.boot_completed)" != "1" ]; then
     echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] HATA: Boot tamamlanmadi" > "$LOGFILE"
     exit 0
 fi
+
+# 1.5 Python PATH ekle — birkaç olası konum dene
+PYTHON_PATHS="
+    /data/adb/modules/python/system/bin
+    /system/bin
+    /system/xbin
+    /vendor/bin
+    /data/local/tmp/python3/bin
+"
+for p in $PYTHON_PATHS; do
+    if [ -x "$p/python3" ]; then
+        export PATH="$p:$PATH"
+        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3 bulundu: $p/python3" >> "$LOGFILE"
+        break
+    fi
+done
+
+# Eğer hala python3 bulunamadıysa, boş debug.log oluştur ki fly_engine.c patlamasın
+touch "$DEBUGLOG" 2>/dev/null
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] debug.log olusturuldu (fly_engine.c icin)" >> "$LOGFILE" 2>/dev/null
 
 # 2. SELinux Enforcing — magiskpolicy ile izinler
 magiskpolicy --live "allow * graphics_device:chr_file { read write open ioctl }" 2>/dev/null
@@ -93,36 +113,28 @@ log_ts() {
     done
 }
 
-# 10. SystemUI durdurma — Sinek framebuffer'a kalıcı yazsın
-#     Android SystemUI (status bar + launcher) ekranı geri alıyor.
-#     Sinek başlamadan önce durdur, kapanınca geri getir.
+# 10. SystemUI durdurma
 stop_systemui() {
-    # Ekran kapatma: power button sentezi yerine SystemUI durdur
-    # status bar + navigation bar kalkar
     killall com.android.systemui 2>/dev/null
     am force-stop com.android.systemui 2>/dev/null
-    # Launcher'ı da durdur — Sinek tam ekran
     LAUNCHER=$(cmd shortcut get-default-launcher 2>/dev/null | head -1)
     if [ -n "$LAUNCHER" ]; then
         am force-stop "$LAUNCHER" 2>/dev/null
     fi
-    # Ptp da değil — activity stack'in Sinek'i asmaması için
     settings put global system_screen_off_timeout 2147483647 2>/dev/null
-    # Keyguard kapat
     cmd lock_settings set-disabled true 2>/dev/null
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI durduruldu, Sinek tam ekran" >> "$LOGFILE"
+    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI durduruldu" >> "$LOGFILE"
 }
 
 start_systemui() {
-    # Sinek kapanınca SystemUI geri gelsin
     am start -n com.android.systemui/.SystemUIService 2>/dev/null
     if [ -n "$LAUNCHER" ]; then
         am start "$LAUNCHER" 2>/dev/null
     fi
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI geri başlatıldı" >> "$LOGFILE"
+    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI geri baslatildi" >> "$LOGFILE"
 }
 
-# 11. Süreç başlatma (log + OOM ile)
+# 11. Süreç başlatma
 start_anka() {
     nohup "$ANKA_BIN" 2>&1 | log_ts &
     local pid=$!
@@ -135,23 +147,20 @@ start_anka() {
 # 12. Log başlangıcı
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS baslatiliyor..." >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce) (Enforcing + magiskpolicy)" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Library: $ANKA_LIB/libanka_quantum.so" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Core: $ANKA_CORE" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Boot: $(getprop sys.boot_completed)" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Log (birincil): $LOGFILE" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Log (kovan): $KOVANLOG" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17 (dokunulmaz)" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WakeLock: $ANKA_WAKELOCK (partial)" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3 2>/dev/null || echo 'YOK')" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Debug log: $DEBUGLOG" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WakeLock: $ANKA_WAKELOCK" >> "$LOGFILE"
 
-# 13. SystemUI'yi durdur — Sinek tam ekran
+# 13. SystemUI'yi durdur
 stop_systemui
 
 # 14. Sineği başlat
 PID=$(start_anka)
 
-# 15. WATCHDOG — sürekli izleme
+# 15. WATCHDOG
 WATCHDOG_RESTART=0
 MAX_RESTART=5
 CRASH_COOLDOWN=30
@@ -159,45 +168,25 @@ CRASH_COOLDOWN=30
 while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
     sleep 10
 
-    # Wake lock yenile
     if ! grep -q "$ANKA_WAKELOCK" /sys/power/wake_lock 2>/dev/null; then
         echo $ANKA_WAKELOCK > /sys/power/wake_lock 2>/dev/null
     fi
 
-    # SystemUI geri gelmiş olabilir — tekrar durdur
     if pgrep com.android.systemui 2>/dev/null >/dev/null; then
         killall com.android.systemui 2>/dev/null
     fi
 
     if ! kill -0 $PID 2>/dev/null; then
         WATCHDOG_RESTART=$((WATCHDOG_RESTART + 1))
-        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WATCHDOG: anka_os_bin öldü (restart $WATCHDOG_RESTART/$MAX_RESTART)" >> "$LOGFILE"
-
+        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WATCHDOG: öldü (restart $WATCHDOG_RESTART/$MAX_RESTART)" >> "$LOGFILE"
         if [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; then
-            echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Cooldown: ${CRASH_COOLDOWN}s" >> "$LOGFILE"
             sleep $CRASH_COOLDOWN
             PID=$(start_anka)
-        else
-            echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WATCHDOG: Max restart asildi" >> "$LOGFILE"
         fi
         continue
     fi
-
-    PYTHON_PIDS=$(pgrep -f "python3.*sinek" 2>/dev/null)
-    if [ -z "$PYTHON_PIDS" ]; then
-        sleep 5
-        PYTHON_PIDS=$(pgrep -f "python3.*sinek" 2>/dev/null)
-        if [ -z "$PYTHON_PIDS" ] && kill -0 $PID 2>/dev/null; then
-            echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WATCHDOG: Python ajanı yok, restart" >> "$LOGFILE"
-            kill $PID 2>/dev/null
-            sleep 2
-            PID=$(start_anka)
-        fi
-    fi
 done
 
-# 16. Çıkışta SystemUI geri getir + wake lock bırak
 start_systemui
 echo $ANKA_WAKELOCK > /sys/power/wake_unlock 2>/dev/null
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WakeLock serbest birakildi" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Watchdog tamamlandi" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Tamamlandi" >> "$LOGFILE"
