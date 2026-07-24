@@ -1,6 +1,7 @@
 #!/system/bin/sh
 # ANKA OS boot servisi - late_start sonrasi calisir
-# DÜZELTME v7: Wakelock (ekran kapalıyken de çalış) + birleşik loglama + OOM + Watchdog
+# DÜZELTME v8: SystemUI durdurma — Sinek framebuffer'a yazabilsin diye
+#              Android status bar + launcher Sinek'i 5 sn'de geri silmiyor.
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -35,7 +36,6 @@ magiskpolicy --live "allow * sysfs:file { read write open }" 2>/dev/null
 magiskpolicy --live "allow * power_supply_device:dir { search read }" 2>/dev/null
 magiskpolicy --live "allow * power_supply_device:chr_file { read write open }" 2>/dev/null
 magiskpolicy --live "allow * self:capability { sys_admin sys_rawio sys_nice }" 2>/dev/null
-# Wake lock için ek izinler
 magiskpolicy --live "allow * power_device:chr_file { read write open ioctl }" 2>/dev/null
 magiskpolicy --live "allow * wake_lock:chr_file { read write open ioctl }" 2>/dev/null
 
@@ -46,19 +46,9 @@ chmod 666 /dev/snd/* 2>/dev/null
 chmod 666 /sys/power/wake_lock 2>/dev/null
 chmod 666 /sys/power/wake_unlock 2>/dev/null
 
-# 4. WAKELOCK — ekran kapalıyken CPU'yu uyutma
-#    Partial wake lock: CPU + RAM açık, ekran kapalı.
-#    Bu, Sinek'in arka planda sensörleri dinlemeye devam etmesini sağlar.
+# 4. WAKELOCK
 ANKA_WAKELOCK="anka_os_keepalive"
-
 echo $ANKA_WAKELOCK > /sys/power/wake_lock 2>/dev/null
-if [ $? -eq 0 ]; then
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WAKELOCK: Aktif ($ANKA_WAKELOCK) — CPU uyanık" >> "$LOGFILE" 2>/dev/null
-else
-    # Fallback: Android uid 1000 (system) olarak wake_lock kullan
-    # Magisk root uid 0 olduğu için /sys/power/wake_lock yazılabilir olmalı
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WAKELOCK: /sys/power/wake_lock yazılamadı, fallback deneniyor" >> "$LOGFILE" 2>/dev/null
-fi
 
 # 5. Binary/Library kontrol
 if [ ! -f "$ANKA_BIN" ]; then
@@ -103,7 +93,36 @@ log_ts() {
     done
 }
 
-# 10. Süreç başlatma (log + OOM ile)
+# 10. SystemUI durdurma — Sinek framebuffer'a kalıcı yazsın
+#     Android SystemUI (status bar + launcher) ekranı geri alıyor.
+#     Sinek başlamadan önce durdur, kapanınca geri getir.
+stop_systemui() {
+    # Ekran kapatma: power button sentezi yerine SystemUI durdur
+    # status bar + navigation bar kalkar
+    killall com.android.systemui 2>/dev/null
+    am force-stop com.android.systemui 2>/dev/null
+    # Launcher'ı da durdur — Sinek tam ekran
+    LAUNCHER=$(cmd shortcut get-default-launcher 2>/dev/null | head -1)
+    if [ -n "$LAUNCHER" ]; then
+        am force-stop "$LAUNCHER" 2>/dev/null
+    fi
+    # Ptp da değil — activity stack'in Sinek'i asmaması için
+    settings put global system_screen_off_timeout 2147483647 2>/dev/null
+    # Keyguard kapat
+    cmd lock_settings set-disabled true 2>/dev/null
+    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI durduruldu, Sinek tam ekran" >> "$LOGFILE"
+}
+
+start_systemui() {
+    # Sinek kapanınca SystemUI geri gelsin
+    am start -n com.android.systemui/.SystemUIService 2>/dev/null
+    if [ -n "$LAUNCHER" ]; then
+        am start "$LAUNCHER" 2>/dev/null
+    fi
+    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI geri başlatıldı" >> "$LOGFILE"
+}
+
+# 11. Süreç başlatma (log + OOM ile)
 start_anka() {
     nohup "$ANKA_BIN" 2>&1 | log_ts &
     local pid=$!
@@ -113,7 +132,7 @@ start_anka() {
     echo $pid
 }
 
-# 11. Log başlangıcı
+# 12. Log başlangıcı
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS baslatiliyor..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce) (Enforcing + magiskpolicy)" >> "$LOGFILE"
@@ -124,12 +143,15 @@ echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Boot: $(getprop sys.boot_completed)" >
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Log (birincil): $LOGFILE" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Log (kovan): $KOVANLOG" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17 (dokunulmaz)" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WakeLock: $ANKA_WAKELOCK (partial — CPU uyanık)" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WakeLock: $ANKA_WAKELOCK (partial)" >> "$LOGFILE"
 
-# 12. Sineği başlat
+# 13. SystemUI'yi durdur — Sinek tam ekran
+stop_systemui
+
+# 14. Sineği başlat
 PID=$(start_anka)
 
-# 13. WATCHDOG — sürekli izleme + wakelock yenileme
+# 15. WATCHDOG — sürekli izleme
 WATCHDOG_RESTART=0
 MAX_RESTART=5
 CRASH_COOLDOWN=30
@@ -137,10 +159,14 @@ CRASH_COOLDOWN=30
 while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
     sleep 10
 
-    # Wake lock hâlâ aktif mi? (bazı ROM'lar boot sonrası temizliyor)
+    # Wake lock yenile
     if ! grep -q "$ANKA_WAKELOCK" /sys/power/wake_lock 2>/dev/null; then
         echo $ANKA_WAKELOCK > /sys/power/wake_lock 2>/dev/null
-        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WAKELOCK: Yenilendi" >> "$LOGFILE"
+    fi
+
+    # SystemUI geri gelmiş olabilir — tekrar durdur
+    if pgrep com.android.systemui 2>/dev/null >/dev/null; then
+        killall com.android.systemui 2>/dev/null
     fi
 
     if ! kill -0 $PID 2>/dev/null; then
@@ -170,7 +196,8 @@ while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
     fi
 done
 
-# 14. Çıkışta wake lock bırak
+# 16. Çıkışta SystemUI geri getir + wake lock bırak
+start_systemui
 echo $ANKA_WAKELOCK > /sys/power/wake_unlock 2>/dev/null
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WakeLock serbest birakildi" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Watchdog tamamlandi" >> "$LOGFILE"
