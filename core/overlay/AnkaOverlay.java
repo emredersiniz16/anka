@@ -17,14 +17,16 @@ import java.io.FileReader;
 import java.io.File;
 
 public class AnkaOverlay {
-    private static TextView statusView;
+    private static TextView headerView;
+    private static TextView middleView;
+    private static TextView thoughtView;
     private static Handler mainHandler;
 
     public static void main(String[] args) {
         Looper.prepareMainLooper();
         mainHandler = new Handler(Looper.getMainLooper());
         
-        System.out.println("● [ANKA_OVERLAY]: Canlı Overlay Başlatılıyor...");
+        System.out.println("● [ANKA_OVERLAY]: Siberpunk HUD Başlatılıyor...");
 
         try {
             Typeface safeFont = Typeface.MONOSPACE;
@@ -47,29 +49,68 @@ public class AnkaOverlay {
             params.gravity = Gravity.TOP | Gravity.LEFT;
             params.token = new Binder();
 
-            LinearLayout layout = new LinearLayout(context);
-            layout.setBackgroundColor(Color.parseColor("#EE050B14"));
-            layout.setOrientation(LinearLayout.VERTICAL);
-            layout.setPadding(60, 200, 60, 60);
+            // Ana Dikey Katman (Tam Ekran Artyüz)
+            LinearLayout rootLayout = new LinearLayout(context);
+            rootLayout.setBackgroundColor(Color.parseColor("#EE050B14")); // Yarı saydam yeşil/siyah
+            rootLayout.setOrientation(LinearLayout.VERTICAL);
+            rootLayout.setPadding(40, 100, 40, 60);
 
-            TextView title = new TextView(context);
-            title.setText("● ANKA OS v1.0 — SİNEK AKTİF");
-            title.setTextColor(Color.GREEN);
-            title.setTextSize(22);
-            if (safeFont != null) title.setTypeface(safeFont);
-            layout.addView(title);
+            // 1. ÜST BAR: ANKA OS | SAAT | PİL
+            headerView = new TextView(context);
+            headerView.setText("● ANKA OS v1.0  |  SAAT: --:--  |  PİL: %--");
+            headerView.setTextColor(Color.GREEN);
+            headerView.setTextSize(16);
+            if (safeFont != null) headerView.setTypeface(safeFont);
+            rootLayout.addView(headerView);
 
-            statusView = new TextView(context);
-            statusView.setText("\nKUANTUM TOZU: Yükleniyor...\nMOD: BAŞLATILIYOR...");
-            statusView.setTextColor(Color.GREEN);
-            statusView.setTextSize(16);
-            if (safeFont != null) statusView.setTypeface(safeFont);
-            layout.addView(statusView);
+            // Üst Çizgi
+            LinearLayout topDivider = new LinearLayout(context);
+            topDivider.setBackgroundColor(Color.GREEN);
+            LinearLayout.LayoutParams divParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 4);
+            divParams.setMargins(0, 15, 0, 40);
+            rootLayout.addView(topDivider, divParams);
 
-            windowManager.addView(layout, params);
-            System.out.println("● [ANKA_OVERLAY]: Katman eklendi, canlı veri dinleyici başlatılıyor!");
+            // 2. ORTA BÖLÜM: KUANTUM TOZU & MOD
+            middleView = new TextView(context);
+            middleView.setText("\nKUANTUM TOZU: ---  |  MOD: YÜKLENİYOR...");
+            middleView.setTextColor(Color.GREEN);
+            middleView.setTextSize(18);
+            if (safeFont != null) middleView.setTypeface(safeFont);
+            rootLayout.addView(middleView);
 
-            // C Çekirdeğinden gelen canlı verileri her 500ms'de bir oku ve ekrana bas
+            // Esnek Boşluk (Aşağıya İtici)
+            LinearLayout spacer = new LinearLayout(context);
+            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
+            rootLayout.addView(spacer, spacerParams);
+
+            // 3. ALT BÖLÜM: SİNEK DÜŞÜNCELERİ KUTUSU
+            LinearLayout thoughtBox = new LinearLayout(context);
+            thoughtBox.setOrientation(LinearLayout.VERTICAL);
+            thoughtBox.setBackgroundColor(Color.parseColor("#3300FF00")); // Yarı saydam yeşil kutu
+            thoughtBox.setPadding(30, 20, 30, 20);
+
+            TextView thoughtTitle = new TextView(context);
+            thoughtTitle.setText(">_ SİNEK DÜŞÜNCELERİ:");
+            thoughtTitle.setTextColor(Color.GREEN);
+            thoughtTitle.setTextSize(16);
+            if (safeFont != null) thoughtTitle.setTypeface(safeFont);
+            thoughtBox.addView(thoughtTitle);
+
+            thoughtView = new TextView(context);
+            thoughtView.setText("Sistem başlatılıyor...");
+            thoughtView.setTextColor(Color.GREEN);
+            thoughtView.setTextSize(14);
+            if (safeFont != null) thoughtView.setTypeface(safeFont);
+            thoughtBox.addView(thoughtView);
+
+            rootLayout.addView(thoughtBox);
+
+            windowManager.addView(rootLayout, params);
+            System.out.println("● [ANKA_OVERLAY]: HUD tasarımı başarıyla ekrana çakıldı!");
+
+            // Canlı Dinleyiciyi Başlat
             startStatePoller();
 
         } catch (Throwable t) {
@@ -89,22 +130,35 @@ public class AnkaOverlay {
                         File stateFile = new File("/data/local/tmp/anka_state.txt");
                         if (stateFile.exists()) {
                             BufferedReader reader = new BufferedReader(new FileReader(stateFile));
-                            StringBuilder builder = new StringBuilder();
                             String line;
+                            String time = "--:--", battery = "--", dust = "0", mode = "--", thought = "--";
+
                             while ((line = reader.readLine()) != null) {
-                                builder.append(line).append("\n");
+                                if (line.startsWith("TIME:")) time = line.substring(6).trim();
+                                else if (line.startsWith("BATTERY:")) battery = line.substring(8).trim();
+                                else if (line.startsWith("DUST:")) dust = line.substring(5).trim();
+                                else if (line.startsWith("MODE:")) mode = line.substring(5).trim();
+                                else if (line.startsWith("THOUGHT:")) thought = line.substring(8).trim();
                             }
                             reader.close();
 
-                            final String newText = "\n" + builder.toString();
+                            final String headerText = "● ANKA OS v1.0  |  SAAT: " + time + "  |  PİL: %" + battery;
+                            final String middleText = "\nKUANTUM TOZU: " + dust + "  |  MOD: " + mode;
+                            final String thoughtText = thought;
 
-                            // UI Güncellemesini Ana Ekran Thread'inde Yap
+                            mainHandler.post(new Runnable() {
+                                @Override
+                                int run() { // Lambda/Runnable güncellemesi
+                                    return 0;
+                                }
+                            });
+
                             mainHandler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    if (statusView != null) {
-                                        statusView.setText(newText);
-                                    }
+                                    if (headerView != null) headerView.setText(headerText);
+                                    if (middleView != null) middleView.setText(middleText);
+                                    if (thoughtView != null) thoughtView.setText(thoughtText);
                                 }
                             });
                         }
