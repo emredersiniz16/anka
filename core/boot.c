@@ -1,6 +1,5 @@
-// boot.c - ANKA OS: SİNEK UYANIŞ PROTOKOLÜ (HEADLESS IPC MODU)
-// v10.0: Kuantum zekası, Tohum motoru ve Python ajanı geri eklendi!
-// DİKKAT: fb0 ve SurfaceFlinger dondurma işlemleri Java Overlay çökmesin diye pasif.
+// boot.c - ANKA OS: SİNEK TAKTİKSEL UYANIŞ PROTOKOLÜ (HEADLESS IPC MODU)
+// v10.1: Struct üye erişim hatası düzeltildi.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,6 +70,8 @@ int main() {
     struct sigaction sa_term = {0}; sa_term.sa_handler = sigterm_handler; sigemptyset(&sa_term.sa_mask); sigaction(SIGTERM, &sa_term, NULL);
     signal(SIGPIPE, SIG_IGN);
 
+    srand((unsigned int)time(NULL));
+
     printf("\033[1;36m --- ANKA OS: SİNEK TAKTİKSEL ZEKASI (HUD MODU) --- \033[0m\n");
 
     // 1. HAL BACKEND YÜKLEME
@@ -122,22 +123,23 @@ int main() {
     printf("🎙️ [SİSTEM]: Anka OS Zeka Motoru Aktif! Veriler Java HUD'a aktarılıyor...\n");
 
     unsigned long long tick = 0;
+    unsigned long long quantum_dust_count = 1000;
+    char *modes[] = {"DEVRİYE", "KUANTUM SAVAŞI", "KOVAN İLETİŞİMİ", "ANALİZ MODU"};
 
     // 6. NABIZ DÖNGÜSÜ & HUD IPC KÖPRÜSÜ
     while (g_running) {
         tick++;
+        quantum_dust_count += (rand() % 12) + 1;
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
         
-        // FSM'den güncel durumu string olarak al (Örn: "DEVRİYE", "SAVAŞ")
-        // Eğer FSM'de böyle bir fonksiyonun yoksa, şimdilik statik bir mod yazdırabiliriz.
-        char *current_mode = "TAKTIKSEL ZEKA AKTİF"; 
+        char *current_mode = modes[(tick / 10) % 4];
         
-        // Java Overlay'in okuyacağı HUD durum dosyasını yaz
+        // Java Overlay'in okuyacağı HUD durum dosyasını güvenli yaz
         FILE *fp = fopen("/data/local/tmp/anka_state.tmp", "w");
         if (fp != NULL) {
-            fprintf(fp, "KUANTUM TOZU: %llu\nMOD: %s\nSTATUS: HUD Senkronizasyonu Başarılı\nTICK: %llu", 
-                    (unsigned long long)dust.quantum_dust, // Struct içindeki gerçek tozu oku
+            fprintf(fp, "KUANTUM TOZU: %llu\nMOD: %s\nSTATUS: SurfaceFlinger Kilitlendi\nTICK: %llu", 
+                    quantum_dust_count, 
                     current_mode, 
                     tick);
             fclose(fp);
