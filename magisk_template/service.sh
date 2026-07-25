@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v11: Python PATH + debug.log + SystemUI durdurma + Java App_Process Overlay
+# ANKA OS boot servisi v12: Clean Overlay Mode (Sıfır Ekran Titremesi)
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -102,33 +102,23 @@ log_ts() {
     done
 }
 
-# 10. SystemUI durdur
-stop_systemui() {
-    killall com.android.systemui 2>/dev/null
-    am force-stop com.android.systemui 2>/dev/null
-    LAUNCHER=$(cmd shortcut get-default-launcher 2>/dev/null | head -1)
-    [ -n "$LAUNCHER" ] && am force-stop "$LAUNCHER" 2>/dev/null
+# 10. Sistem Ayarları Yapılandırması (SystemUI Öldürmek YOK - Ekran Titremesini Önler)
+configure_system_env() {
     settings put global system_screen_off_timeout 2147483647 2>/dev/null
     cmd lock_settings set-disabled true 2>/dev/null
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI durduruldu" >> "$LOGFILE"
-}
-
-start_systemui() {
-    am start -n com.android.systemui/.SystemUIService 2>/dev/null
-    [ -n "$LAUNCHER" ] && am start "$LAUNCHER" 2>/dev/null
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SystemUI geri" >> "$LOGFILE"
+    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Sistem ortam ayarları sabitlendi" >> "$LOGFILE"
 }
 
 # 11. Süreç başlat
 start_anka() {
-    # C Çekirdeğini Başlat
+    # C Çekirdeğini Arka Planda Çalıştır
     nohup "$ANKA_BIN" 2>&1 | log_ts &
     local pid=$!
     sleep 1
     protect_oom $pid
     echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Sinek PID=$pid (OOM:-17)" >> "$LOGFILE"
 
-    # Java App_Process Overlay Katmanını Başlat
+    # Java App_Process Overlay Katmanını Başlat (Tek Görsel Patron)
     if [ -f "$ANKA_OVERLAY_JAR" ]; then
         export CLASSPATH="$ANKA_OVERLAY_JAR"
         nohup app_process /system/bin com.anka.os.AnkaOverlay 2>&1 | log_ts &
@@ -145,24 +135,24 @@ start_anka() {
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (v12 Clean Overlay Modu)..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3 2>/dev/null || echo YOK)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Overlay JAR: $ANKA_OVERLAY_JAR" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17 | WakeLock: $ANKA_WAKELOCK" >> "$LOGFILE"
 
-# 13. SystemUI durdur + Sineği başlat
-stop_systemui
+# 13. Ortamı yapılandır ve Sineği başlat
+configure_system_env
 PID=$(start_anka)
 
-# 14. WATCHDOG
+# 14. WATCHDOG (SystemUI öldürme kavgası sonlandırıldı)
 WATCHDOG_RESTART=0
 MAX_RESTART=5
 while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
     sleep 10
     grep -q "$ANKA_WAKELOCK" /sys/power/wake_lock 2>/dev/null || echo $ANKA_WAKELOCK > /sys/power/wake_lock 2>/dev/null
-    pgrep com.android.systemui 2>/dev/null >/dev/null && killall com.android.systemui 2>/dev/null
+    
     if ! kill -0 $PID 2>/dev/null; then
         WATCHDOG_RESTART=$((WATCHDOG_RESTART + 1))
         echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WATCHDOG: öldü ($WATCHDOG_RESTART/$MAX_RESTART)" >> "$LOGFILE"
@@ -170,6 +160,5 @@ while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
     fi
 done
 
-start_systemui
 echo $ANKA_WAKELOCK > /sys/power/wake_unlock 2>/dev/null
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Tamamlandi" >> "$LOGFILE"
