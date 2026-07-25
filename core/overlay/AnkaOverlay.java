@@ -1,7 +1,7 @@
 package com.anka.os;
 
 import android.os.Looper;
-import android.os.Handler;
+import android.os.Binder;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
@@ -24,43 +24,44 @@ public class AnkaOverlay {
 
             WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
 
-            // Ekran Kaplama Parametreleri (TYPE_APPLICATION_OVERLAY)
+            // Ekran Kaplama Parametreleri (TYPE_SYSTEM_ERROR - 2010)
             WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
-                2038, // TYPE_APPLICATION_OVERLAY
+                2010, // TYPE_SYSTEM_ERROR: System/Root UID için en üst katman
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
+                WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 PixelFormat.TRANSLUCENT
             );
             params.gravity = Gravity.TOP | Gravity.LEFT;
+            params.token = new Binder(); // WindowManager token hatasını aşmak için eklenen sahte token
 
-            // Sinek Artyüz Tasarımı (Siberpunk Yeşil / Siyah Katman)
+            // Sinek Arayüz Tasarımı (Siberpunk Yeşil / Siyah Katman)
             LinearLayout layout = new LinearLayout(context);
             layout.setBackgroundColor(Color.parseColor("#EE050B14")); // Yarı saydam siberpunk siyah
             layout.setOrientation(LinearLayout.VERTICAL);
-            layout.setPadding(50, 150, 50, 50);
+            layout.setPadding(60, 200, 60, 60);
 
             TextView title = new TextView(context);
             title.setText("🪰 ANKA OS v1.0 — SİNEK AKTİF");
             title.setTextColor(Color.GREEN);
-            title.setTextSize(22);
+            title.setTextSize(24);
             layout.addView(title);
 
             TextView status = new TextView(context);
-            status.setText("\nKUANTUM TOZU: 999\nMOD: OVERLAY KONTROLÜ\nSTATUS: SurfaceFlinger Stabil");
+            status.setText("\nKUANTUM TOZU: 999\nMOD: OVERLAY KONTROLÜ\nSTATUS: SurfaceFlinger Kilitlendi");
             status.setTextColor(Color.GREEN);
-            status.setTextSize(16);
+            status.setTextSize(18);
             layout.addView(status);
 
             // Katmanı Ekrana Bas
             windowManager.addView(layout, params);
-            System.out.println("🪰 [ANKA_OVERLAY]: Katman ekrana kilitlendi!");
+            System.out.println("🪰 [ANKA_OVERLAY]: Katman ekrana BAŞARIYLA EKLENDİ!");
 
-        } catch (Exception e) {
-            System.out.println("🪰 [ANKA_OVERLAY] HATA: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Throwable t) {
+            System.out.println("🪰 [ANKA_OVERLAY] HATA:");
+            t.printStackTrace();
         }
 
         Looper.loop();
