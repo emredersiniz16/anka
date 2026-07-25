@@ -74,6 +74,7 @@ magisk: all
 	@cp magisk_template/service.sh magisk_module/ 2>/dev/null || true
 	@cp $(TARGET_BIN) magisk_module/system/bin/anka_os_bin
 	@cp $(QUANTUM_LIB) magisk_module/system/lib/
+	@cp AnkaOS_Overlay.jar magisk_module/system/anka_core/ 2>/dev/null || true
 	@cp assets/fly_icon.bmp magisk_module/system/anka_core/assets/ 2>/dev/null || true
 	@cp agents/*.py magisk_module/system/anka_core/agents/ 2>/dev/null || true
 	@chmod -R 755 magisk_module
@@ -86,7 +87,7 @@ magisk: all
 	@echo "✅ [SYSTEM]: AnkaOS_Quantum_v1.zip Mühürlendi ve Flaşlanmaya Hazır!"
 
 clean:
-	rm -f $(TARGET_BIN) $(QUANTUM_LIB) core/quantum/*.o core/ui/*.o core/hal/*.o core/engines/*.o AnkaOS_Quantum_v1.zip $(ROM_ZIP)
+	rm -f $(TARGET_BIN) $(QUANTUM_LIB) AnkaOS_Overlay.jar core/quantum/*.o core/ui/*.o core/hal/*.o core/engines/*.o AnkaOS_Quantum_v1.zip $(ROM_ZIP)
 	rm -rf rom_build
 	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
 
@@ -101,6 +102,7 @@ rom: all
 	@cp $(TARGET_BIN) rom_build/system/bin/anka_os
 	@cp $(QUANTUM_LIB) rom_build/system/lib/libanka_quantum.so
 	@mkdir -p rom_build/system/anka_core/agents rom_build/system/anka_core/assets
+	@cp AnkaOS_Overlay.jar rom_build/system/anka_core/ 2>/dev/null || true
 	@cp agents/*.py rom_build/system/anka_core/agents/ 2>/dev/null || true
 	@cp assets/fly_icon.bmp rom_build/system/anka_core/assets/ 2>/dev/null || true
 	@cp assets/fly.bmp rom_build/system/anka_core/assets/ 2>/dev/null || true
