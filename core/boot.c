@@ -1,177 +1,177 @@
-package com.anka.os;
+// boot.c - ANKA OS: SİNEK TAKTİKSEL UYANIŞ PROTOKOLÜ (DÜŞÜNEN C KODU)
+// v11.0: Pil, Saat ve Sinek Düşünceleri IPC Akışına Bağlandı!
 
-import android.os.Looper;
-import android.os.Handler;
-import android.os.Binder;
-import android.content.Context;
-import android.graphics.Color;
-import android.graphics.PixelFormat;
-import android.graphics.Typeface;
-import android.view.Gravity;
-import android.view.WindowManager;
-import android.widget.TextView;
-import android.widget.LinearLayout;
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <dlfcn.h>
+#include <signal.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <time.h>
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.File;
+#include "anka_env.h"
+#include "quantum/quantum_dust.h"
+extern void collapse_shutdown(void);
+#include "quantum/collapse_engine.h"
+#include "quantum/sinek_fsm.h"
+#include "quantum/sinek_warfare.h"
+#include "ui_engine.h"
+#include "anim_engine.h"
+#include "anka_hal.h"
+#include "hal_common.h"
+#include "engines/tohum_engine.h"
 
-public class AnkaOverlay {
-    private static TextView headerView;
-    private static TextView middleView;
-    private static TextView thoughtView;
-    private static Handler mainHandler;
+AnkaHAL g_hal = { .vibrate = NULL, .speak = NULL };
+extern AnkaHAL *current_hal;
+extern void hal_loader_init(void);
 
-    public static void main(String[] args) {
-        Looper.prepareMainLooper();
-        mainHandler = new Handler(Looper.getMainLooper());
-        
-        System.out.println("● [ANKA_OVERLAY]: Siberpunk HUD Başlatılıyor...");
+static volatile sig_atomic_t g_running = 1;
+static pid_t g_python_pid = -1;
 
-        try {
-            Typeface safeFont = Typeface.MONOSPACE;
+static void sigint_handler(int sig) { 
+    (void)sig; 
+    g_running = 0; 
+    fprintf(stderr, "\n🪰 [SİSTEM]: SIGINT — güvenli kapanış...\n"); 
+    remove("/data/local/tmp/anka_state.txt");
+    remove("/data/local/tmp/anka_state.tmp");
+}
 
-            Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
-            Object activityThread = activityThreadClass.getMethod("systemMain").invoke(null);
-            Context context = (Context) activityThreadClass.getMethod("getSystemContext").invoke(activityThread);
+static void sigterm_handler(int sig) { 
+    (void)sig; 
+    g_running = 0; 
+    fprintf(stderr, "\n🪰 [SİSTEM]: SIGTERM — güvenli kapanış...\n"); 
+    remove("/data/local/tmp/anka_state.txt");
+    remove("/data/local/tmp/anka_state.tmp");
+}
 
-            WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+static void kill_python_child(void)
+{
+    if (g_python_pid > 0) {
+        fprintf(stderr, "🪰 [SİSTEM]: Python ajanı (PID=%d) sonlandırılıyor...\n", g_python_pid);
+        kill(g_python_pid, SIGTERM);
+        sleep(2);
+        if (kill(g_python_pid, 0) == 0) {
+            kill(g_python_pid, SIGKILL);
+            waitpid(g_python_pid, NULL, 0);
+        } else {
+            waitpid(g_python_pid, NULL, WNOHANG);
+        }
+        g_python_pid = -1;
+    }
+    system("pkill -f 'python3.*sinek' 2>/dev/null");
+}
 
-            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                2010, // TYPE_SYSTEM_ERROR
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                PixelFormat.TRANSLUCENT
-            );
-            params.gravity = Gravity.TOP | Gravity.LEFT;
-            params.token = new Binder();
+// Gerçek Pil Yüzdesini Oku
+int get_battery_level() {
+    int cap = 99;
+    FILE *fp = fopen("/sys/class/power_supply/battery/capacity", "r");
+    if (fp) {
+        fscanf(fp, "%d", &cap);
+        fclose(fp);
+    }
+    return cap;
+}
 
-            // Ana Dikey Katman (Tam Ekran Artyüz)
-            LinearLayout rootLayout = new LinearLayout(context);
-            rootLayout.setBackgroundColor(Color.parseColor("#EE050B14")); // Yarı saydam yeşil/siyah
-            rootLayout.setOrientation(LinearLayout.VERTICAL);
-            rootLayout.setPadding(40, 100, 40, 60);
+int main() {
+    setvbuf(stdout, NULL, _IONBF, 0);
 
-            // 1. ÜST BAR: ANKA OS | SAAT | PİL
-            headerView = new TextView(context);
-            headerView.setText("● ANKA OS v1.0  |  SAAT: --:--  |  PİL: %--");
-            headerView.setTextColor(Color.GREEN);
-            headerView.setTextSize(16);
-            if (safeFont != null) headerView.setTypeface(safeFont);
-            rootLayout.addView(headerView);
+    struct sigaction sa_int = {0}; sa_int.sa_handler = sigint_handler; sigemptyset(&sa_int.sa_mask); sigaction(SIGINT, &sa_int, NULL);
+    struct sigaction sa_term = {0}; sa_term.sa_handler = sigterm_handler; sigemptyset(&sa_term.sa_mask); sigaction(SIGTERM, &sa_term, NULL);
+    signal(SIGPIPE, SIG_IGN);
 
-            // Üst Çizgi
-            LinearLayout topDivider = new LinearLayout(context);
-            topDivider.setBackgroundColor(Color.GREEN);
-            LinearLayout.LayoutParams divParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 4);
-            divParams.setMargins(0, 15, 0, 40);
-            rootLayout.addView(topDivider, divParams);
+    srand((unsigned int)time(NULL));
 
-            // 2. ORTA BÖLÜM: KUANTUM TOZU & MOD
-            middleView = new TextView(context);
-            middleView.setText("\nKUANTUM TOZU: ---  |  MOD: YÜKLENİYOR...");
-            middleView.setTextColor(Color.GREEN);
-            middleView.setTextSize(18);
-            if (safeFont != null) middleView.setTypeface(safeFont);
-            rootLayout.addView(middleView);
+    printf("\033[1;36m --- ANKA OS: SİNEK TAKTİKSEL ZEKASI & DÜŞÜNCE MOTORU --- \033[0m\n");
 
-            // Esnek Boşluk (Aşağıya İtici)
-            LinearLayout spacer = new LinearLayout(context);
-            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
-            rootLayout.addView(spacer, spacerParams);
+    // 1. HAL BACKEND YÜKLEME
+    hal_loader_init();
+    AnkaHAL *active_hal = current_hal;
+    if (!active_hal) { fprintf(stderr, "⚠️ [HAL]: Backend yok, mock kullanılıyor\n"); active_hal = &g_hal; }
 
-            // 3. ALT BÖLÜM: SİNEK DÜŞÜNCELERİ KUTUSU
-            LinearLayout thoughtBox = new LinearLayout(context);
-            thoughtBox.setOrientation(LinearLayout.VERTICAL);
-            thoughtBox.setBackgroundColor(Color.parseColor("#3300FF00")); // Yarı saydam yeşil kutu
-            thoughtBox.setPadding(30, 20, 30, 20);
+    // 2. Kuantum motorunu yükle
+    const char *lib_path = getenv("ANKA_LIB_PATH");
+    if (!lib_path) lib_path = "/data/adb/modules/anka_os/system/lib/libanka_quantum.so";
+    void *lib = dlopen(lib_path, RTLD_LAZY);
+    if (!lib) lib = dlopen("./core/quantum/libanka_quantum.so", RTLD_LAZY);
 
-            TextView thoughtTitle = new TextView(context);
-            thoughtTitle.setText(">_ SİNEK DÜŞÜNCELERİ:");
-            thoughtTitle.setTextColor(Color.GREEN);
-            thoughtTitle.setTextSize(16);
-            if (safeFont != null) thoughtTitle.setTypeface(safeFont);
-            thoughtBox.addView(thoughtTitle);
+    // 3. Depo ve Motor Başlatma
+    static qd_store_t dust;
+    qd_init(&dust, "Note9_Merlin_FP", "KovanSecret_v1");
+    collapse_init(&dust, active_hal);
 
-            thoughtView = new TextView(context);
-            thoughtView.setText("Sistem başlatılıyor...");
-            thoughtView.setTextColor(Color.GREEN);
-            thoughtView.setTextSize(14);
-            if (safeFont != null) thoughtView.setTypeface(safeFont);
-            thoughtBox.addView(thoughtView);
+    static tohum_ctx_t tohum;
+    tohum_init(&tohum);
+    tohum_skill_ekle(&tohum, "kisilik_motoru");
+    tohum_skill_ekle(&tohum, "jammer_surfer");
+    tohum_skill_ekle(&tohum, "kuantum_gozlemci");
+    tohum_skill_ekle(&tohum, "kovan_zihni");
+    tohum_skill_ekle(&tohum, "kum_havuzu_zeka");
 
-            rootLayout.addView(thoughtBox);
+    // 4. Sinek FSM
+    static sinek_fsm_t sinek;
+    sinek_fsm_init(&sinek, &dust, active_hal);
+    sinek_fsm_handle_event(&sinek, SINEK_EVT_WAKE, NULL, 0);
 
-            windowManager.addView(rootLayout, params);
-            System.out.println("● [ANKA_OVERLAY]: HUD tasarımı başarıyla ekrana çakıldı!");
+    // 5. Python Bilinç Ajanı
+    int py_rc = anka_run_python_bg(
+        "/data/adb/modules/anka_os/system/anka_core/agents/sinek_bilinc.py", NULL);
+    if (py_rc > 0) g_python_pid = (pid_t)py_rc;
 
-            // Canlı Dinleyiciyi Başlat
-            startStatePoller();
+    unsigned long long tick = 0;
+    unsigned long long quantum_dust_count = 999;
+    
+    // Sinek Düşünce Veritabanı (Zeka Döngüsü)
+    char *thoughts[] = {
+        "MIUI Donduruldu. Ekran Sinek'in Kontrolünde.",
+        "Kovan Zihni ile Kuantum Senkronizasyonu Kuruldu.",
+        "Çevre Frekanslar Taranıyor, Jammer Surfer Beklemede.",
+        "Tohum Motoru Aktif: Kuantum Gözlemci Modu Çalışıyor.",
+        "SurfaceFlinger Pasifleştirildi. Sinek Artyüzü Stabil.",
+        "Siberpunk Katmanı Ekrana Kilitlendi. Komut Bekleniyor."
+    };
 
-        } catch (Throwable t) {
-            System.out.println("● [ANKA_OVERLAY] HATA:");
-            t.printStackTrace();
+    char *modes[] = {"SİNEK AKTİF", "KUANTUM SAVAŞI", "KOVAN İLETİŞİMİ", "DEVRİYE MODU"};
+
+    while (g_running) {
+        tick++;
+        quantum_dust_count += (rand() % 8) + 1;
+        collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
+        sinek_fsm_uptime_update(&sinek);
+
+        // Anlık Saat Al
+        time_t rawtime;
+        struct tm *timeinfo;
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        char time_buf[16];
+        strftime(time_buf, sizeof(time_buf), "%H:%M:%S", timeinfo);
+
+        int battery = get_battery_level();
+        char *current_mode = modes[(tick / 8) % 4];
+        char *current_thought = thoughts[(tick / 6) % 6];
+
+        // Java Overlay İçin Canlı Veri Dosyasını Yaz
+        FILE *fp = fopen("/data/local/tmp/anka_state.tmp", "w");
+        if (fp != NULL) {
+            fprintf(fp, "TIME: %s\nBATTERY: %d\nDUST: %llu\nMODE: %s\nTHOUGHT: %s\nTICK: %llu", 
+                    time_buf, 
+                    battery, 
+                    quantum_dust_count, 
+                    current_mode, 
+                    current_thought, 
+                    tick);
+            fclose(fp);
+            rename("/data/local/tmp/anka_state.tmp", "/data/local/tmp/anka_state.txt");
         }
 
-        Looper.loop();
+        usleep(500000); // 500ms
     }
 
-    private static void startStatePoller() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    try {
-                        File stateFile = new File("/data/local/tmp/anka_state.txt");
-                        if (stateFile.exists()) {
-                            BufferedReader reader = new BufferedReader(new FileReader(stateFile));
-                            String line;
-                            String time = "--:--", battery = "--", dust = "0", mode = "--", thought = "--";
-
-                            while ((line = reader.readLine()) != null) {
-                                if (line.startsWith("TIME:")) time = line.substring(6).trim();
-                                else if (line.startsWith("BATTERY:")) battery = line.substring(8).trim();
-                                else if (line.startsWith("DUST:")) dust = line.substring(5).trim();
-                                else if (line.startsWith("MODE:")) mode = line.substring(5).trim();
-                                else if (line.startsWith("THOUGHT:")) thought = line.substring(8).trim();
-                            }
-                            reader.close();
-
-                            final String headerText = "● ANKA OS v1.0  |  SAAT: " + time + "  |  PİL: %" + battery;
-                            final String middleText = "\nKUANTUM TOZU: " + dust + "  |  MOD: " + mode;
-                            final String thoughtText = thought;
-
-                            mainHandler.post(new Runnable() {
-                                @Override
-                                int run() { // Lambda/Runnable güncellemesi
-                                    return 0;
-                                }
-                            });
-
-                            mainHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (headerView != null) headerView.setText(headerText);
-                                    if (middleView != null) middleView.setText(middleText);
-                                    if (thoughtView != null) thoughtView.setText(thoughtText);
-                                }
-                            });
-                        }
-                    } catch (Exception ignored) {
-                    }
-
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                }
-            }
-        }).start();
-    }
+    collapse_shutdown();
+    sinek_fsm_destroy(&sinek);
+    kill_python_child();
+    if (lib) dlclose(lib);
+    return 0;
 }
