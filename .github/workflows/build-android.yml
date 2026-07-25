@@ -75,7 +75,7 @@ jobs:
           echo "☕ Java Overlay (.jar) Derleniyor..."
           mkdir -p build_overlay
           javac -cp $ANDROID_SDK_ROOT/platforms/android-34/android.jar -d build_overlay core/overlay/AnkaOverlay.java
-          $ANDROID_SDK_ROOT/build-tools/34.0.0/d8 --output . build_overlay/com/anka/os/AnkaOverlay.class
+          $ANDROID_SDK_ROOT/build-tools/34.0.0/d8 --output . build_overlay/com/anka/os/*.class
           zip AnkaOS_Overlay.jar classes.dex
           rm -rf classes.dex build_overlay
           
