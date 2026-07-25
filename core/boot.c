@@ -1,5 +1,5 @@
-// boot.c - ANKA OS: SİNEK TAKTİKSEL UYANIŞ PROTOKOLÜ (DÜŞÜNEN C KODU)
-// v11.0: Pil, Saat ve Sinek Düşünceleri IPC Akışına Bağlandı!
+// boot.c - ANKA OS: SİNEK TAKTİKSEL UYANIŞ PROTOKOLÜ (KOMUT DİNLEYEN C ÇEKİRDEĞİ)
+// v12.0: Dokunmatik Buton Komutlarını İşleyen Zeka Motoru!
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +36,7 @@ static void sigint_handler(int sig) {
     fprintf(stderr, "\n🪰 [SİSTEM]: SIGINT — güvenli kapanış...\n"); 
     remove("/data/local/tmp/anka_state.txt");
     remove("/data/local/tmp/anka_state.tmp");
+    remove("/data/local/tmp/anka_cmd.txt");
 }
 
 static void sigterm_handler(int sig) { 
@@ -44,6 +45,7 @@ static void sigterm_handler(int sig) {
     fprintf(stderr, "\n🪰 [SİSTEM]: SIGTERM — güvenli kapanış...\n"); 
     remove("/data/local/tmp/anka_state.txt");
     remove("/data/local/tmp/anka_state.tmp");
+    remove("/data/local/tmp/anka_cmd.txt");
 }
 
 static void kill_python_child(void)
@@ -83,7 +85,7 @@ int main() {
 
     srand((unsigned int)time(NULL));
 
-    printf("\033[1;36m --- ANKA OS: SİNEK TAKTİKSEL ZEKASI & DÜŞÜNCE MOTORU --- \033[0m\n");
+    printf("\033[1;36m --- ANKA OS: KOMUT DİNLEYEN SİNEK ZEKASI --- \033[0m\n");
 
     // 1. HAL BACKEND YÜKLEME
     hal_loader_init();
@@ -107,7 +109,6 @@ int main() {
     tohum_skill_ekle(&tohum, "jammer_surfer");
     tohum_skill_ekle(&tohum, "kuantum_gozlemci");
     tohum_skill_ekle(&tohum, "kovan_zihni");
-    tohum_skill_ekle(&tohum, "kum_havuzu_zeka");
 
     // 4. Sinek FSM
     static sinek_fsm_t sinek;
@@ -120,25 +121,39 @@ int main() {
     if (py_rc > 0) g_python_pid = (pid_t)py_rc;
 
     unsigned long long tick = 0;
-    unsigned long long quantum_dust_count = 999;
-    
-    // Sinek Düşünce Veritabanı (Zeka Döngüsü)
-    char *thoughts[] = {
-        "MIUI Donduruldu. Ekran Sinek'in Kontrolünde.",
-        "Kovan Zihni ile Kuantum Senkronizasyonu Kuruldu.",
-        "Çevre Frekanslar Taranıyor, Jammer Surfer Beklemede.",
-        "Tohum Motoru Aktif: Kuantum Gözlemci Modu Çalışıyor.",
-        "SurfaceFlinger Pasifleştirildi. Sinek Artyüzü Stabil.",
-        "Siberpunk Katmanı Ekrana Kilitlendi. Komut Bekleniyor."
-    };
+    unsigned long long quantum_dust_count = 1000;
+    int mode_index = 0;
 
     char *modes[] = {"SİNEK AKTİF", "KUANTUM SAVAŞI", "KOVAN İLETİŞİMİ", "DEVRİYE MODU"};
+    char current_thought[256] = "Dokunmatik kontrolörler aktif. Komut bekleniyor...";
 
     while (g_running) {
         tick++;
-        quantum_dust_count += (rand() % 8) + 1;
+        quantum_dust_count += (rand() % 6) + 1;
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
+
+        // --- JAVA DOKUNMATİK KOMUT DİNLEYİCİSİ ---
+        FILE *cmd_fp = fopen("/data/local/tmp/anka_cmd.txt", "r");
+        if (cmd_fp) {
+            char cmd[64] = {0};
+            fscanf(cmd_fp, "%63s", cmd);
+            fclose(cmd_fp);
+            remove("/data/local/tmp/anka_cmd.txt"); // Komutu işleyince sil
+
+            if (strcmp(cmd, "CMD_MOD") == 0) {
+                mode_index = (mode_index + 1) % 4;
+                snprintf(current_thought, sizeof(current_thought), 
+                    "⚡ MOD DEĞİŞTİRİLDİ -> %s geçiş yapıldı!", modes[mode_index]);
+            } else if (strcmp(cmd, "CMD_SCAN") == 0) {
+                quantum_dust_count += 500; // Taramada toz patlaması
+                snprintf(current_thought, sizeof(current_thought), 
+                    "🔍 SİSTEM TARANIYOR: Frekanslar temiz. +500 Kuantum Tozu elde edildi!");
+            } else if (strcmp(cmd, "CMD_KOVAN") == 0) {
+                snprintf(current_thought, sizeof(current_thought), 
+                    "📡 KOVAN ZİHNİNE BAĞLANILDI: Sinek verileri senkronize ediliyor...");
+            }
+        }
 
         // Anlık Saat Al
         time_t rawtime;
@@ -149,8 +164,6 @@ int main() {
         strftime(time_buf, sizeof(time_buf), "%H:%M:%S", timeinfo);
 
         int battery = get_battery_level();
-        char *current_mode = modes[(tick / 8) % 4];
-        char *current_thought = thoughts[(tick / 6) % 6];
 
         // Java Overlay İçin Canlı Veri Dosyasını Yaz
         FILE *fp = fopen("/data/local/tmp/anka_state.tmp", "w");
@@ -159,7 +172,7 @@ int main() {
                     time_buf, 
                     battery, 
                     quantum_dust_count, 
-                    current_mode, 
+                    modes[mode_index], 
                     current_thought, 
                     tick);
             fclose(fp);
