@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12: Clean Overlay Mode (Sıfır Ekran Titremesi)
+# ANKA OS boot servisi v12.1: Clean Overlay Mode + Overlay Log Yönlendirmesi
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -7,6 +7,7 @@ ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
 ANKA_OVERLAY_JAR="$ANKA_CORE/AnkaOS_Overlay.jar"
 LOGFILE=/data/local/tmp/anka_os.log
+OVERLAY_LOGFILE=/data/local/tmp/anka_overlay.log
 KOVANLOG=/cache/anka_os_kovan.log
 DEBUGLOG=/data/local/tmp/debug.log
 
@@ -33,6 +34,7 @@ fi
 
 # debug.log oluştur (fly_engine.c patlamasın)
 touch "$DEBUGLOG" 2>/dev/null
+touch "$OVERLAY_LOGFILE" 2>/dev/null
 
 # 2. SELinux
 magiskpolicy --live "allow * graphics_device:chr_file { read write open ioctl }" 2>/dev/null
@@ -102,7 +104,7 @@ log_ts() {
     done
 }
 
-# 10. Sistem Ayarları Yapılandırması (SystemUI Öldürmek YOK - Ekran Titremesini Önler)
+# 10. Sistem Ayarları Yapılandırması
 configure_system_env() {
     settings put global system_screen_off_timeout 2147483647 2>/dev/null
     cmd lock_settings set-disabled true 2>/dev/null
@@ -118,14 +120,14 @@ start_anka() {
     protect_oom $pid
     echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Sinek PID=$pid (OOM:-17)" >> "$LOGFILE"
 
-    # Java App_Process Overlay Katmanını Başlat (Tek Görsel Patron)
+    # Java App_Process Overlay Katmanını Başlat (Loglar /data/local/tmp/anka_overlay.log dosyasına aktarılır)
     if [ -f "$ANKA_OVERLAY_JAR" ]; then
         export CLASSPATH="$ANKA_OVERLAY_JAR"
-        nohup app_process /system/bin com.anka.os.AnkaOverlay 2>&1 | log_ts &
+        nohup app_process /system/bin com.anka.os.AnkaOverlay > "$OVERLAY_LOGFILE" 2>&1 &
         local overlay_pid=$!
         sleep 1
         protect_oom $overlay_pid
-        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Java Overlay PID=$overlay_pid (OOM:-17)" >> "$LOGFILE"
+        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Java Overlay PID=$overlay_pid (OOM:-17) -> Log: $OVERLAY_LOGFILE" >> "$LOGFILE"
     else
         echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] UYARI: $ANKA_OVERLAY_JAR bulunamadi!" >> "$LOGFILE"
     fi
@@ -135,7 +137,7 @@ start_anka() {
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (v12 Clean Overlay Modu)..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (v12.1 Clean Overlay Modu)..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3 2>/dev/null || echo YOK)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
@@ -146,7 +148,7 @@ echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17 | WakeLock: $ANKA_WAKELOCK" >
 configure_system_env
 PID=$(start_anka)
 
-# 14. WATCHDOG (SystemUI öldürme kavgası sonlandırıldı)
+# 14. WATCHDOG
 WATCHDOG_RESTART=0
 MAX_RESTART=5
 while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
