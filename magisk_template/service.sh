@@ -59,6 +59,11 @@ chmod 666 /dev/input/event* 2>/dev/null
 chmod 666 /dev/snd/* 2>/dev/null
 chmod 666 /sys/power/wake_lock 2>/dev/null
 chmod 666 /sys/power/wake_unlock 2>/dev/null
+# MIUI Tema Uyumluluk Hatasını Engelle
+mkdir -p /data/system/theme_config 2>/dev/null
+touch /data/system/theme_config/theme_compatibility.xml 2>/dev/null
+chmod 666 /data/system/theme_config/theme_compatibility.xml 2>/dev/null
+
 
 # 4. WAKELOCK
 ANKA_WAKELOCK="anka_os_keepalive"
