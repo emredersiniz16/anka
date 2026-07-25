@@ -1,4 +1,4 @@
-package com.com.anka.os;
+package com.anka.os;
 
 import android.os.Looper;
 import android.os.Handler;
@@ -24,7 +24,7 @@ public class AnkaOverlay {
 
             WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
 
-            // Ekran Kaplama Parametreleri (TYPE_SECURE_SYSTEM_OVERLAY / TYPE_APPLICATION_OVERLAY)
+            // Ekran Kaplama Parametreleri (TYPE_APPLICATION_OVERLAY)
             WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
