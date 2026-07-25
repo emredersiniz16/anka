@@ -1,13 +1,17 @@
-# agents/evrim_motoru.py - EVRİM MOTORU (Kuantum Çevirmen & Enjektör)
+# agents/evrim_motoru.py - EVRİM MOTORU (Kuantum Çevirmen & Enjektör & OTA Motoru)
 import subprocess
 import sys
 import os
 import json
 import hashlib
+import ssl
+
 try:
     import urllib.request as _urllib_req
+    import urllib.error as _urllib_err
 except ImportError:
     _urllib_req = None
+    _urllib_err = None
 
 class EvrimMotoru:
     def __init__(self, zihin, nexus=None):
@@ -42,16 +46,14 @@ def evrim_baslat(payload_isim, nexus=None):
     if nexus and hasattr(nexus, 'jammer_surfer'):
         nexus.jammer_surfer.jammer_frekansina_kilitlen()
     
-    # 3. Bukalemun Protokolü (VBMETA - Aynı klasörde olduğu için yol sadeleşti)
+    # 3. Bukalemun Protokolü (VBMETA)
     print("[*] Bukalemun Protokolü: vbmeta kilitleri aşılıyor...")
-    # vbmeta_patch.img artık agents/ klasöründe olduğu için direkt isimle çağırıyoruz
     subprocess.run(["fastboot", "--disable-verity", "--disable-verification", "flash", "vbmeta", "agents/vbmeta_patch.img"])
     zeka_cekirdegi.evrim_gecir(karsilasilan_engel="Bootloader Güvenlik Duvarı (VBMETA)")
     
-    # 4. Enjeksiyon (Payload'ın bin/ klasöründe olduğunu varsayıyorum)
+    # 4. Enjeksiyon
     print(f"[*] Anka OS Zekası ({payload_isim}) mühürleniyor...")
     try:
-        # Yeni düzen: payload bin/ klasöründe
         subprocess.run(["fastboot", "flash", "super", f"bin/{payload_isim}"], check=True)
         zeka_cekirdegi.evrim_gecir(karsilasilan_engel="Salt Okunur Partition Sınırı")
     except subprocess.CalledProcessError:
@@ -83,11 +85,25 @@ def _ota_conf_oku(conf_yolu="/system/etc/anka_ota.conf"):
             ayarlar[anahtar.strip()] = deger.strip()
     return ayarlar
 
+def _urlopen_safe(url, headers=None, timeout=15):
+    """Android / Termux SSL sertifika hatalarını tolere eden güvenli urlopen."""
+    if headers is None:
+        headers = {"User-Agent": "AnkaOS-OTA/1.0", "Accept": "application/vnd.github+json"}
+    
+    req = _urllib_req.Request(url, headers=headers)
+    
+    try:
+        return _urllib_req.urlopen(req, timeout=timeout)
+    except Exception as e:
+        if "CERTIFICATE_VERIFY_FAILED" in str(e) or "SSL" in str(e):
+            ctx = ssl._create_unverified_context()
+            return _urllib_req.urlopen(req, timeout=timeout, context=ctx)
+        raise e
 
 def ota_github_guncelle(nexus=None):
     """
     GitHub Releases API üzerinden en son sürümü kontrol eder.
-    Yeni sürüm varsa anka_core/agents/*.py dosyalarını günceller.
+    Yeni sürüm varsa ROM zip indirir ve doğrular.
     """
     if _urllib_req is None:
         print("[OTA] urllib mevcut değil, güncelleme atlanıyor.")
@@ -100,57 +116,60 @@ def ota_github_guncelle(nexus=None):
     if kanal == "release":
         api_url = f"https://api.github.com/repos/{repo}/releases/latest"
     else:
-        # main branch: son commit bilgisini kontrol et
         api_url = f"https://api.github.com/repos/{repo}/commits/main"
 
     print(f"[OTA] Kovan kontrol ediliyor: {api_url}")
     try:
-        req = _urllib_req.Request(api_url,
-                                  headers={"User-Agent": "AnkaOS-OTA/1.0",
-                                           "Accept": "application/vnd.github+json"})
-        with _urllib_req.urlopen(req, timeout=15) as resp:
+        with _urlopen_safe(api_url) as resp:
             veri = json.loads(resp.read().decode())
+    except _urllib_err.HTTPError as err:
+        if err.code == 404:
+            print(f"⚠️ [OTA] Kovan erişim hatası: HTTP 404 Not Found")
+            print(f"💡 [BİLGİ]: '{repo}' reposunda henüz yayınlanmış bir Release (Sürüm) paketi yok.")
+            print(f"   1) GitHub'da v1.0.0 etiketli ilk Release'i oluşturup zip yükleyebilirsiniz.")
+            print(f"   2) Veya '/system/etc/anka_ota.conf' dosyasında ANKA_OTA_CHANNEL=main yapabilirsiniz.")
+        else:
+            print(f"[OTA] Kovan HTTP Hatası: {err.code} {err.reason}")
+        return False
     except Exception as hata:
         print(f"[OTA] Kovan erişim hatası: {hata}")
         return False
 
     if kanal == "release":
-        tag = veri.get("tag_name", "")
+        tag = veri.get("tag_name", "v1.0.0")
         assets = veri.get("assets", [])
-        # ROM zip ve varsa SHA256 kontrol dosyasını bul
         zip_assets = [a for a in assets if a["name"].endswith(".zip")]
         sha256_assets = [a for a in assets if a["name"].endswith(".sha256")]
-        print(f"[OTA] Mevcut sürüm etiket: {tag}")
+        
+        print(f"🪰 [OTA] Mevcut Kovan Sürümü: {tag}")
         if not zip_assets:
-            print("[OTA] Bu sürümde indirilebilecek ROM zip bulunamadı.")
+            print("ℹ️ [OTA] Bu sürüm için indirilebilir güncelleme paketi (.zip) bulunamadı.")
             return False
+            
         rom_url = zip_assets[0]["browser_download_url"]
         beklenen_sha256 = None
         if sha256_assets:
             try:
-                req_sha = _urllib_req.Request(
-                    sha256_assets[0]["browser_download_url"],
-                    headers={"User-Agent": "AnkaOS-OTA/1.0"})
-                with _urllib_req.urlopen(req_sha, timeout=10) as r:
+                with _urlopen_safe(sha256_assets[0]["browser_download_url"], timeout=10) as r:
                     beklenen_sha256 = r.read().decode().strip().split()[0]
             except Exception:
                 beklenen_sha256 = None
     else:
         sha = veri.get("sha", "")[:8]
-        print(f"[OTA] main SHA: {sha}")
+        print(f"🪰 [OTA] main Dalı Son Commit SHA: {sha}")
         rom_url = f"https://github.com/{repo}/archive/refs/heads/main.zip"
         beklenen_sha256 = None
 
-    # İndir
     zip_hedef = "/data/local/tmp/anka_ota_update.zip"
     print(f"[OTA] Güncelleme indiriliyor: {rom_url}")
+    
     try:
-        _urllib_req.urlretrieve(rom_url, zip_hedef)
+        with _urlopen_safe(rom_url, timeout=60) as response, open(zip_hedef, "wb") as out_file:
+            out_file.write(response.read())
     except Exception as hata:
         print(f"[OTA] İndirme hatası: {hata}")
         return False
 
-    # SHA256 doğrulama
     if beklenen_sha256:
         h = hashlib.sha256()
         with open(zip_hedef, "rb") as f:
@@ -159,20 +178,20 @@ def ota_github_guncelle(nexus=None):
         hesaplanan = h.hexdigest()
         if hesaplanan != beklenen_sha256:
             print(f"[OTA] HATA: SHA256 uyuşmazlığı! Beklenen: {beklenen_sha256}, Hesaplanan: {hesaplanan}")
-            os.remove(zip_hedef)
+            if os.path.exists(zip_hedef):
+                os.remove(zip_hedef)
             return False
         print(f"[OTA] SHA256 doğrulandı: {hesaplanan}")
     else:
         print("[OTA] UYARI: SHA256 kontrol dosyası bulunamadı, doğrulama atlandı.")
 
-    print(f"[OTA] Güncelleme indirildi: {zip_hedef}")
-    print("[OTA] Kurulum için cihazı TWRP moduna alın ve şu komutu çalıştırın:")
+    print(f"📦 [OTA] Güncelleme indirildi: {zip_hedef}")
+    print("🚀 [OTA] Kurulum için cihazı TWRP moduna alın ve şu komutu çalıştırın:")
     print(f"      twrp install {zip_hedef}")
     return True
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--ota":
-        # GitHub Releases OTA güncelleme modu
         ota_github_guncelle()
     elif len(sys.argv) > 2 and sys.argv[1] == "--payload":
         evrim_baslat(sys.argv[2])
