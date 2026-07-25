@@ -8,13 +8,16 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
+import android.widget.Button;
 import android.widget.LinearLayout;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.File;
+import java.io.FileWriter;
 
 public class AnkaOverlay {
     private static TextView headerView;
@@ -26,7 +29,7 @@ public class AnkaOverlay {
         Looper.prepareMainLooper();
         mainHandler = new Handler(Looper.getMainLooper());
         
-        System.out.println("● [ANKA_OVERLAY]: Siberpunk HUD Başlatılıyor...");
+        System.out.println("● [ANKA_OVERLAY]: Siberpunk Dokunmatik HUD Başlatılıyor...");
 
         try {
             Typeface safeFont = Typeface.MONOSPACE;
@@ -51,15 +54,15 @@ public class AnkaOverlay {
 
             // Ana Dikey Katman (Tam Ekran Artyüz)
             LinearLayout rootLayout = new LinearLayout(context);
-            rootLayout.setBackgroundColor(Color.parseColor("#EE050B14")); // Yarı saydam yeşil/siyah
+            rootLayout.setBackgroundColor(Color.parseColor("#EE050B14")); // Yarı saydam siberpunk siyah
             rootLayout.setOrientation(LinearLayout.VERTICAL);
-            rootLayout.setPadding(40, 100, 40, 60);
+            rootLayout.setPadding(30, 80, 30, 40);
 
             // 1. ÜST BAR: ANKA OS | SAAT | PİL
             headerView = new TextView(context);
             headerView.setText("● ANKA OS v1.0  |  SAAT: --:--  |  PİL: %--");
             headerView.setTextColor(Color.GREEN);
-            headerView.setTextSize(16);
+            headerView.setTextSize(15);
             if (safeFont != null) headerView.setTypeface(safeFont);
             rootLayout.addView(headerView);
 
@@ -67,15 +70,15 @@ public class AnkaOverlay {
             LinearLayout topDivider = new LinearLayout(context);
             topDivider.setBackgroundColor(Color.GREEN);
             LinearLayout.LayoutParams divParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 4);
-            divParams.setMargins(0, 15, 0, 40);
+                LinearLayout.LayoutParams.MATCH_PARENT, 3);
+            divParams.setMargins(0, 10, 0, 30);
             rootLayout.addView(topDivider, divParams);
 
             // 2. ORTA BÖLÜM: KUANTUM TOZU & MOD
             middleView = new TextView(context);
             middleView.setText("\nKUANTUM TOZU: ---  |  MOD: YÜKLENİYOR...");
             middleView.setTextColor(Color.GREEN);
-            middleView.setTextSize(18);
+            middleView.setTextSize(17);
             if (safeFont != null) middleView.setTypeface(safeFont);
             rootLayout.addView(middleView);
 
@@ -85,30 +88,67 @@ public class AnkaOverlay {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
             rootLayout.addView(spacer, spacerParams);
 
-            // 3. ALT BÖLÜM: SİNEK DÜŞÜNCELERİ KUTUSU
+            // 3. İNTERAKTİF DOKUNMATİK BUTONLAR SATIRI
+            LinearLayout btnRow = new LinearLayout(context);
+            btnRow.setOrientation(LinearLayout.HORIZONTAL);
+            btnRow.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams btnRowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            btnRowParams.setMargins(0, 0, 0, 20);
+
+            Button btnMod = createCyberButton(context, "⚡ MOD", safeFont);
+            btnMod.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendAnkaCommand("CMD_MOD");
+                }
+            });
+
+            Button btnScan = createCyberButton(context, "🔍 TARA", safeFont);
+            btnScan.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendAnkaCommand("CMD_SCAN");
+                }
+            });
+
+            Button btnKovan = createCyberButton(context, "📡 KOVAN", safeFont);
+            btnKovan.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendAnkaCommand("CMD_KOVAN");
+                }
+            });
+
+            btnRow.addView(btnMod);
+            btnRow.addView(btnScan);
+            btnRow.addView(btnKovan);
+            rootLayout.addView(btnRow, btnRowParams);
+
+            // 4. ALT BÖLÜM: SİNEK DÜŞÜNCELERİ KUTUSU
             LinearLayout thoughtBox = new LinearLayout(context);
             thoughtBox.setOrientation(LinearLayout.VERTICAL);
             thoughtBox.setBackgroundColor(Color.parseColor("#3300FF00")); // Yarı saydam yeşil kutu
-            thoughtBox.setPadding(30, 20, 30, 20);
+            thoughtBox.setPadding(25, 15, 25, 15);
 
             TextView thoughtTitle = new TextView(context);
             thoughtTitle.setText(">_ SİNEK DÜŞÜNCELERİ:");
             thoughtTitle.setTextColor(Color.GREEN);
-            thoughtTitle.setTextSize(16);
+            thoughtTitle.setTextSize(15);
             if (safeFont != null) thoughtTitle.setTypeface(safeFont);
             thoughtBox.addView(thoughtTitle);
 
             thoughtView = new TextView(context);
-            thoughtView.setText("Sistem başlatılıyor...");
+            thoughtView.setText("Dokunmatik kontrolörler aktif. Komut bekleniyor...");
             thoughtView.setTextColor(Color.GREEN);
-            thoughtView.setTextSize(14);
+            thoughtView.setTextSize(13);
             if (safeFont != null) thoughtView.setTypeface(safeFont);
             thoughtBox.addView(thoughtView);
 
             rootLayout.addView(thoughtBox);
 
             windowManager.addView(rootLayout, params);
-            System.out.println("● [ANKA_OVERLAY]: HUD tasarımı başarıyla ekrana çakıldı!");
+            System.out.println("● [ANKA_OVERLAY]: İnteraktif HUD ekrana kilitlendi!");
 
             // Canlı Dinleyiciyi Başlat
             startStatePoller();
@@ -119,6 +159,35 @@ public class AnkaOverlay {
         }
 
         Looper.loop();
+    }
+
+    // Özel Siberpunk Buton Üreteci
+    private static Button createCyberButton(Context context, String text, Typeface font) {
+        Button btn = new Button(context);
+        btn.setText(text);
+        btn.setTextColor(Color.GREEN);
+        btn.setBackgroundColor(Color.parseColor("#44003300")); // Koyu şeffaf yeşil
+        btn.setTextSize(12);
+        if (font != null) btn.setTypeface(font);
+
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        p.setMargins(8, 0, 8, 0);
+        btn.setLayoutParams(p);
+        return btn;
+    }
+
+    // C Çekirdeğine Komut Gönderici
+    private static void sendAnkaCommand(String cmd) {
+        try {
+            File cmdFile = new File("/data/local/tmp/anka_cmd.txt");
+            FileWriter writer = new FileWriter(cmdFile, false);
+            writer.write(cmd);
+            writer.close();
+            System.out.println("● [ANKA_OVERLAY]: Komut fırlatıldı -> " + cmd);
+        } catch (Exception e) {
+            System.out.println("● [ANKA_OVERLAY]: Komut yazma hatası!");
+        }
     }
 
     private static void startStatePoller() {
