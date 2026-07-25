@@ -1,10 +1,11 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v10: Python PATH + debug.log + SystemUI durdurma
+# ANKA OS boot servisi v11: Python PATH + debug.log + SystemUI durdurma + Java App_Process Overlay
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
+ANKA_OVERLAY_JAR="$ANKA_CORE/AnkaOS_Overlay.jar"
 LOGFILE=/data/local/tmp/anka_os.log
 KOVANLOG=/cache/anka_os_kovan.log
 DEBUGLOG=/data/local/tmp/debug.log
@@ -74,6 +75,7 @@ fi
 # 6. İzinler
 chmod 755 "$ANKA_BIN"
 chmod 755 "$ANKA_LIB/libanka_quantum.so"
+[ -f "$ANKA_OVERLAY_JAR" ] && chmod 644 "$ANKA_OVERLAY_JAR"
 
 # 7. ANKA core + library path
 mkdir -p "$ANKA_CORE"
@@ -119,11 +121,25 @@ start_systemui() {
 
 # 11. Süreç başlat
 start_anka() {
+    # C Çekirdeğini Başlat
     nohup "$ANKA_BIN" 2>&1 | log_ts &
     local pid=$!
     sleep 1
     protect_oom $pid
     echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Sinek PID=$pid (OOM:-17)" >> "$LOGFILE"
+
+    # Java App_Process Overlay Katmanını Başlat
+    if [ -f "$ANKA_OVERLAY_JAR" ]; then
+        export CLASSPATH="$ANKA_OVERLAY_JAR"
+        nohup app_process /system/bin com.anka.os.AnkaOverlay 2>&1 | log_ts &
+        local overlay_pid=$!
+        sleep 1
+        protect_oom $overlay_pid
+        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Java Overlay PID=$overlay_pid (OOM:-17)" >> "$LOGFILE"
+    else
+        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] UYARI: $ANKA_OVERLAY_JAR bulunamadi!" >> "$LOGFILE"
+    fi
+
     echo $pid
 }
 
@@ -133,6 +149,7 @@ echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3 2>/dev/null || echo YOK)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Overlay JAR: $ANKA_OVERLAY_JAR" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17 | WakeLock: $ANKA_WAKELOCK" >> "$LOGFILE"
 
 # 13. SystemUI durdur + Sineği başlat
