@@ -134,7 +134,7 @@ public class AnkaOverlay {
                             String time = "--:--", battery = "--", dust = "0", mode = "--", thought = "--";
 
                             while ((line = reader.readLine()) != null) {
-                                if (line.startsWith("TIME:")) time = line.substring(6).trim();
+                                if (line.startsWith("TIME:")) time = line.substring(5).trim();
                                 else if (line.startsWith("BATTERY:")) battery = line.substring(8).trim();
                                 else if (line.startsWith("DUST:")) dust = line.substring(5).trim();
                                 else if (line.startsWith("MODE:")) mode = line.substring(5).trim();
@@ -145,13 +145,6 @@ public class AnkaOverlay {
                             final String headerText = "● ANKA OS v1.0  |  SAAT: " + time + "  |  PİL: %" + battery;
                             final String middleText = "\nKUANTUM TOZU: " + dust + "  |  MOD: " + mode;
                             final String thoughtText = thought;
-
-                            mainHandler.post(new Runnable() {
-                                @Override
-                                int run() { // Lambda/Runnable güncellemesi
-                                    return 0;
-                                }
-                            });
 
                             mainHandler.post(new Runnable() {
                                 @Override
