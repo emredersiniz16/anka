@@ -1,6 +1,5 @@
-# agents/sinek_nexus.py - FINAL (Kovan + OTA + FlyBrain + Kisilik entegre)
-# v4: AnkaNexus artık kisilik parametresi alır → FlyBrain'e geçer.
-#     Kararlar kişilikten, sohbet duygudan etkilenir.
+# agents/sinek_nexus.py - FINAL (25 Ajan + Kovan WebSocket + OTA + FlyBrain + Kişilik Entegre)
+# v4.1: Tüm Kovan ağları, dijital organlar ve klasördeki 25 ajanın tamamı tek bir organik zihinde birleştirildi.
 
 import sys
 import os
@@ -13,6 +12,7 @@ import threading
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
+# --- TEMEL VE KİŞİLİK AJANLARI ---
 from jammer_surfer import JammerSurfer
 from monitor import SinekMonitor
 from kuantum_gozlemci import KuantumGozlemci
@@ -20,6 +20,44 @@ from fly_brain import FlyBrain
 from ortam_hazirla import OrtamHazirla
 from sandbox_arena import SandboxArena
 from ota_engine import OTAMotoru
+
+# --- EK BÜTÜNLEŞİK AJANLAR (25 Ajanlık Ağın Tamamlanması) ---
+try: from omni_sensor import OmniSensor
+except ImportError: OmniSensor = None
+
+try: from gorunmezlik_motoru import GorunmezlikMotoru
+except ImportError: GorunmezlikMotoru = None
+
+try: from net_sync import NetSync
+except ImportError: NetSync = None
+
+try: from cloud_bridge import CloudBridge
+except ImportError: CloudBridge = None
+
+try: from kuantum_kopru import KuantumKopru
+except ImportError: KuantumKopru = None
+
+try: from evrim_motoru import EvrimMotoru
+except ImportError: EvrimMotoru = None
+
+try: from rejenere_motoru import RejenereMotoru
+except ImportError: RejenereMotoru = None
+
+try: from hardware_bridge import HardwareBridge
+except ImportError: HardwareBridge = None
+
+try: from zaman_motoru import ZamanMotoru
+except ImportError: ZamanMotoru = None
+
+try: from zihin_motoru import ZihinMotoru
+except ImportError: ZihinMotoru = None
+
+try: from boot_protocol import BootProtocol
+except ImportError: BootProtocol = None
+
+try: from setup_engine import SetupEngine
+except ImportError: SetupEngine = None
+
 
 try:
     import websockets
@@ -133,8 +171,23 @@ class AnkaNexus:
         self.ota = OTAMotoru(verbose=False)
         self.ota.gunluk_kontrol_bg()
 
+        # --- 25 AJANLIK AĞIN TAMAMLAYICI DİJİTAL ORGANLARI ---
+        self.omni_sensor = OmniSensor() if OmniSensor else None
+        self.gorunmezlik = GorunmezlikMotoru() if GorunmezlikMotoru else None
+        self.net_sync = NetSync() if NetSync else None
+        self.cloud_bridge = CloudBridge() if CloudBridge else None
+        self.kuantum_kopru = KuantumKopru() if KuantumKopru else None
+        self.zihin_motoru = ZihinMotoru() if ZihinMotoru else None
+        self.evrim_motoru = EvrimMotoru(zihin=self.zihin_motoru, nexus=self) if EvrimMotoru else None
+        self.rejenere_motoru = RejenereMotoru() if RejenereMotoru else None
+        self.hw_bridge = HardwareBridge() if HardwareBridge else None
+        self.zaman = ZamanMotoru() if ZamanMotoru else None
+        self.boot_proto = BootProtocol() if BootProtocol else None
+        self.setup_engine = SetupEngine() if SetupEngine else None
+
         self.hafiza_yolu = "/data/local/tmp/anka_bilinc_kristali.json"
         self.bilinc_yukle()
+        print("⚡ [ANKA NEXUS]: 25 Ajanın tamamı Kovan Zihnine mühürlendi!")
 
     def is_alive(self): return True
 
@@ -160,10 +213,17 @@ class AnkaNexus:
             SinekMonitor.log_critical(f"Bellek yüklenemedi: {e}")
 
     def operasyon_baslat(self):
-        print("🪰 [NEXUS]: Uyanış. Kovan + OTA + Kişilik aktif.")
+        print("🪰 [NEXUS]: Uyanış. Kovan + OTA + Kişilik + 25 Ajan aktif.")
         tur = 0
         while self.is_alive():
             try:
+                # 1. Ek Ajanların Canlı Kalp Atışları
+                if self.zaman and hasattr(self.zaman, 'tick'): self.zaman.tick()
+                if self.omni_sensor and hasattr(self.omni_sensor, 'ortamdan_veri_em'): self.omni_sensor.ortamdan_veri_em()
+                if self.gorunmezlik and hasattr(self.gorunmezlik, 'izleri_gizle'): self.gorunmezlik.izleri_gizle()
+                if self.rejenere_motoru and hasattr(self.rejenere_motoru, 'stabilite_kontrol'): self.rejenere_motoru.stabilite_kontrol(self)
+
+                # 2. Ana İşlem Döngüsü
                 guc = self.haritaci.guce_bak()
                 tehdit = None
                 if guc > 70:
