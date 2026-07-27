@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.3: Termux'suz Bağımsız Tam Entegre Servis
+# ANKA OS boot servisi v12.5: Kesintisiz Sohbet ve Akıllı Zihin Entegrasyonu
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -165,7 +165,7 @@ echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Overlay JAR: $ANKA_OVERLAY_JAR" >> "$L
 configure_system_env
 PID=$(start_anka)
 
-# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Arayüz tuşlarını ve özel klavye sohbetini işler)
+# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Çakışmalar Giderildi, Sinek Cevap Veriyor)
 start_command_listener() {
     CURRENT_MODE="KUANTUM SAVAŞI"
     
@@ -173,14 +173,16 @@ start_command_listener() {
         if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
             CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null)
             if [ -n "$CMD_CONTENT" ]; then
+                # Çakışmayı engellemek için anında dosyaları sil
                 rm -f /data/local/tmp/anka_cmd.txt
+                rm -f /data/local/tmp/anka_chat_in.txt 2>/dev/null
                 
                 case "$CMD_CONTENT" in
                     "CMD_MOD")
                         if [ "$CURRENT_MODE" = "KUANTUM SAVAŞI" ]; then
                             CURRENT_MODE="SİBER SAVUNMA"
                             NEW_DUST="6200"
-                            NEW_THOUGHT="SİBER SAVUNMA: Duvarlar güçlendirildi!"
+                            NEW_THOUGHT="SİBER SAVUNMA: Duvarlar güçlendirildi, portlar kilitlendi!"
                         elif [ "$CURRENT_MODE" = "SİBER SAVUNMA" ]; then
                             CURRENT_MODE="OTONOM GÖZLEM"
                             NEW_DUST="7550"
@@ -212,32 +214,54 @@ start_command_listener() {
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
                         echo "[ANKA] Sanal klavyeden mesaj geldi: $USER_MSG" >> "$LOGFILE"
                         
-                        # Eğer sinek_sohbet.py varsa çalıştır, yoksa doğrudan akıllı simüle cevap ver ve ekrana yaz
-                        if [ -f "$ANKA_CORE/agents/sinek_sohbet.py" ]; then
-                            PYTHONPATH="$ANKA_CORE" python3 "$ANKA_CORE/agents/sinek_sohbet.py" "$USER_MSG" >> "$LOGFILE" 2>&1
+                        # Sinek'in cümle analizi ve zeki cevapları
+                        MSG_LOWER=$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')
+                        
+                        if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber"; then
+                            CEVAP="Aleykümselam kanka! Motorlar cayır cayır çalışıyor, emirlerini bekliyorum."
+                        elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
+                            CEVAP="Durum stabil kanka! Kuantum tozu seviyesi optimal, izinsiz giriş yok."
+                        elif echo "$MSG_LOWER" | grep -Eq "kapat|uyu"; then
+                            CEVAP="Anlaşıldı komutanım. Sistemleri uyku moduna alıyorum..."
+                            echo "anka_os_keepalive" > /sys/power/wake_unlock 2>/dev/null
                         else
-                            echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
-                            echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
-                            echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
-                            echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
-                            echo "THOUGHT: 💬 Sinek: Eyvallah kanka, '$USER_MSG' dedin, buradayım!" >> /data/local/tmp/anka_state.txt
-                            chmod 666 /data/local/tmp/anka_state.txt
+                            CEVAP="'$USER_MSG' dedin kanka, İşleme alıyorum!"
+                            # Arka planda python scripti varsa ona da paslar
+                            if [ -f "$ANKA_CORE/agents/sinek_sohbet.py" ]; then
+                                PYTHONPATH="$ANKA_CORE" python3 "$ANKA_CORE/agents/sinek_sohbet.py" "$USER_MSG" >> "$LOGFILE" 2>&1 &
+                            fi
                         fi
+                        
+                        # Sinek'in cevabını anında ekrana yansıt
+                        echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
+                        echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
+                        echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
+                        echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
+                        echo "THOUGHT: 💬 Sinek: $CEVAP" >> /data/local/tmp/anka_state.txt
+                        chmod 666 /data/local/tmp/anka_state.txt
                         ;;
                 esac
             fi
-        fi
-        
-        # Ayrıca saniyede bir sohbet girdi dosyasını da kontrol et (anka_chat_in.txt desteği)
-        if [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
+        # Eğer sistem sadece anka_chat_in.txt dosyası oluşturursa (Alternatif koruma)
+        elif [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
             CHAT_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null)
             if [ -n "$CHAT_MSG" ]; then
                 rm -f /data/local/tmp/anka_chat_in.txt
+                MSG_LOWER=$(echo "$CHAT_MSG" | tr '[:upper:]' '[:lower:]')
+
+                if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber"; then
+                    CEVAP="Aleykümselam kanka! Sistem hazır."
+                elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
+                    CEVAP="Her şey kontrol altında komutanım."
+                else
+                    CEVAP="'$CHAT_MSG' mesajını aldım kanka!"
+                fi
+
                 echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
                 echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
                 echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
                 echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
-                echo "THOUGHT: 💬 Sinek: '$CHAT_MSG' dedin kanka, emrindeyim!" >> /data/local/tmp/anka_state.txt
+                echo "THOUGHT: 💬 Sinek: $CEVAP" >> /data/local/tmp/anka_state.txt
                 chmod 666 /data/local/tmp/anka_state.txt
             fi
         fi
