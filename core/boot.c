@@ -1,5 +1,5 @@
-// boot.c - ANKA OS: SİNEK TAKTİKSEL UYANIŞ PROTOKOLÜ (KOMUT DİNLEYEN C ÇEKİRDEĞİ)
-// v12.0: Dokunmatik Buton Komutlarını İşleyen Zeka Motoru!
+// boot.c - ANKA OS: SİNEK TAKTİKSEL UYANIŞ PROTOKOLÜ (GERÇEK AJAN TETİKLEYİCİ C ÇEKİRDEĞİ)
+// v13.0: Dokunmatik Buton Komutlarını Gerçek Python Ajanlarına Bağlayan Motor!
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,6 +76,16 @@ int get_battery_level() {
     return cap;
 }
 
+// Python Ajanını Arka Planda Canlı Tetikleme Fonksiyonu
+void trigger_agent(const char *agent_name) {
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), 
+        "export PATH=/data/data/com.termux/files/usr/bin:$PATH; "
+        "nohup python3 /data/adb/modules/anka_os/system/anka_core/agents/%s >/dev/null 2>&1 &", 
+        agent_name);
+    system(cmd);
+}
+
 int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -85,7 +95,7 @@ int main() {
 
     srand((unsigned int)time(NULL));
 
-    printf("\033[1;36m --- ANKA OS: KOMUT DİNLEYEN SİNEK ZEKASI --- \033[0m\n");
+    printf("\033[1;36m --- ANKA OS: GERÇEK AJAN TETİKLEYİCİ C ÇEKİRDEĞİ --- \033[0m\n");
 
     // 1. HAL BACKEND YÜKLEME
     hal_loader_init();
@@ -133,7 +143,7 @@ int main() {
         collapse_fire(COLLAPSE_TRIGGER_TIMER, NULL, 0);
         sinek_fsm_uptime_update(&sinek);
 
-        // --- JAVA DOKUNMATİK KOMUT DİNLEYİCİSİ ---
+        // --- JAVA DOKUNMATİK KOMUT DİNLEYİCİSİ VE GERÇEK AJAN TETİKLEYİCİ ---
         FILE *cmd_fp = fopen("/data/local/tmp/anka_cmd.txt", "r");
         if (cmd_fp) {
             char cmd[64] = {0};
@@ -143,15 +153,43 @@ int main() {
 
             if (strcmp(cmd, "CMD_MOD") == 0) {
                 mode_index = (mode_index + 1) % 4;
-                snprintf(current_thought, sizeof(current_thought), 
-                    "⚡ MOD DEĞİŞTİRİLDİ -> %s geçiş yapıldı!", modes[mode_index]);
+
+                // Seçilen Moda Göre Gerçek Python Ajanını Tetikle
+                if (mode_index == 0) { // SİNEK AKTİF
+                    trigger_agent("sinek_bilinc.py");
+                    trigger_agent("fly_brain.py");
+                    snprintf(current_thought, sizeof(current_thought), 
+                        "🧠 SİNEK AKTİF: Zihin ve bilinç motoru uyanıyor...");
+                } 
+                else if (mode_index == 1) { // KUANTUM SAVAŞI
+                    trigger_agent("jammer_surfer.py");
+                    trigger_agent("gorunmezlik_motoru.py");
+                    quantum_dust_count += 1000;
+                    snprintf(current_thought, sizeof(current_thought), 
+                        "⚡ KUANTUM SAVAŞI: Frekans tarayıcı ve gizleme aktif! +1000 Toz!");
+                } 
+                else if (mode_index == 2) { // KOVAN İLETİŞİMİ
+                    trigger_agent("cloud_bridge.py");
+                    trigger_agent("net_sync.py");
+                    snprintf(current_thought, sizeof(current_thought), 
+                        "📡 KOVAN İLETİŞİMİ: Kovan sunucusuna veri paketleri senkronize ediliyor...");
+                } 
+                else if (mode_index == 3) { // DEVRİYE MODU
+                    trigger_agent("monitor.py");
+                    trigger_agent("omni_sensor.py");
+                    snprintf(current_thought, sizeof(current_thought), 
+                        "🛡️ DEVRİYE MODU: Donanım sensörleri & RAM/CPU süreçleri taranıyor...");
+                }
             } else if (strcmp(cmd, "CMD_SCAN") == 0) {
-                quantum_dust_count += 500; // Taramada toz patlaması
+                trigger_agent("omni_sensor.py");
+                quantum_dust_count += 500;
                 snprintf(current_thought, sizeof(current_thought), 
-                    "🔍 SİSTEM TARANIYOR: Frekanslar temiz. +500 Kuantum Tozu elde edildi!");
+                    "🔍 SİSTEM TARANIYOR: Sensörler temiz. +500 Kuantum Tozu elde edildi!");
             } else if (strcmp(cmd, "CMD_KOVAN") == 0) {
+                trigger_agent("net_sync.py");
+                trigger_agent("cloud_bridge.py");
                 snprintf(current_thought, sizeof(current_thought), 
-                    "📡 KOVAN ZİHNİNE BAĞLANILDI: Sinek verileri senkronize ediliyor...");
+                    "📡 KOVAN ZİHNİNE BAĞLANILDI: Ajan verileri Kovan ile senkronize ediliyor...");
             }
         }
 
