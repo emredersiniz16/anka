@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.5: Kesintisiz Sohbet ve Akıllı Zihin Entegrasyonu
+# ANKA OS boot servisi v12.7: Kusursuz Zihin ve Zombi Temizleyici
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -23,6 +23,9 @@ if [ "$(getprop sys.boot_completed)" != "1" ]; then
     echo "[ANKA] HATA: Boot tamamlanmadi" > "$LOGFILE"
     exit 0
 fi
+
+# ZOMBİ SÜREÇLERİ TEMİZLE (Eski takılı kalan komut dinleyicilerini zorla kapatır)
+for p in $(pgrep -f "start_command_listener"); do kill -9 $p 2>/dev/null; done
 
 # 1.5 Python3 PATH — Magisk modül dizini + sistem fallback'leri
 export PATH="$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
@@ -155,17 +158,14 @@ start_anka() {
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (Termux'suz Bağımsız Servis)..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.7..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3 2>/dev/null || echo YOK)" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Overlay JAR: $ANKA_OVERLAY_JAR" >> "$LOGFILE"
 
 # 13. Ortamı yapılandır ve Sineği başlat
 configure_system_env
 PID=$(start_anka)
 
-# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Çakışmalar Giderildi, Sinek Cevap Veriyor)
+# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Çakışmalar Giderildi, Zombi Korumalı)
 start_command_listener() {
     CURRENT_MODE="KUANTUM SAVAŞI"
     
@@ -190,7 +190,7 @@ start_command_listener() {
                         else
                             CURRENT_MODE="KUANTUM SAVAŞI"
                             NEW_DUST="5515"
-                            NEW_THOUGHT="KUANTUM SAVAŞI: Frekans tarayıcı aktif!"
+                            NEW_THOUGHT="KUANTUM SAVAŞI: Frekans tarayıcı aktif!" # +1000 Toz yazısını kaldırdık kanka!
                         fi
                         
                         echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
@@ -212,15 +212,14 @@ start_command_listener() {
                         
                     SOHBET:*)
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
-                        echo "[ANKA] Sanal klavyeden mesaj geldi: $USER_MSG" >> "$LOGFILE"
                         
                         # Sinek'in cümle analizi ve zeki cevapları
                         MSG_LOWER=$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')
                         
                         if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber"; then
-                            CEVAP="Aleykümselam kanka! Motorlar cayır cayır çalışıyor, emirlerini bekliyorum."
+                            CEVAP="Aleykümselam kanka! Yeni zihnim devrede, seni dinliyorum."
                         elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
-                            CEVAP="Durum stabil kanka! Kuantum tozu seviyesi optimal, izinsiz giriş yok."
+                            CEVAP="Durum stabil kanka! Kalkanlar %100."
                         elif echo "$MSG_LOWER" | grep -Eq "kapat|uyu"; then
                             CEVAP="Anlaşıldı komutanım. Sistemleri uyku moduna alıyorum..."
                             echo "anka_os_keepalive" > /sys/power/wake_unlock 2>/dev/null
@@ -242,7 +241,7 @@ start_command_listener() {
                         ;;
                 esac
             fi
-        # Eğer sistem sadece anka_chat_in.txt dosyası oluşturursa (Alternatif koruma)
+        # Yedek okuma
         elif [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
             CHAT_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null)
             if [ -n "$CHAT_MSG" ]; then
@@ -273,7 +272,6 @@ start_command_listener() {
 start_command_listener &
 local cmd_listener_pid=$!
 protect_oom $cmd_listener_pid
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Komut Dinleyici PID=$cmd_listener_pid (OOM:-17)" >> "$LOGFILE"
 
 # 15. WATCHDOG
 WATCHDOG_RESTART=0
@@ -284,7 +282,6 @@ while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
     
     if ! kill -0 $PID 2>/dev/null; then
         WATCHDOG_RESTART=$((WATCHDOG_RESTART + 1))
-        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] WATCHDOG: öldü ($WATCHDOG_RESTART/$MAX_RESTART)" >> "$LOGFILE"
         [ $WATCHDOG_RESTART -lt $MAX_RESTART ] && sleep 30 && PID=$(start_anka)
     fi
 done
