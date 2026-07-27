@@ -2,9 +2,7 @@ package com.anka.os;
 
 import android.os.Looper;
 import android.os.Handler;
-import android.os.Binder;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
@@ -27,7 +25,7 @@ public class AnkaOverlay {
     private static Handler mainHandler;
 
     public static void main(String[] args) {
-        // Çökme Koruması: Süreç asla sonlanmaz
+        // Çökme Koruması
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
@@ -54,7 +52,7 @@ public class AnkaOverlay {
                 }
             } catch (Throwable ignored) {}
 
-            // SABIT FLAG: Asla klavye odaklanması istemez (Çökmeyi engeller)
+            // DOKUNMATİK ODAK DÜZELTİLDİ: token = new Binder() kaldırıldı!
             WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -65,9 +63,9 @@ public class AnkaOverlay {
                 PixelFormat.TRANSLUCENT
             );
             params.gravity = Gravity.TOP | Gravity.LEFT;
-            params.token = new Binder();
+            // params.token sildik, böylece WindowManager dokunuşları reddetmeyecek.
 
-            // Ana Dikey Katman (Tam Ekran Siberpunk Katman)
+            // Ana Dikey Katman
             LinearLayout rootLayout = new LinearLayout(context);
             rootLayout.setBackgroundColor(Color.parseColor("#EE050B14"));
             rootLayout.setOrientation(LinearLayout.VERTICAL);
@@ -103,7 +101,7 @@ public class AnkaOverlay {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
             rootLayout.addView(spacer, spacerParams);
 
-            // 3. DOKUNMATİK BUTONLAR
+            // 3. DOKUNMATİK BUTONLAR (Hepsi tek sisteme bağlandı)
             LinearLayout btnRow = new LinearLayout(context);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
             btnRow.setGravity(Gravity.CENTER);
@@ -113,51 +111,14 @@ public class AnkaOverlay {
 
             TextView btnMod = createSafeCyberButton(context, "⚡ MOD", safeFont, "CMD_MOD");
             TextView btnScan = createSafeCyberButton(context, "🔍 TARA", safeFont, "CMD_SCAN");
-            
-            // SOHBET Butonu - Doğrudan Termux'u başlatır
-            final TextView btnSohbet = new TextView(context);
-            btnSohbet.setText("💬 SOHBET");
-            btnSohbet.setTextColor(Color.GREEN);
-            btnSohbet.setBackgroundColor(Color.parseColor("#44003300"));
-            btnSohbet.setTextSize(13);
-            btnSohbet.setGravity(Gravity.CENTER);
-            btnSohbet.setPadding(20, 25, 20, 25);
-            if (safeFont != null) btnSohbet.setTypeface(safeFont);
-            LinearLayout.LayoutParams pSohbet = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            pSohbet.setMargins(6, 0, 6, 0);
-            btnSohbet.setLayoutParams(pSohbet);
-
-            btnSohbet.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    try {
-                        btnSohbet.setBackgroundColor(Color.parseColor("#8800FF00"));
-                        
-                        // Termux'u güvenli şekilde öne getir
-                        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage("com.termux");
-                        if (launchIntent != null) {
-                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            context.startActivity(launchIntent);
-                        }
-                        
-                        // Rengi geri al
-                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                btnSohbet.setBackgroundColor(Color.parseColor("#44003300"));
-                            }
-                        }, 200);
-
-                    } catch (Throwable ignored) {}
-                }
-            });
+            TextView btnSohbet = createSafeCyberButton(context, "💬 SOHBET", safeFont, "CMD_SOHBET");
 
             btnRow.addView(btnMod);
             btnRow.addView(btnScan);
             btnRow.addView(btnSohbet);
             rootLayout.addView(btnRow, btnRowParams);
 
-            // 4. ALT DÜŞÜNCE KUTUSU (Sinek'in cevapları buraya düşecek)
+            // 4. ALT DÜŞÜNCE KUTUSU
             LinearLayout thoughtBox = new LinearLayout(context);
             thoughtBox.setOrientation(LinearLayout.VERTICAL);
             thoughtBox.setBackgroundColor(Color.parseColor("#3300FF00"));
@@ -171,14 +132,13 @@ public class AnkaOverlay {
             thoughtBox.addView(thoughtTitle);
 
             thoughtView = new TextView(context);
-            thoughtView.setText("Sohbet butonuna basarak Termux üzerinden komut verebilirsin.");
+            thoughtView.setText("Sistem çevrimiçi. Dokunmatik sensörler aktif.");
             thoughtView.setTextColor(Color.GREEN);
             thoughtView.setTextSize(13);
             if (safeFont != null) thoughtView.setTypeface(safeFont);
             thoughtBox.addView(thoughtView);
 
             rootLayout.addView(thoughtBox);
-
             windowManager.addView(rootLayout, params);
 
             startStatePoller();
@@ -198,6 +158,7 @@ public class AnkaOverlay {
         btn.setTextSize(13);
         btn.setGravity(Gravity.CENTER);
         btn.setPadding(20, 25, 20, 25);
+        btn.setClickable(true); // Dokunmatik hassasiyeti için zorunlu
         if (font != null) btn.setTypeface(font);
 
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
@@ -210,13 +171,25 @@ public class AnkaOverlay {
             public boolean onTouch(View v, MotionEvent event) {
                 try {
                     if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                        // Tıklanınca parlak yeşil yap
                         btn.setBackgroundColor(Color.parseColor("#8800FF00"));
-                        sendAnkaCommand(cmd);
+                        
+                        if (cmd.equals("CMD_SOHBET")) {
+                            // Termux'u Shell üzerinden doğrudan ve güvenli tetikle
+                            try {
+                                Runtime.getRuntime().exec("am start -n com.termux/com.termux.app.TermuxActivity");
+                            } catch (Exception e) {
+                                Runtime.getRuntime().exec("monkey -p com.termux -c android.intent.category.LAUNCHER 1");
+                            }
+                        } else {
+                            sendAnkaCommand(cmd);
+                        }
                     } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                        // Bırakınca rengi eski haline döndür
                         btn.setBackgroundColor(Color.parseColor("#44003300"));
                     }
                 } catch (Throwable ignored) {}
-                return true;
+                return true; // Dokunuşu algıla ve bitir
             }
         });
 
@@ -227,8 +200,11 @@ public class AnkaOverlay {
         try {
             File cmdFile = new File("/data/local/tmp/anka_cmd.txt");
             FileWriter writer = new FileWriter(cmdFile, false);
-            writer.write(cmd);
+            writer.write(cmd + "\n");
+            writer.flush();
             writer.close();
+            // Dosyanın herkes tarafından okunabilmesini sağla
+            Runtime.getRuntime().exec("chmod 666 /data/local/tmp/anka_cmd.txt");
         } catch (Throwable ignored) {}
     }
 
