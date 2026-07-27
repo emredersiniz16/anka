@@ -1,13 +1,15 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.1: Clean Overlay Mode + Overlay Log Yönlendirmesi
+# ANKA OS boot servisi v12.2: Clean Overlay Mode + Otonom Canlı Evrim Bekçisi
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
 ANKA_OVERLAY_JAR="$ANKA_CORE/AnkaOS_Overlay.jar"
+ANKA_EVRIM_PY="$ANKA_CORE/agents/evrim_motoru.py"
 LOGFILE=/data/local/tmp/anka_os.log
 OVERLAY_LOGFILE=/data/local/tmp/anka_overlay.log
+EVRIM_LOGFILE=/data/local/tmp/anka_evrim.log
 KOVANLOG=/cache/anka_os_kovan.log
 DEBUGLOG=/data/local/tmp/debug.log
 
@@ -22,8 +24,8 @@ if [ "$(getprop sys.boot_completed)" != "1" ]; then
     exit 0
 fi
 
-# 1.5 Python3 PATH — Magisk modül dizini + fallback'ler
-export PATH="$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
+# 1.5 Python3 PATH — Termux + Magisk modül dizini + fallback'ler
+export PATH="/data/data/com.termux/files/usr/bin:$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
 
 # Python3 var mı kontrol et
 if command -v python3 >/dev/null 2>&1; then
@@ -32,9 +34,10 @@ else
     echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] UYARI: python3 bulunamadi — C-only mod" >> "$LOGFILE"
 fi
 
-# debug.log oluştur (fly_engine.c patlamasın)
+# Log dosyalarını oluştur
 touch "$DEBUGLOG" 2>/dev/null
 touch "$OVERLAY_LOGFILE" 2>/dev/null
+touch "$EVRIM_LOGFILE" 2>/dev/null
 
 # 2. SELinux
 magiskpolicy --live "allow * graphics_device:chr_file { read write open ioctl }" 2>/dev/null
@@ -63,7 +66,6 @@ chmod 666 /sys/power/wake_unlock 2>/dev/null
 mkdir -p /data/system/theme_config 2>/dev/null
 touch /data/system/theme_config/theme_compatibility.xml 2>/dev/null
 chmod 666 /data/system/theme_config/theme_compatibility.xml 2>/dev/null
-
 
 # 4. WAKELOCK
 ANKA_WAKELOCK="anka_os_keepalive"
@@ -118,14 +120,14 @@ configure_system_env() {
 
 # 11. Süreç başlat
 start_anka() {
-    # C Çekirdeğini Arka Planda Çalıştır
+    # 11.1 C Çekirdeğini Arka Planda Çalıştır
     nohup "$ANKA_BIN" 2>&1 | log_ts &
     local pid=$!
     sleep 1
     protect_oom $pid
     echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Sinek PID=$pid (OOM:-17)" >> "$LOGFILE"
 
-    # Java App_Process Overlay Katmanını Başlat (Loglar /data/local/tmp/anka_overlay.log dosyasına aktarılır)
+    # 11.2 Java App_Process Overlay Katmanını Başlat
     if [ -f "$ANKA_OVERLAY_JAR" ]; then
         export CLASSPATH="$ANKA_OVERLAY_JAR"
         nohup app_process /system/bin com.anka.os.AnkaOverlay > "$OVERLAY_LOGFILE" 2>&1 &
@@ -137,12 +139,23 @@ start_anka() {
         echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] UYARI: $ANKA_OVERLAY_JAR bulunamadi!" >> "$LOGFILE"
     fi
 
+    # 11.3 Otonom Canlı Evrim Bekçisini Başlat (Hot-Reload / Kovan Senkronizasyonu)
+    if command -v python3 >/dev/null 2>&1 && [ -f "$ANKA_EVRIM_PY" ]; then
+        nohup python3 "$ANKA_EVRIM_PY" --daemon > "$EVRIM_LOGFILE" 2>&1 &
+        local evrim_pid=$!
+        sleep 1
+        protect_oom $evrim_pid
+        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Otonom Evrim Bekcisi PID=$evrim_pid (OOM:-17) -> Log: $EVRIM_LOGFILE" >> "$LOGFILE"
+    else
+        echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] UYARI: Otonom Evrim Bekcisi baslatilamadi (Python3/Script yok)" >> "$LOGFILE"
+    fi
+
     echo $pid
 }
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (v12.1 Clean Overlay Modu)..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (v12.2 Otonom Evrim Modu)..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3 2>/dev/null || echo YOK)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
