@@ -1,12 +1,41 @@
 #!/usr/bin/env python3
-# agents/sinek_sohbet.py - SINEK INTERAKTIF SOHBET ARAYUZU
-# stdin'den okur, llm_bridge.sohbet() ile cevap uretir, stdout'a yazar.
-# C tarafindan fork+exec ile baslatilir, stdout log_ts'e gider -> ekranda gorunur.
-# stdin icin service.sh'ta FIFO baglanmali.
+# agents/sinek_sohbet.py - SINEK INTERAKTIF SOHBET ARAYUZU (v2.1 Ekran Entegre)
+# stdin'den okur, llm_bridge.sohbet() ile cevap üretir, hem stdout'a hem de
+# Java Overlay'in okuduğu anlık /data/local/tmp/anka_state.txt dosyasına yazar.
 
 import sys
 import os
 import time
+
+STATE_FILE = "/data/local/tmp/anka_state.txt"
+TMP_STATE_FILE = "/data/local/tmp/anka_state.tmp"
+
+def ekrana_fırlat(dusunce_metni: str):
+    """Sinek'in verdiği cevabı anında Note 9 ekranındaki yeşil kutuya yansıtır."""
+    try:
+        time_str, battery, dust, mode = "--:--", "--", "6181", "SİNEK SOHBET"
+        
+        # Ekrandaki mevcut saat, pil ve toz değerlerini koru
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, "r") as f:
+                for line in f:
+                    if line.startswith("TIME:"): time_str = line.split(":", 1)[1].strip()
+                    elif line.startswith("BATTERY:"): battery = line.split(":", 1)[1].strip()
+                    elif line.startswith("DUST:"): dust = line.split(":", 1)[1].strip()
+                    elif line.startswith("MODE:"): mode = line.split(":", 1)[1].strip()
+
+        # Atomik yazma ile çökmesiz güncelleme
+        with open(TMP_STATE_FILE, "w") as f:
+            f.write(f"TIME: {time_str}\n")
+            f.write(f"BATTERY: {battery}\n")
+            f.write(f"DUST: {dust}\n")
+            f.write(f"MODE: {mode}\n")
+            f.write(f"THOUGHT: {dusunce_metni}\n")
+            f.write(f"TICK: 999\n")
+            
+        os.rename(TMP_STATE_FILE, STATE_FILE)
+    except Exception as e:
+        print(f"⚠️ [EKRAN YAZMA HATASI]: {e}")
 
 def main():
     # Path ekle
@@ -18,7 +47,7 @@ def main():
     
     print("🪰 [SOHBET]: Sinek sohbet modunda. Yaz ve Enter'a bas.")
     print("🪰 [SOHBET]: Cikis icin 'cik' veya 'kapat' yaz.")
-    print("" + "=" * 50)
+    print("=" * 50)
     
     zihin = LLMBridge()
     hafiza = SinekMemory()
@@ -30,8 +59,10 @@ def main():
     
     kuantum_tozu = hafiza.kuantum_tozu_al()
     
-    print(f"🪰 [SOHBET]: Mod: {zihin.mod} | Duygu: {kisilik.baskin_duygu()} | Toz: {kuantum_tozu}b")
-    print("" + "-" * 50)
+    bilgi_metni = f"🪰 Mod: {zihin.mod} | Duygu: {kisilik.baskin_duygu()} | Toz: {kuantum_tozu}b"
+    print(bilgi_metni)
+    ekrana_fırlat(bilgi_metni)
+    print("-" * 50)
     
     while True:
         try:
@@ -47,7 +78,9 @@ def main():
             
             # Cikis komutlari
             if mesaj.lower() in ("cik", "kapat", "cikis", "bay", "gule gule"):
-                print("🪰 [SOHBET]: Sinek pusuya cekiliyor... Gorusuruz kanka.")
+                kapanis_metni = "🪰 Sinek pusuya çekiliyor... Görüşürüz kanka."
+                print(kapanis_metni)
+                ekrana_fırlat(kapanis_metni)
                 break
             
             # Aniyi kazan
@@ -62,8 +95,10 @@ def main():
             # Sinek cevap versin
             cevap = zihin.sohbet(mesaj)
             
-            # Cevabi ekrana yaz (stdout -> log_ts -> framebuffer)
+            # Cevabi hem stdout'a hem de TELEFON EKRANINA yaz!
+            cevap_metni = f"💬 Sinek: {cevap}"
             print(f"🪰 Sinek: {cevap}")
+            ekrana_fırlat(cevap_metni)
             
             # Sinek cevabini da kazan
             hafiza.ani_kaz(
@@ -74,7 +109,7 @@ def main():
                 kuantum_tozu=kuantum_tozu,
             )
             
-            # Duygu durumu kaydet (her 5 mesajda bir)
+            # Duygu durumu kaydet (her 10 anıda bir)
             if hafiza.toplam_ani_sayisi() % 10 == 0:
                 hafiza.ani_kaz(
                     "DUYGU_KAYDI",
@@ -93,7 +128,6 @@ def main():
             time.sleep(1)
     
     print("🪰 [SOHBET]: Sohbet bitti.")
-
 
 if __name__ == "__main__":
     main()
