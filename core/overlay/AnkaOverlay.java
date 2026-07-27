@@ -27,6 +27,11 @@ public class AnkaOverlay {
     private static WindowManager windowManager;
     private static WindowManager.LayoutParams rootParams;
     private static Context appContext;
+    
+    // Gömülü Sanal Mesaj Modal Penceremiz
+    private static LinearLayout modalLayout = null;
+    private static TextView inputDisplay;
+    private static StringBuilder currentMessage = new StringBuilder();
 
     public static void main(String[] args) {
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -111,7 +116,7 @@ public class AnkaOverlay {
             TextView btnMod = createSafeCyberButton(appContext, "⚡ MOD", safeFont, "CMD_MOD");
             TextView btnScan = createSafeCyberButton(appContext, "🔍 TARA", safeFont, "CMD_SCAN");
             
-            // SOHBET Butonu - Özel Sanal Klavye Modalını Açar/Kapatır
+            // SOHBET Butonu - Gömülü Sanal Klavye Modalını Açar/Kapatır
             final TextView btnSohbet = new TextView(appContext);
             btnSohbet.setText("💬 SOHBET");
             btnSohbet.setTextColor(Color.GREEN);
@@ -129,8 +134,7 @@ public class AnkaOverlay {
                 public void onClick(View v) {
                     try {
                         btnSohbet.setBackgroundColor(Color.parseColor("#8800FF00"));
-                        // Sanal klavye modalını ekrana çağır
-                        AnkaChatModal.toggleModal(appContext, windowManager, rootParams);
+                        toggleChatModal();
                         
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
@@ -178,6 +182,143 @@ public class AnkaOverlay {
         }
 
         Looper.loop();
+    }
+
+    private static void toggleChatModal() {
+        try {
+            if (modalLayout != null) {
+                windowManager.removeView(modalLayout);
+                modalLayout = null;
+                return;
+            }
+
+            modalLayout = new LinearLayout(appContext);
+            modalLayout.setOrientation(LinearLayout.VERTICAL);
+            modalLayout.setBackgroundColor(Color.parseColor("#F5050B14"));
+            modalLayout.setPadding(40, 40, 40, 40);
+            modalLayout.setGravity(Gravity.CENTER);
+
+            Typeface safeFont = Typeface.MONOSPACE;
+
+            TextView title = new TextView(appContext);
+            title.setText("💬 SİNEK ÖZEL MESAJ KUTUSU");
+            title.setTextColor(Color.GREEN);
+            title.setTextSize(16);
+            if (safeFont != null) title.setTypeface(safeFont);
+            title.setGravity(Gravity.CENTER);
+            title.setPadding(0, 0, 0, 20);
+            modalLayout.addView(title);
+
+            inputDisplay = new TextView(appContext);
+            inputDisplay.setText("Yazmak için harflere dokun...");
+            inputDisplay.setTextColor(Color.parseColor("#00FF00"));
+            inputDisplay.setBackgroundColor(Color.parseColor("#33003300"));
+            inputDisplay.setTextSize(15);
+            inputDisplay.setPadding(20, 20, 20, 20);
+            if (safeFont != null) inputDisplay.setTypeface(safeFont);
+            
+            LinearLayout.LayoutParams dispParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 120);
+            dispParams.setMargins(0, 0, 0, 20);
+            modalLayout.addView(inputDisplay, dispParams);
+
+            addKeyboardRow(new String[]{"A", "B", "C", "D", "E", "F", "G", "H", "İ"});
+            addKeyboardRow(new String[]{"J", "K", "L", "M", "N", "O", "P", "R", "S"});
+            addKeyboardRow(new String[]{"Ş", "T", "U", "Ü", "V", "Y", "Z", "BOŞLUK", "SİL"});
+            addKeyboardRow(new String[]{"KAPAT", "GÖNDER"});
+
+            WindowManager.LayoutParams modalParams = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                rootParams.type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            );
+            modalParams.gravity = Gravity.BOTTOM;
+
+            windowManager.addView(modalLayout, modalParams);
+
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void addKeyboardRow(String[] keys) {
+        LinearLayout row = new LinearLayout(appContext);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        rowParams.setMargins(0, 5, 0, 5);
+
+        for (final String key : keys) {
+            final TextView btn = new TextView(appContext);
+            btn.setText(key);
+            btn.setTextColor(Color.GREEN);
+            btn.setBackgroundColor(Color.parseColor("#44004400"));
+            btn.setTextSize(12);
+            btn.setGravity(Gravity.CENTER);
+            btn.setPadding(10, 18, 10, 18);
+
+            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+            btnParams.setMargins(3, 0, 3, 0);
+            btn.setLayoutParams(btnParams);
+
+            btn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    handleKeyClick(key);
+                }
+            });
+
+            row.addView(btn);
+        }
+        modalLayout.addView(row, rowParams);
+    }
+
+    private static void handleKeyClick(String key) {
+        if (key.equals("SİL")) {
+            if (currentMessage.length() > 0) {
+                currentMessage.deleteCharAt(currentMessage.length() - 1);
+            }
+        } else if (key.equals("BOŞLUK")) {
+            currentMessage.append(" ");
+        } else if (key.equals("KAPAT")) {
+            if (modalLayout != null) {
+                windowManager.removeView(modalLayout);
+                modalLayout = null;
+                currentMessage.setLength(0);
+            }
+        } else if (key.equals("GÖNDER")) {
+            String msg = currentMessage.toString().trim();
+            if (!msg.isEmpty()) {
+                sendSinekMessage(msg);
+                currentMessage.setLength(0);
+            }
+            if (modalLayout != null) {
+                windowManager.removeView(modalLayout);
+                modalLayout = null;
+            }
+        } else {
+            currentMessage.append(key.toLowerCase());
+        }
+
+        if (inputDisplay != null) {
+            inputDisplay.setText(currentMessage.length() > 0 ? currentMessage.toString() : "Yazmak için harflere dokun...");
+        }
+    }
+
+    private static void sendSinekMessage(String msg) {
+        try {
+            File chatFile = new File("/data/local/tmp/anka_chat_in.txt");
+            FileWriter writer = new FileWriter(chatFile, false);
+            writer.write(msg);
+            writer.close();
+            if (thoughtView != null) {
+                thoughtView.setText("💬 SEN: " + msg + "\n🪰 Sinek işliyor...");
+            }
+        } catch (Throwable ignored) {}
     }
 
     private static TextView createSafeCyberButton(Context context, String text, Typeface font, final String cmd) {
