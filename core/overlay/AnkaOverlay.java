@@ -60,11 +60,11 @@ public class AnkaOverlay {
                 }
             } catch (Throwable ignored) {}
 
+            // DOKUNMATİK ÇÖZÜMÜ: Artık FLAG_NOT_FOCUSABLE kaldırıldı, butonlar dokunmaları yakalayacak!
             rootParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 windowType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
                 WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 PixelFormat.TRANSLUCENT
@@ -165,7 +165,7 @@ public class AnkaOverlay {
             thoughtBox.addView(thoughtTitle);
 
             thoughtView = new TextView(appContext);
-            thoughtView.setText("Sistem stabil. Sohbet butonuna basıp Sinek'le konuşabilirsin!");
+            thoughtView.setText("Dokunmatik kontroller aktif. Sohbet butonuna basabilirsin!");
             thoughtView.setTextColor(Color.GREEN);
             thoughtView.setTextSize(13);
             if (safeFont != null) thoughtView.setTypeface(safeFont);
@@ -231,7 +231,7 @@ public class AnkaOverlay {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 rootParams.type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
             );
             modalParams.gravity = Gravity.BOTTOM;
@@ -336,18 +336,27 @@ public class AnkaOverlay {
         p.setMargins(6, 0, 6, 0);
         btn.setLayoutParams(p);
 
+        // Dokunmatik olayını tetiklemek için hem OnTouch hem OnClickListener ekledik
+        btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    sendAnkaCommand(cmd);
+                } catch (Throwable ignored) {}
+            }
+        });
+
         btn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 try {
                     if (event.getAction() == MotionEvent.ACTION_DOWN) {
                         btn.setBackgroundColor(Color.parseColor("#8800FF00"));
-                        sendAnkaCommand(cmd);
                     } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
                         btn.setBackgroundColor(Color.parseColor("#44003300"));
                     }
                 } catch (Throwable ignored) {}
-                return true;
+                return false; // Tıklama olayının (setOnClickListener) çalışmasına izin ver
             }
         });
 
