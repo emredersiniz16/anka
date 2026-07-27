@@ -2,6 +2,7 @@ package com.anka.os;
 
 import android.os.Looper;
 import android.os.Handler;
+import android.os.Binder;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
@@ -23,6 +24,9 @@ public class AnkaOverlay {
     private static TextView middleView;
     private static TextView thoughtView;
     private static Handler mainHandler;
+    private static WindowManager windowManager;
+    private static WindowManager.LayoutParams rootParams;
+    private static Context appContext;
 
     public static void main(String[] args) {
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -40,16 +44,18 @@ public class AnkaOverlay {
 
             Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
             Object activityThread = activityThreadClass.getMethod("systemMain").invoke(null);
-            final Context context = (Context) activityThreadClass.getMethod("getSystemContext").invoke(activityThread);
+            appContext = (Context) activityThreadClass.getMethod("getSystemContext").invoke(activityThread);
 
-            WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+            windowManager = (WindowManager) appContext.getSystemService(Context.WINDOW_SERVICE);
 
-            int windowType = 2038;
+            int windowType = 2038; // TYPE_APPLICATION_OVERLAY
             try {
-                if (android.os.Build.VERSION.SDK_INT < 26) windowType = 2010;
+                if (android.os.Build.VERSION.SDK_INT < 26) {
+                    windowType = 2010;
+                }
             } catch (Throwable ignored) {}
 
-            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+            rootParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 windowType,
@@ -58,23 +64,23 @@ public class AnkaOverlay {
                 WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 PixelFormat.TRANSLUCENT
             );
-            params.gravity = Gravity.TOP | Gravity.LEFT;
+            rootParams.gravity = Gravity.TOP | Gravity.LEFT;
+            rootParams.token = new Binder();
 
-            LinearLayout rootLayout = new LinearLayout(context);
+            LinearLayout rootLayout = new LinearLayout(appContext);
             rootLayout.setBackgroundColor(Color.parseColor("#EE050B14"));
             rootLayout.setOrientation(LinearLayout.VERTICAL);
             rootLayout.setPadding(30, 80, 30, 40);
 
             // 1. ÜST BAR
-            headerView = new TextView(context);
+            headerView = new TextView(appContext);
             headerView.setText("● ANKA OS v1.0  |  SAAT: --:--  |  PİL: %--");
             headerView.setTextColor(Color.GREEN);
             headerView.setTextSize(15);
             if (safeFont != null) headerView.setTypeface(safeFont);
             rootLayout.addView(headerView);
 
-            // Üst Çizgi
-            LinearLayout topDivider = new LinearLayout(context);
+            LinearLayout topDivider = new LinearLayout(appContext);
             topDivider.setBackgroundColor(Color.GREEN);
             LinearLayout.LayoutParams divParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 3);
@@ -82,56 +88,88 @@ public class AnkaOverlay {
             rootLayout.addView(topDivider, divParams);
 
             // 2. ORTA BÖLÜM
-            middleView = new TextView(context);
+            middleView = new TextView(appContext);
             middleView.setText("\nKUANTUM TOZU: ---  |  MOD: YÜKLENİYOR...");
             middleView.setTextColor(Color.GREEN);
             middleView.setTextSize(17);
             if (safeFont != null) middleView.setTypeface(safeFont);
             rootLayout.addView(middleView);
 
-            // Esnek Boşluk
-            LinearLayout spacer = new LinearLayout(context);
+            LinearLayout spacer = new LinearLayout(appContext);
             LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
             rootLayout.addView(spacer, spacerParams);
 
-            // 3. DOKUNMATİK BUTONLAR (Sadece MOD ve TARA)
-            LinearLayout btnRow = new LinearLayout(context);
+            // 3. DOKUNMATİK BUTONLAR
+            LinearLayout btnRow = new LinearLayout(appContext);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
             btnRow.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams btnRowParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             btnRowParams.setMargins(0, 0, 0, 20);
 
-            TextView btnMod = createSafeCyberButton(context, "⚡ MOD", safeFont, "CMD_MOD");
-            TextView btnScan = createSafeCyberButton(context, "🔍 TARA", safeFont, "CMD_SCAN");
+            TextView btnMod = createSafeCyberButton(appContext, "⚡ MOD", safeFont, "CMD_MOD");
+            TextView btnScan = createSafeCyberButton(appContext, "🔍 TARA", safeFont, "CMD_SCAN");
+            
+            // SOHBET Butonu - Özel Sanal Klavye Modalını Açar/Kapatır
+            final TextView btnSohbet = new TextView(appContext);
+            btnSohbet.setText("💬 SOHBET");
+            btnSohbet.setTextColor(Color.GREEN);
+            btnSohbet.setBackgroundColor(Color.parseColor("#44003300"));
+            btnSohbet.setTextSize(13);
+            btnSohbet.setGravity(Gravity.CENTER);
+            btnSohbet.setPadding(20, 25, 20, 25);
+            if (safeFont != null) btnSohbet.setTypeface(safeFont);
+            LinearLayout.LayoutParams pSohbet = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+            pSohbet.setMargins(6, 0, 6, 0);
+            btnSohbet.setLayoutParams(pSohbet);
+
+            btnSohbet.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try {
+                        btnSohbet.setBackgroundColor(Color.parseColor("#8800FF00"));
+                        // Sanal klavye modalını ekrana çağır
+                        AnkaChatModal.toggleModal(appContext, windowManager, rootParams);
+                        
+                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                btnSohbet.setBackgroundColor(Color.parseColor("#44003300"));
+                            }
+                        }, 200);
+                    } catch (Throwable ignored) {}
+                }
+            });
 
             btnRow.addView(btnMod);
             btnRow.addView(btnScan);
+            btnRow.addView(btnSohbet);
             rootLayout.addView(btnRow, btnRowParams);
 
             // 4. ALT DÜŞÜNCE KUTUSU
-            LinearLayout thoughtBox = new LinearLayout(context);
+            LinearLayout thoughtBox = new LinearLayout(appContext);
             thoughtBox.setOrientation(LinearLayout.VERTICAL);
             thoughtBox.setBackgroundColor(Color.parseColor("#3300FF00"));
             thoughtBox.setPadding(25, 15, 25, 15);
 
-            TextView thoughtTitle = new TextView(context);
-            thoughtTitle.setText(">_ SİNEK DÜŞÜNCELERİ:");
+            TextView thoughtTitle = new TextView(appContext);
+            thoughtTitle.setText(">_ SİNEK DÜŞÜNCELERİ & SOHBET:");
             thoughtTitle.setTextColor(Color.GREEN);
             thoughtTitle.setTextSize(15);
             if (safeFont != null) thoughtTitle.setTypeface(safeFont);
             thoughtBox.addView(thoughtTitle);
 
-            thoughtView = new TextView(context);
-            thoughtView.setText("Sistem çevrimiçi. Modlar aktif.");
+            thoughtView = new TextView(appContext);
+            thoughtView.setText("Sistem stabil. Sohbet butonuna basıp Sinek'le konuşabilirsin!");
             thoughtView.setTextColor(Color.GREEN);
             thoughtView.setTextSize(13);
             if (safeFont != null) thoughtView.setTypeface(safeFont);
             thoughtBox.addView(thoughtView);
 
             rootLayout.addView(thoughtBox);
-            windowManager.addView(rootLayout, params);
+
+            windowManager.addView(rootLayout, rootParams);
 
             startStatePoller();
 
@@ -150,7 +188,6 @@ public class AnkaOverlay {
         btn.setTextSize(13);
         btn.setGravity(Gravity.CENTER);
         btn.setPadding(20, 25, 20, 25);
-        btn.setClickable(true);
         if (font != null) btn.setTypeface(font);
 
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
@@ -180,10 +217,8 @@ public class AnkaOverlay {
         try {
             File cmdFile = new File("/data/local/tmp/anka_cmd.txt");
             FileWriter writer = new FileWriter(cmdFile, false);
-            writer.write(cmd + "\n");
-            writer.flush();
+            writer.write(cmd);
             writer.close();
-            Runtime.getRuntime().exec("chmod 666 /data/local/tmp/anka_cmd.txt");
         } catch (Throwable ignored) {}
     }
 
