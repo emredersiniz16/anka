@@ -5,7 +5,7 @@ CC ?= clang
 # OpenSSL Yolları
 OPENSSL_DIR ?= external/openssl
 
-# Header yolları (OpenSSL ve tüm core modülleri dahil)
+# Header yolları
 CFLAGS = -Os -fPIC \
          -DHAVE_OPENSSL \
          -I. \
@@ -17,7 +17,6 @@ CFLAGS = -Os -fPIC \
          -I./core/ui \
          -I$(OPENSSL_DIR)/include
 
-# Statik OpenSSL Varsa Kullan, Yoksa Dinamik Linkle
 SSL_LIBS = $(wildcard $(OPENSSL_DIR)/lib/libssl.a) $(wildcard $(OPENSSL_DIR)/lib/libcrypto.a)
 ifeq ($(SSL_LIBS),)
     LDFLAGS = -ldl -lcrypto -lssl -lm
@@ -47,7 +46,6 @@ SRC_BOOT = core/boot.c \
            core/engines/system_monitor.c \
            core/engines/tohum_engine.c
 
-# Kuantum motoru ve Sinek'in Savaş Modülü (Kum Havuzu Zekası) dahil edildi
 SRC_QUANTUM = core/quantum/quantum_dust.c \
               core/quantum/collapse_engine.c \
               core/quantum/sinek_fsm.c \
@@ -72,6 +70,8 @@ magisk: all
 	@mkdir -p magisk_module/system/anka_core/assets
 	@cp magisk_template/module.prop magisk_module/ 2>/dev/null || true
 	@cp magisk_template/service.sh magisk_module/ 2>/dev/null || true
+	@cp magisk_template/sepolicy.rule magisk_module/ 2>/dev/null || true
+	@cp magisk_template/sohbet.sh magisk_module/ 2>/dev/null || true
 	@cp $(TARGET_BIN) magisk_module/system/bin/anka_os_bin
 	@cp $(QUANTUM_LIB) magisk_module/system/lib/
 	@cp AnkaOS_Overlay.jar magisk_module/system/anka_core/ 2>/dev/null || true
@@ -79,6 +79,7 @@ magisk: all
 	@cp agents/*.py magisk_module/system/anka_core/agents/ 2>/dev/null || true
 	@chmod -R 755 magisk_module
 	@chmod +x magisk_module/service.sh 2>/dev/null || true
+	@chmod +x magisk_module/sohbet.sh 2>/dev/null || true
 	@chmod +x magisk_module/system/bin/anka_os_bin
 	@chmod +x magisk_module/system/lib/libanka_quantum.so
 	@chmod +x magisk_module/system/anka_core/agents/*.py 2>/dev/null || true
@@ -91,7 +92,7 @@ clean:
 	rm -rf rom_build
 	@echo "🪰 [SYSTEM]: Mühürler kaldırıldı."
 
-# --- ROM PAKETİ (TWRP flashlanabilir .zip) ---
+# --- ROM PAKETİ ---
 ROM_ZIP = AnkaOS_ROM_merlin.zip
 
 rom: all
