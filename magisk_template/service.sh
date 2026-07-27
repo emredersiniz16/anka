@@ -166,7 +166,87 @@ echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17 | WakeLock: $ANKA_WAKELOCK" >
 configure_system_env
 PID=$(start_anka)
 
-# 14. WATCHDOG
+# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Arayüzden gelen tuş ve sohbet komutlarını işler)
+start_command_listener() {
+    CURRENT_MODE="KUANTUM SAVAŞI"
+    
+    while true; do
+        if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
+            CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null)
+            if [ -n "$CMD_CONTENT" ]; then
+                # Komutu işledikten sonra dosyayı sil
+                rm -f /data/local/tmp/anka_cmd.txt
+                
+                case "$CMD_CONTENT" in
+                    "CMD_MOD")
+                        echo "[ANKA] Komut alindi: MOD degistiriliyor..." >> "$LOGFILE"
+                        
+                        # Mod döngüsü ve kuantum tozu güncellemesi
+                        if [ "$CURRENT_MODE" = "KUANTUM SAVAŞI" ]; then
+                            CURRENT_MODE="SİBER SAVUNMA"
+                            NEW_DUST="6200"
+                            NEW_THOUGHT="SİBER SAVUNMA: Duvarlar güçlendirildi, portlar kilitlendi!"
+                        elif [ "$CURRENT_MODE" = "SİBER SAVUNMA" ]; then
+                            CURRENT_MODE="OTONOM GÖZLEM"
+                            NEW_DUST="7550"
+                            NEW_THOUGHT="OTONOM GÖZLEM: Frekans dalgaları taranıyor, izler silindi."
+                        else
+                            CURRENT_MODE="KUANTUM SAVAŞI"
+                            NEW_DUST="5515"
+                            NEW_THOUGHT="KUANTUM SAVAŞI: Frekans tarayıcı ve gizleme aktif! +1000 Toz!"
+                        fi
+                        
+                        # Anlık durumu state dosyasına yaz ki Java arayüzü anında yakalasın
+                        echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
+                        echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
+                        echo "DUST: $NEW_DUST" >> /data/local/tmp/anka_state.txt
+                        echo "MODE: $CURRENT_MODE" >> /data/local/tmp/anka_state.txt
+                        echo "THOUGHT: $NEW_THOUGHT" >> /data/local/tmp/anka_state.txt
+                        chmod 666 /data/local/tmp/anka_state.txt
+                        ;;
+                        
+                    "CMD_SCAN")
+                        echo "[ANKA] Komut alindi: Sistem taraniyor..." >> "$LOGFILE"
+                        
+                        # Tarama simülasyonu
+                        echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
+                        echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
+                        echo "DUST: 8900" >> /data/local/tmp/anka_state.txt
+                        echo "MODE: DERİN TARAMA" >> /data/local/tmp/anka_state.txt
+                        echo "THOUGHT: TARA: Çevrede anomaliler inceleniyor... Sistem temiz komutanım." >> /data/local/tmp/anka_state.txt
+                        chmod 666 /data/local/tmp/anka_state.txt
+                        ;;
+                        
+                    SOHBET:*)
+                        USER_MSG="${CMD_CONTENT#SOHBET: }"
+                        echo "[ANKA] Sinek'e mesaj gonderiliyor: $USER_MSG" >> "$LOGFILE"
+                        
+                        if [ -f "$ANKA_CORE/agents/sinek_sohbet.py" ]; then
+                            PYTHONPATH="$ANKA_CORE" python3 "$ANKA_CORE/agents/sinek_sohbet.py" "$USER_MSG" >> "$LOGFILE" 2>&1
+                        else
+                            # Fallback: Python scripti yoksa bile anında ekrana yansıt
+                            echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
+                            echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
+                            echo "DUST: 5515" >> /data/local/tmp/anka_state.txt
+                            echo "MODE: SOHBET MODU" >> /data/local/tmp/anka_state.txt
+                            echo "THOUGHT: Sinek: '$USER_MSG' dedin komutanım, emir alınmıştır." >> /data/local/tmp/anka_state.txt
+                            chmod 666 /data/local/tmp/anka_state.txt
+                        fi
+                        ;;
+                esac
+            fi
+        fi
+        sleep 0.5
+    done
+}
+
+# Komut dinleyiciyi arka planda başlat
+start_command_listener &
+local cmd_listener_pid=$!
+protect_oom $cmd_listener_pid
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Komut Dinleyici PID=$cmd_listener_pid (OOM:-17)" >> "$LOGFILE"
+
+# 15. WATCHDOG
 WATCHDOG_RESTART=0
 MAX_RESTART=5
 while [ $WATCHDOG_RESTART -lt $MAX_RESTART ]; do
