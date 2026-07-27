@@ -52,7 +52,6 @@ public class AnkaOverlay {
                 }
             } catch (Throwable ignored) {}
 
-            // DOKUNMATİK ODAK DÜZELTİLDİ: token = new Binder() kaldırıldı!
             WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -63,7 +62,6 @@ public class AnkaOverlay {
                 PixelFormat.TRANSLUCENT
             );
             params.gravity = Gravity.TOP | Gravity.LEFT;
-            // params.token sildik, böylece WindowManager dokunuşları reddetmeyecek.
 
             // Ana Dikey Katman
             LinearLayout rootLayout = new LinearLayout(context);
@@ -101,7 +99,7 @@ public class AnkaOverlay {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
             rootLayout.addView(spacer, spacerParams);
 
-            // 3. DOKUNMATİK BUTONLAR (Hepsi tek sisteme bağlandı)
+            // 3. DOKUNMATİK BUTONLAR 
             LinearLayout btnRow = new LinearLayout(context);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
             btnRow.setGravity(Gravity.CENTER);
@@ -158,7 +156,7 @@ public class AnkaOverlay {
         btn.setTextSize(13);
         btn.setGravity(Gravity.CENTER);
         btn.setPadding(20, 25, 20, 25);
-        btn.setClickable(true); // Dokunmatik hassasiyeti için zorunlu
+        btn.setClickable(true); 
         if (font != null) btn.setTypeface(font);
 
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
@@ -171,25 +169,16 @@ public class AnkaOverlay {
             public boolean onTouch(View v, MotionEvent event) {
                 try {
                     if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                        // Tıklanınca parlak yeşil yap
                         btn.setBackgroundColor(Color.parseColor("#8800FF00"));
                         
-                        if (cmd.equals("CMD_SOHBET")) {
-                            // Termux'u Shell üzerinden doğrudan ve güvenli tetikle
-                            try {
-                                Runtime.getRuntime().exec("am start -n com.termux/com.termux.app.TermuxActivity");
-                            } catch (Exception e) {
-                                Runtime.getRuntime().exec("monkey -p com.termux -c android.intent.category.LAUNCHER 1");
-                            }
-                        } else {
-                            sendAnkaCommand(cmd);
-                        }
+                        // Termux saćmalığı tamamen silindi. Bütün butonlar aynı şekilde Magisk'e komut yollar.
+                        sendAnkaCommand(cmd);
+                        
                     } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
-                        // Bırakınca rengi eski haline döndür
                         btn.setBackgroundColor(Color.parseColor("#44003300"));
                     }
                 } catch (Throwable ignored) {}
-                return true; // Dokunuşu algıla ve bitir
+                return true; 
             }
         });
 
@@ -203,7 +192,6 @@ public class AnkaOverlay {
             writer.write(cmd + "\n");
             writer.flush();
             writer.close();
-            // Dosyanın herkes tarafından okunabilmesini sağla
             Runtime.getRuntime().exec("chmod 666 /data/local/tmp/anka_cmd.txt");
         } catch (Throwable ignored) {}
     }
