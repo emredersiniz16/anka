@@ -51,7 +51,7 @@ SRC_QUANTUM = core/quantum/quantum_dust.c \
               core/quantum/sinek_fsm.c \
               core/quantum/sinek_warfare.c
 
-all: $(QUANTUM_LIB) $(TARGET_BIN)
+all: $(QUANTUM_LIB) $(TARGET_BIN) overlay
 
 $(QUANTUM_LIB): $(SRC_QUANTUM)
 	$(CC) $(CFLAGS) -shared $^ -o $@ $(LDFLAGS)
@@ -60,6 +60,16 @@ $(QUANTUM_LIB): $(SRC_QUANTUM)
 $(TARGET_BIN): $(SRC_BOOT) $(QUANTUM_LIB)
 	$(CC) $(CFLAGS) $(SRC_BOOT) -o $@ $(QUANTUM_LDFLAGS) $(LDFLAGS)
 	@echo "🪰 [SYSTEM]: Anka OS çekirdeği mühürlendi (Binary Hazır)."
+
+# --- JAVA OVERLAY DERLEME (Tüm Sınıflar Dahil Edildi) ---
+overlay:
+	@echo "☕ Java Overlay (.jar) Derleniyor..."
+	@mkdir -p build_overlay
+	javac -cp $$ANDROID_SDK_ROOT/platforms/android-34/android.jar -d build_overlay core/overlay/*.java
+	$$ANDROID_SDK_ROOT/build-tools/34.0.0/d8 --output . $$(find build_overlay -name "*.class")
+	zip AnkaOS_Overlay.jar classes.dex
+	rm -rf classes.dex build_overlay
+	@echo "✅ [SYSTEM]: AnkaOS_Overlay.jar başarıyla mühürlendi."
 
 # --- MAGISK MODÜLÜ OTOMASYONU ---
 magisk: all
