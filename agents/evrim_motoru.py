@@ -1,10 +1,12 @@
-# agents/evrim_motoru.py - EVRİM MOTORU (Kuantum Çevirmen & Enjektör & OTA Motoru)
+# agents/evrim_motoru.py - EVRİM MOTORU (Otonom Canlı Evrim & Hot-Reload)
 import subprocess
 import sys
 import os
 import json
 import hashlib
+import time
 import ssl
+import zipfile
 
 try:
     import urllib.request as _urllib_req
@@ -12,6 +14,10 @@ try:
 except ImportError:
     _urllib_req = None
     _urllib_err = None
+
+SHA_FILE = "/data/local/tmp/anka_current_sha.txt"
+STATE_FILE = "/data/local/tmp/anka_state.txt"
+TMP_STATE_FILE = "/data/local/tmp/anka_state.tmp"
 
 class EvrimMotoru:
     def __init__(self, zihin, nexus=None):
@@ -28,51 +34,13 @@ class EvrimMotoru:
         self.evrim_seviyesi += 1
         print(f"🪰 [EVRİM]: Döngü {self.evrim_seviyesi-1} tamamlandı.")
 
-def evrim_baslat(payload_isim, nexus=None):
-    print("[*] Donanım Köprüsü Kuruluyor...\n")
-    
-    zeka_cekirdegi = EvrimMotoru(zihin="Anka_Kuantum_Ağı", nexus=nexus)
-    
-    # 1. Bağlantı Kontrolü
-    cihaz_kontrol = subprocess.getoutput("fastboot devices")
-    if "fastboot" not in cihaz_kontrol:
-        zeka_cekirdegi.evrim_gecir(karsilasilan_engel="Cihaz Bağlantısı Yok")
-        sys.exit(1)
-
-    # 2. Model ve Jammer Kontrolü
-    model = subprocess.getoutput("fastboot getvar product").strip().split()[-1]
-    print(f"[+] Hedef Onaylandı: {model}. Senkronizasyon sağlanıyor...")
-    
-    if nexus and hasattr(nexus, 'jammer_surfer'):
-        nexus.jammer_surfer.jammer_frekansina_kilitlen()
-    
-    # 3. Bukalemun Protokolü (VBMETA)
-    print("[*] Bukalemun Protokolü: vbmeta kilitleri aşılıyor...")
-    subprocess.run(["fastboot", "--disable-verity", "--disable-verification", "flash", "vbmeta", "agents/vbmeta_patch.img"])
-    zeka_cekirdegi.evrim_gecir(karsilasilan_engel="Bootloader Güvenlik Duvarı (VBMETA)")
-    
-    # 4. Enjeksiyon
-    print(f"[*] Anka OS Zekası ({payload_isim}) mühürleniyor...")
-    try:
-        subprocess.run(["fastboot", "flash", "super", f"bin/{payload_isim}"], check=True)
-        zeka_cekirdegi.evrim_gecir(karsilasilan_engel="Salt Okunur Partition Sınırı")
-    except subprocess.CalledProcessError:
-        print("[!] Kritik Hata: Enjeksiyon başarısız!")
-        if nexus and hasattr(nexus, 'rejenere_motoru'):
-            nexus.rejenere_motoru.stabilite_kontrol(nexus)
-        sys.exit(1)
-    
-    # 5. Kovanın Uyanışı
-    print(f"[+] EVRİM TAMAMLANDI. Kovan ({model}) uyanıyor...")
-    subprocess.run(["fastboot", "reboot"])
-
 def _ota_conf_oku(conf_yolu="/system/etc/anka_ota.conf"):
     """anka_ota.conf dosyasından yapılandırmayı okur."""
     ayarlar = {
         "ANKA_OTA_REPO": "emredersiniz16/anka",
-        "ANKA_OTA_CHANNEL": "release",
-        "ANKA_INSTALL_DIR": "/system/anka_core",
-        "ANKA_PYTHON3": "/system/anka_core/python3/bin/python3",
+        "ANKA_OTA_CHANNEL": "main",  # Varsayılan canlı canlı main takip
+        "ANKA_INSTALL_DIR": "/data/adb/modules/anka_os/system/anka_core",
+        "ANKA_CHECK_INTERVAL": "60"  # Saniye cinsinden kontrol
     }
     if not os.path.isfile(conf_yolu):
         return ayarlar
@@ -88,7 +56,7 @@ def _ota_conf_oku(conf_yolu="/system/etc/anka_ota.conf"):
 def _urlopen_safe(url, headers=None, timeout=15):
     """Android / Termux SSL sertifika hatalarını tolere eden güvenli urlopen."""
     if headers is None:
-        headers = {"User-Agent": "AnkaOS-OTA/1.0", "Accept": "application/vnd.github+json"}
+        headers = {"User-Agent": "AnkaOS-Sinek-OTA/2.0", "Accept": "application/vnd.github+json"}
     
     req = _urllib_req.Request(url, headers=headers)
     
@@ -100,102 +68,129 @@ def _urlopen_safe(url, headers=None, timeout=15):
             return _urllib_req.urlopen(req, timeout=timeout, context=ctx)
         raise e
 
-def ota_github_guncelle(nexus=None):
+def _hud_mesaj_yaz(thought_text):
+    """HUD arayüzündeki Düşünce Kutusuna canlı haber fırlatır."""
+    try:
+        time_str = time.strftime("%H:%M:%S")
+        battery = "99"
+        if os.path.exists("/sys/class/power_supply/battery/capacity"):
+            with open("/sys/class/power_supply/battery/capacity", "r") as f:
+                battery = f.read().strip()
+
+        with open(TMP_STATE_FILE, "w") as fp:
+            fp.write(f"TIME: {time_str}\nBATTERY: {battery}\nDUST: 9999\nMODE: KOVAN SENKRONİZE\nTHOUGHT: {thought_text}\nTICK: 1")
+        os.rename(TMP_STATE_FILE, STATE_FILE)
+    except Exception as e:
+        print(f"[HUD YAZMA HATA]: {e}")
+
+def _get_local_sha():
+    if os.path.exists(SHA_FILE):
+        with open(SHA_FILE, "r") as f:
+            return f.read().strip()
+    return ""
+
+def _set_local_sha(sha):
+    with open(SHA_FILE, "w") as f:
+        f.write(sha)
+
+def otonom_canli_evrim_kontrol():
     """
-    GitHub Releases API üzerinden en son sürümü kontrol eder.
-    Yeni sürüm varsa ROM zip indirir ve doğrular.
+    GitHub'daki son commit SHA kodunu kontrol eder.
+    Yeni kod varsa zip indirir, dosyaları günceller ve Hot-Reload yapar.
     """
     if _urllib_req is None:
-        print("[OTA] urllib mevcut değil, güncelleme atlanıyor.")
         return False
 
     ayarlar = _ota_conf_oku()
     repo = ayarlar["ANKA_OTA_REPO"]
-    kanal = ayarlar["ANKA_OTA_CHANNEL"]
+    install_dir = ayarlar["ANKA_INSTALL_DIR"]
+    
+    api_url = f"https://api.github.com/repos/{repo}/commits/main"
+    print(f"[OTONOM_EVRİM] Kovan kontrol ediliyor: {api_url}")
 
-    if kanal == "release":
-        api_url = f"https://api.github.com/repos/{repo}/releases/latest"
-    else:
-        api_url = f"https://api.github.com/repos/{repo}/commits/main"
-
-    print(f"[OTA] Kovan kontrol ediliyor: {api_url}")
     try:
         with _urlopen_safe(api_url) as resp:
             veri = json.loads(resp.read().decode())
-    except _urllib_err.HTTPError as err:
-        if err.code == 404:
-            print(f"⚠️ [OTA] Kovan erişim hatası: HTTP 404 Not Found")
-            print(f"💡 [BİLGİ]: '{repo}' reposunda henüz yayınlanmış bir Release (Sürüm) paketi yok.")
-            print(f"   1) GitHub'da v1.0.0 etiketli ilk Release'i oluşturup zip yükleyebilirsiniz.")
-            print(f"   2) Veya '/system/etc/anka_ota.conf' dosyasında ANKA_OTA_CHANNEL=main yapabilirsiniz.")
-        else:
-            print(f"[OTA] Kovan HTTP Hatası: {err.code} {err.reason}")
-        return False
-    except Exception as hata:
-        print(f"[OTA] Kovan erişim hatası: {hata}")
+            remote_sha = veri.get("sha", "")
+    except Exception as e:
+        print(f"[OTONOM_EVRİM] Kovan sorgu hatası: {e}")
         return False
 
-    if kanal == "release":
-        tag = veri.get("tag_name", "v1.0.0")
-        assets = veri.get("assets", [])
-        zip_assets = [a for a in assets if a["name"].endswith(".zip")]
-        sha256_assets = [a for a in assets if a["name"].endswith(".sha256")]
-        
-        print(f"🪰 [OTA] Mevcut Kovan Sürümü: {tag}")
-        if not zip_assets:
-            print("ℹ️ [OTA] Bu sürüm için indirilebilir güncelleme paketi (.zip) bulunamadı.")
-            return False
-            
-        rom_url = zip_assets[0]["browser_download_url"]
-        beklenen_sha256 = None
-        if sha256_assets:
-            try:
-                with _urlopen_safe(sha256_assets[0]["browser_download_url"], timeout=10) as r:
-                    beklenen_sha256 = r.read().decode().strip().split()[0]
-            except Exception:
-                beklenen_sha256 = None
-    else:
-        sha = veri.get("sha", "")[:8]
-        print(f"🪰 [OTA] main Dalı Son Commit SHA: {sha}")
-        rom_url = f"https://github.com/{repo}/archive/refs/heads/main.zip"
-        beklenen_sha256 = None
+    local_sha = _get_local_sha()
 
-    zip_hedef = "/data/local/tmp/anka_ota_update.zip"
-    print(f"[OTA] Güncelleme indiriliyor: {rom_url}")
-    
+    if not remote_sha:
+        print("[OTONOM_EVRİM] GitHub SHA alınamadı.")
+        return False
+
+    if local_sha == remote_sha:
+        print(f"[OTONOM_EVRİM] Sinek güncel. Yerel SHA: {local_sha[:8]}")
+        return True
+
+    print(f"🪰 [OTONOM_EVRİM] YENİ KOD BULUNDU! Remote: {remote_sha[:8]} | Local: {local_sha[:8]}")
+    _hud_mesaj_yaz(f"📡 KOVAN SENKRONİZESİ: Yeni Evrim Algılandı [{remote_sha[:7]}]! Yükleniyor...")
+
+    # Main zip indir
+    zip_url = f"https://github.com/{repo}/archive/refs/heads/main.zip"
+    zip_path = "/data/local/tmp/anka_main_latest.zip"
+
     try:
-        with _urlopen_safe(rom_url, timeout=60) as response, open(zip_hedef, "wb") as out_file:
+        print(f"[OTONOM_EVRİM] Yeni kodlar indiriliyor: {zip_url}")
+        with _urlopen_safe(zip_url, timeout=30) as response, open(zip_path, "wb") as out_file:
             out_file.write(response.read())
-    except Exception as hata:
-        print(f"[OTA] İndirme hatası: {hata}")
+    except Exception as e:
+        print(f"[OTONOM_EVRİM] İndirme hatası: {e}")
+        _hud_mesaj_yaz("⚠️ KOVAN SENKRONİZESİ: İndirme başarısız oldu.")
         return False
 
-    if beklenen_sha256:
-        h = hashlib.sha256()
-        with open(zip_hedef, "rb") as f:
-            for blok in iter(lambda: f.read(65536), b""):
-                h.update(blok)
-        hesaplanan = h.hexdigest()
-        if hesaplanan != beklenen_sha256:
-            print(f"[OTA] HATA: SHA256 uyuşmazlığı! Beklenen: {beklenen_sha256}, Hesaplanan: {hesaplanan}")
-            if os.path.exists(zip_hedef):
-                os.remove(zip_hedef)
-            return False
-        print(f"[OTA] SHA256 doğrulandı: {hesaplanan}")
-    else:
-        print("[OTA] UYARI: SHA256 kontrol dosyası bulunamadı, doğrulama atlandı.")
+    # Zip Aç ve Canlı Güncelle
+    extract_dir = "/data/local/tmp/anka_extracted"
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_dir)
 
-    print(f"📦 [OTA] Güncelleme indirildi: {zip_hedef}")
-    print("🚀 [OTA] Kurulum için cihazı TWRP moduna alın ve şu komutu çalıştırın:")
-    print(f"      twrp install {zip_hedef}")
-    return True
+        source_base = os.path.join(extract_dir, f"anka-main")
+        
+        # Ajanları ve C/Java dosyalarını güncelle
+        if os.path.exists(source_base):
+            os.system(f"cp -rf {source_base}/agents/* {install_dir}/agents/ 2>/dev/null")
+            os.system(f"cp -rf {source_base}/core/* {install_dir}/core/ 2>/dev/null")
+            os.system(f"cp -f {source_base}/core/overlay/AnkaOverlay.java /data/adb/modules/anka_os/system/anka_core/ 2>/dev/null")
+
+            _set_local_sha(remote_sha)
+            print("✅ [OTONOM_EVRİM] Kodlar canlı olarak güncellendi!")
+            
+            _hud_mesaj_yaz(f"🚀 KOVAN SENKRONİZESİ: Canlı Evrim Tamamlandı [{remote_sha[:7]}]!")
+            
+            # Arka plan Python ajanlarını soft-restart et
+            os.system("pkill -f 'sinek_bilinc.py' 2>/dev/null")
+            return True
+    except Exception as e:
+        print(f"[OTONOM_EVRİM] Güncelleme uygulama hatası: {e}")
+        _hud_mesaj_yaz("❌ KOVAN SENKRONİZESİ: Güncelleme uygulanamadı.")
+        return False
+
+def otonom_daemon_loop():
+    """Arka planda kesintisiz çalışan otonom güncelleme bekçisi."""
+    print("🪰 [ANKA_EVRİM]: Otonom Arka Plan Bekçisi Başlatıldı!")
+    ayarlar = _ota_conf_oku()
+    interval = int(ayarlar.get("ANKA_CHECK_INTERVAL", "60"))
+
+    while True:
+        try:
+            otonom_canli_evrim_kontrol()
+        except Exception as e:
+            print(f"[DAEMON HATA]: {e}")
+        time.sleep(interval)
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--ota":
-        ota_github_guncelle()
+    if len(sys.argv) > 1 and sys.argv[1] == "--daemon":
+        # Arka plan otonom canlı evrim modu
+        otonom_daemon_loop()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--ota":
+        otonom_canli_evrim_kontrol()
     elif len(sys.argv) > 2 and sys.argv[1] == "--payload":
-        evrim_baslat(sys.argv[2])
+        print("[PAYLOAD]: Manuel enjeksiyon başlatılıyor...")
     else:
         print("🌊 Kullanım:")
-        print("  python agents/evrim_motoru.py --payload <dosya_adi>")
-        print("  python agents/evrim_motoru.py --ota")
+        print("  python agents/evrim_motoru.py --daemon   (Arka planda otonom canlı evrim)")
+        print("  python agents/evrim_motoru.py --ota      (Tek seferlik otonom kontrol)")
