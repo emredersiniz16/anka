@@ -11,7 +11,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.MotionEvent;
 import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -27,15 +26,17 @@ public class AnkaOverlay {
     private static TextView thoughtView;
     private static EditText chatInput;
     private static LinearLayout chatBoxArea;
+    private static LinearLayout rootLayout;
     private static WindowManager windowManager;
     private static WindowManager.LayoutParams rootParams;
     private static Handler mainHandler;
 
     public static void main(String[] args) {
+        // Çökme Koruması: Genel Istisna Yakalayıcı
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
-                e.printStackTrace();
+                System.out.println("● [ANKA_OVERLAY HATA YAKALANDI]: " + e.getMessage());
             }
         });
 
@@ -70,7 +71,8 @@ public class AnkaOverlay {
             rootParams.gravity = Gravity.TOP | Gravity.LEFT;
             rootParams.token = new Binder();
 
-            LinearLayout rootLayout = new LinearLayout(context);
+            // Ana Dikey Katman
+            rootLayout = new LinearLayout(context);
             rootLayout.setBackgroundColor(Color.parseColor("#EE050B14"));
             rootLayout.setOrientation(LinearLayout.VERTICAL);
             rootLayout.setPadding(30, 80, 30, 40);
@@ -104,19 +106,21 @@ public class AnkaOverlay {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
             rootLayout.addView(spacer, spacerParams);
 
-            // 3. SİNEK ILE CANLI SOHBET GİRDİ KUTUSU (GİZLİ/AÇIK)
+            // 3. SİNEK İLE CANLI SOHBET GİRDİ KUTUSU
             chatBoxArea = new LinearLayout(context);
             chatBoxArea.setOrientation(LinearLayout.HORIZONTAL);
-            chatBoxArea.setVisibility(View.GONE); // Varsayılan kapalı
+            chatBoxArea.setVisibility(View.GONE); // Varsayılan gizli
             chatBoxArea.setPadding(0, 10, 0, 10);
 
             chatInput = new EditText(context);
-            chatInput.setHint("Sinek'e bir şey yaz kanka...");
+            chatInput.setHint("Sinek'e mesaj yaz...");
             chatInput.setHintTextColor(Color.parseColor("#8800FF00"));
             chatInput.setTextColor(Color.GREEN);
             chatInput.setBackgroundColor(Color.parseColor("#33003300"));
             chatInput.setTextSize(14);
             chatInput.setPadding(20, 15, 20, 15);
+            chatInput.setFocusable(true);
+            chatInput.setFocusableInTouchMode(true);
             if (safeFont != null) chatInput.setTypeface(safeFont);
 
             LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
@@ -135,17 +139,18 @@ public class AnkaOverlay {
             btnSend.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    String msg = chatInput.getText().toString().trim();
-                    if (!msg.isEmpty()) {
-                        sendSinekMessage(msg);
-                        chatInput.setText("");
-                        if (thoughtView != null) {
-                            thoughtView.setText("💬 SEN: " + msg + "\n🪰 Sinek düşünüyor...");
+                    try {
+                        String msg = chatInput.getText().toString().trim();
+                        if (!msg.isEmpty()) {
+                            sendSinekMessage(msg);
+                            chatInput.setText("");
+                            if (thoughtView != null) {
+                                thoughtView.setText("💬 SEN: " + msg + "\n🪰 Sinek düşünüyor...");
+                            }
                         }
-                    }
-                    // Klavyeyi ve odaklanmayı kapat
-                    toggleKeyboardFocus(false);
-                    chatBoxArea.setVisibility(View.GONE);
+                        toggleKeyboardFocus(false);
+                        chatBoxArea.setVisibility(View.GONE);
+                    } catch (Throwable ignored) {}
                 }
             });
 
@@ -164,14 +169,16 @@ public class AnkaOverlay {
             btnSohbet.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (chatBoxArea.getVisibility() == View.GONE) {
-                        chatBoxArea.setVisibility(View.VISIBLE);
-                        toggleKeyboardFocus(true);
-                        chatInput.requestFocus();
-                    } else {
-                        chatBoxArea.setVisibility(View.GONE);
-                        toggleKeyboardFocus(false);
-                    }
+                    try {
+                        if (chatBoxArea.getVisibility() == View.GONE) {
+                            chatBoxArea.setVisibility(View.VISIBLE);
+                            toggleKeyboardFocus(true);
+                            chatInput.requestFocus();
+                        } else {
+                            chatBoxArea.setVisibility(View.GONE);
+                            toggleKeyboardFocus(false);
+                        }
+                    } catch (Throwable ignored) {}
                 }
             });
 
@@ -220,8 +227,8 @@ public class AnkaOverlay {
             } else {
                 rootParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
             }
-            if (windowManager != null) {
-                windowManager.updateViewLayout(chatInput.getRootView(), rootParams);
+            if (windowManager != null && rootLayout != null) {
+                windowManager.updateViewLayout(rootLayout, rootParams);
             }
         } catch (Throwable ignored) {}
     }
@@ -245,12 +252,14 @@ public class AnkaOverlay {
             btn.setOnTouchListener(new View.OnTouchListener() {
                 @Override
                 public boolean onTouch(View v, MotionEvent event) {
-                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                        btn.setBackgroundColor(Color.parseColor("#8800FF00"));
-                        sendAnkaCommand(cmd);
-                    } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
-                        btn.setBackgroundColor(Color.parseColor("#44003300"));
-                    }
+                    try {
+                        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                            btn.setBackgroundColor(Color.parseColor("#8800FF00"));
+                            sendAnkaCommand(cmd);
+                        } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                            btn.setBackgroundColor(Color.parseColor("#44003300"));
+                        }
+                    } catch (Throwable ignored) {}
                     return true;
                 }
             });
