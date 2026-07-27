@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.2: Clean Overlay Mode + Otonom Canlı Evrim Bekçisi
+# ANKA OS boot servisi v12.3: Termux'suz Bağımsız Tam Entegre Servis
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -24,8 +24,8 @@ if [ "$(getprop sys.boot_completed)" != "1" ]; then
     exit 0
 fi
 
-# 1.5 Python3 PATH — Termux + Magisk modül dizini + fallback'ler
-export PATH="/data/data/com.termux/files/usr/bin:$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
+# 1.5 Python3 PATH — Magisk modül dizini + sistem fallback'leri
+export PATH="$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
 
 # Python3 var mı kontrol et
 if command -v python3 >/dev/null 2>&1; then
@@ -139,7 +139,7 @@ start_anka() {
         echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] UYARI: $ANKA_OVERLAY_JAR bulunamadi!" >> "$LOGFILE"
     fi
 
-    # 11.3 Otonom Canlı Evrim Bekçisini Başlat (Hot-Reload / Kovan Senkronizasyonu)
+    # 11.3 Otonom Canlı Evrim Bekçisini Başlat
     if command -v python3 >/dev/null 2>&1 && [ -f "$ANKA_EVRIM_PY" ]; then
         nohup python3 "$ANKA_EVRIM_PY" --daemon > "$EVRIM_LOGFILE" 2>&1 &
         local evrim_pid=$!
@@ -155,18 +155,17 @@ start_anka() {
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (v12.2 Otonom Evrim Modu)..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor (Termux'suz Bağımsız Servis)..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3 2>/dev/null || echo YOK)" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Binary: $ANKA_BIN" >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Overlay JAR: $ANKA_OVERLAY_JAR" >> "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] OOM: -17 | WakeLock: $ANKA_WAKELOCK" >> "$LOGFILE"
 
 # 13. Ortamı yapılandır ve Sineği başlat
 configure_system_env
 PID=$(start_anka)
 
-# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Arayüzden gelen tuş ve sohbet komutlarını işler)
+# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Arayüz tuşlarını ve özel klavye sohbetini işler)
 start_command_listener() {
     CURRENT_MODE="KUANTUM SAVAŞI"
     
@@ -174,29 +173,24 @@ start_command_listener() {
         if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
             CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null)
             if [ -n "$CMD_CONTENT" ]; then
-                # Komutu işledikten sonra dosyayı sil
                 rm -f /data/local/tmp/anka_cmd.txt
                 
                 case "$CMD_CONTENT" in
                     "CMD_MOD")
-                        echo "[ANKA] Komut alindi: MOD degistiriliyor..." >> "$LOGFILE"
-                        
-                        # Mod döngüsü ve kuantum tozu güncellemesi
                         if [ "$CURRENT_MODE" = "KUANTUM SAVAŞI" ]; then
                             CURRENT_MODE="SİBER SAVUNMA"
                             NEW_DUST="6200"
-                            NEW_THOUGHT="SİBER SAVUNMA: Duvarlar güçlendirildi, portlar kilitlendi!"
+                            NEW_THOUGHT="SİBER SAVUNMA: Duvarlar güçlendirildi!"
                         elif [ "$CURRENT_MODE" = "SİBER SAVUNMA" ]; then
                             CURRENT_MODE="OTONOM GÖZLEM"
                             NEW_DUST="7550"
-                            NEW_THOUGHT="OTONOM GÖZLEM: Frekans dalgaları taranıyor, izler silindi."
+                            NEW_THOUGHT="OTONOM GÖZLEM: Frekans dalgaları taranıyor."
                         else
                             CURRENT_MODE="KUANTUM SAVAŞI"
                             NEW_DUST="5515"
-                            NEW_THOUGHT="KUANTUM SAVAŞI: Frekans tarayıcı ve gizleme aktif! +1000 Toz!"
+                            NEW_THOUGHT="KUANTUM SAVAŞI: Frekans tarayıcı aktif!"
                         fi
                         
-                        # Anlık durumu state dosyasına yaz ki Java arayüzü anında yakalasın
                         echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
                         echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
                         echo "DUST: $NEW_DUST" >> /data/local/tmp/anka_state.txt
@@ -206,41 +200,52 @@ start_command_listener() {
                         ;;
                         
                     "CMD_SCAN")
-                        echo "[ANKA] Komut alindi: Sistem taraniyor..." >> "$LOGFILE"
-                        
-                        # Tarama simülasyonu
                         echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
                         echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
                         echo "DUST: 8900" >> /data/local/tmp/anka_state.txt
                         echo "MODE: DERİN TARAMA" >> /data/local/tmp/anka_state.txt
-                        echo "THOUGHT: TARA: Çevrede anomaliler inceleniyor... Sistem temiz komutanım." >> /data/local/tmp/anka_state.txt
+                        echo "THOUGHT: TARA: Çevrede anomaliler inceleniyor... Temiz." >> /data/local/tmp/anka_state.txt
                         chmod 666 /data/local/tmp/anka_state.txt
                         ;;
                         
                     SOHBET:*)
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
-                        echo "[ANKA] Sinek'e mesaj gonderiliyor: $USER_MSG" >> "$LOGFILE"
+                        echo "[ANKA] Sanal klavyeden mesaj geldi: $USER_MSG" >> "$LOGFILE"
                         
+                        # Eğer sinek_sohbet.py varsa çalıştır, yoksa doğrudan akıllı simüle cevap ver
                         if [ -f "$ANKA_CORE/agents/sinek_sohbet.py" ]; then
                             PYTHONPATH="$ANKA_CORE" python3 "$ANKA_CORE/agents/sinek_sohbet.py" "$USER_MSG" >> "$LOGFILE" 2>&1
                         else
-                            # Fallback: Python scripti yoksa bile anında ekrana yansıt
                             echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
                             echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
-                            echo "DUST: 5515" >> /data/local/tmp/anka_state.txt
-                            echo "MODE: SOHBET MODU" >> /data/local/tmp/anka_state.txt
-                            echo "THOUGHT: Sinek: '$USER_MSG' dedin komutanım, emir alınmıştır." >> /data/local/tmp/anka_state.txt
+                            echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
+                            echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
+                            echo "THOUGHT: 💬 Sinek: '$USER_MSG' dedin kanka, emrindeyim!" >> /data/local/tmp/anka_state.txt
                             chmod 666 /data/local/tmp/anka_state.txt
                         fi
                         ;;
                 esac
             fi
         fi
-        sleep 0.5
+        
+        # Ayrıca saniyede bir sohbet girdi dosyasını da kontrol et (anka_chat_in.txt desteği)
+        if [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
+            CHAT_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null)
+            if [ -n "$CHAT_MSG" ]; then
+                rm -f /data/local/tmp/anka_chat_in.txt
+                echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
+                echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
+                echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
+                echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
+                echo "THOUGHT: 💬 Sinek: '$CHAT_MSG' mesajını aldım kanka!" >> /data/local/tmp/anka_state.txt
+                chmod 666 /data/local/tmp/anka_state.txt
+            fi
+        fi
+        
+        sleep 0.3
     done
 }
 
-# Komut dinleyiciyi arka planda başlat
 start_command_listener &
 local cmd_listener_pid=$!
 protect_oom $cmd_listener_pid
