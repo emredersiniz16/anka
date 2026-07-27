@@ -212,7 +212,7 @@ start_command_listener() {
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
                         echo "[ANKA] Sanal klavyeden mesaj geldi: $USER_MSG" >> "$LOGFILE"
                         
-                        # Eğer sinek_sohbet.py varsa çalıştır, yoksa doğrudan akıllı simüle cevap ver
+                        # Eğer sinek_sohbet.py varsa çalıştır, yoksa doğrudan akıllı simüle cevap ver ve ekrana yaz
                         if [ -f "$ANKA_CORE/agents/sinek_sohbet.py" ]; then
                             PYTHONPATH="$ANKA_CORE" python3 "$ANKA_CORE/agents/sinek_sohbet.py" "$USER_MSG" >> "$LOGFILE" 2>&1
                         else
@@ -220,7 +220,7 @@ start_command_listener() {
                             echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
                             echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
                             echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
-                            echo "THOUGHT: 💬 Sinek: '$USER_MSG' dedin kanka, emrindeyim!" >> /data/local/tmp/anka_state.txt
+                            echo "THOUGHT: 💬 Sinek: Eyvallah kanka, '$USER_MSG' dedin, buradayım!" >> /data/local/tmp/anka_state.txt
                             chmod 666 /data/local/tmp/anka_state.txt
                         fi
                         ;;
@@ -237,7 +237,7 @@ start_command_listener() {
                 echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
                 echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
                 echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
-                echo "THOUGHT: 💬 Sinek: '$CHAT_MSG' mesajını aldım kanka!" >> /data/local/tmp/anka_state.txt
+                echo "THOUGHT: 💬 Sinek: '$CHAT_MSG' dedin kanka, emrindeyim!" >> /data/local/tmp/anka_state.txt
                 chmod 666 /data/local/tmp/anka_state.txt
             fi
         fi
