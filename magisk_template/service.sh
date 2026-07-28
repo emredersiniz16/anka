@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.14: Gerçek Sinek Zeka ve Bilinç Entegrasyonu
+# ANKA OS boot servisi v12.15: sohbet.sh Entegreli Tam Sinek Zekası
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -113,7 +113,7 @@ start_anka() {
     echo $pid
 }
 
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.14..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.15..." >> "$LOGFILE"
 PID=$(start_anka)
 
 # 14. KOMUT VE ZEKİ SİNEK SOHBET DİNLEYİCİSİ
@@ -147,27 +147,21 @@ start_command_listener() {
                         echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         
-                        # 2. Sinek'in gerçek zekasını (sohbet.sh veya sinek_sohbet.py üzerinden) tetikle!
+                        # 2. sohbet.sh betiğini stdin üzerinden mesajla besle ve Sinek'in cevabını al!
                         CEVAP=""
                         if [ -f "$SOHBET_SH" ]; then
-                            # sohbet.sh betiği üzerinden zekayı konuştur
-                            CEVAP=$(echo "$USER_MSG" | "$SOHBET_SH" 2>/dev/null)
-                        elif [ -f "$ANKA_CORE/agents/sinek_sohbet.py" ]; then
-                            # Doğrudan Python zihnini besle
-                            CEVAP=$(echo "$USER_MSG" | PYTHONPATH="$ANKA_CORE" python3 "$ANKA_CORE/agents/sinek_sohbet.py" 2>/dev/null | tail -n 1)
+                            CEVAP=$(echo "$USER_MSG" | sh "$SOHBET_SH" 2>/dev/null | tail -n 1)
                         fi
                         
-                        # Eğer zekadan yanıt alınamazsa şık birfallback
                         if [ -z "$CEVAP" ]; then
-                            CEVAP="🪰 Sinek: Zihnim kuantum dalgalarında yankılandı kanka, seni duyuyorum!"
+                            CEVAP="🪰 Sinek: Zihnim quantum dalgalarında kayboldu kanka, tekrar dene!"
                         else
-                            # Eğer cevap zaten Sinek prefix'i içermiyorsa ekle
                             if ! echo "$CEVAP" | grep -q "Sinek"; then
                                 CEVAP="🪰 SİNEK: $CEVAP"
                             fi
                         fi
                         
-                        # 3. Sinek'in gerçek zeka cevabını ekrana ekle
+                        # 3. Sinek'in zeka cevabını ekrana ekle
                         echo "$CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         ;;
