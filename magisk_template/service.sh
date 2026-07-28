@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.17: Kararlı Python Zeka Entegrasyonu
+# ANKA OS boot servisi v12.19: Akıllı Güvenlik Ağlı Python Zeka Köprüsü
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -108,14 +108,23 @@ start_command_listener() {
                         echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         
-                        # 2. Mesajı Python zihninin okuyabileceği input dosyasına yaz
+                        # 2. Mesajı Python zihninin okuyacağı input dosyasına yaz
                         echo "$USER_MSG" > /data/local/tmp/anka_chat_in.txt
                         chmod 666 /data/local/tmp/anka_chat_in.txt
                         
-                        # 3. Güvenlik fallback: Python yanıtı ekrana yazana kadar kısa bekle, yazmazsa tetikle
-                        sleep 0.8
-                        if ! grep -q "SİNEK:" /data/local/tmp/anka_chat_display.txt 2>/dev/null; then
-                            echo "🪰 SİNEK: '$USER_MSG' dedin kanka, zihnim işliyor!" >> /data/local/tmp/anka_chat_display.txt
+                        # 3. Akıllı Güvenlik Ağacı: Python 1.5 saniye içinde cevap yazmazsa yedek tetikleyici devreye girer
+                        sleep 1.5
+                        if ! grep -q "🪰 SİNEK:" /data/local/tmp/anka_chat_display.txt 2>/dev/null; then
+                            MSG_LOWER=$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')
+                            if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber|hi"; then
+                                FALLBACK_CEVAP="Aleykümselam kanka! Zihnim şu an kuantum dalgalarında ama seni duyuyorum."
+                            elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
+                                FALLBACK_CEVAP="Sistemler tam gaz çalışıyor komutanım, kalkanlar sağlam."
+                            else
+                                FALLBACK_CEVAP="'$USER_MSG' dedin kanka, frekanslar senkronize ediliyor!"
+                            fi
+                            
+                            echo "🪰 SİNEK: $FALLBACK_CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
                             chmod 666 /data/local/tmp/anka_chat_display.txt
                         fi
                         ;;
