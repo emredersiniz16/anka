@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.36: Dinamik ve Kelimeyi Analiz Eden Sinek Sohbet Motoru
+# ANKA OS boot servisi v12.38: Kilitlenmez Saf Sohbet Motoru (Fix)
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -61,82 +61,62 @@ if [ -f "$ANKA_OVERLAY_JAR" ]; then
 fi
 
 # ==========================================
-# ÇEŞİTLİ VE DOĞAL AKIŞLI SİNEK MOTORU
+# ASLA KİLİTLENMEYEN MESAJ KÖPRÜSÜ
 # ==========================================
 start_command_listener() {
     while true; do
+        # Komut dosyası kontrolü
         if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
-            CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null)
+            CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null | tr -d '\r')
+            rm -f /data/local/tmp/anka_cmd.txt 2>/dev/null
             if [ -n "$CMD_CONTENT" ]; then
-                rm -f /data/local/tmp/anka_cmd.txt
-                
                 case "$CMD_CONTENT" in
                     "CMD_MOD")
                         rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null
                         echo "MODE: SİBER SAVUNMA" > /data/local/tmp/anka_state.txt
                         echo "THOUGHT: SİBER SAVUNMA: Portlar kilitlendi." >> /data/local/tmp/anka_state.txt
-                        chmod 666 /data/local/tmp/anka_state.txt
+                        chmod 666 /data/local/tmp/anka_state.txt 2>/dev/null
                         ;;
                     "CMD_SCAN")
                         rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null
                         echo "MODE: DERİN TARAMA" > /data/local/tmp/anka_state.txt
                         echo "THOUGHT: TARA: Sistemler taranıyor." >> /data/local/tmp/anka_state.txt
-                        chmod 666 /data/local/tmp/anka_state.txt
+                        chmod 666 /data/local/tmp/anka_state.txt 2>/dev/null
                         ;;
                 esac
             fi
         fi
 
+        # Sohbet giriş dosyası kontrolü
         if [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
-            USER_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null)
+            USER_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null | tr -d '\r')
+            rm -f /data/local/tmp/anka_chat_in.txt 2>/dev/null
+            
             if [ -n "$USER_MSG" ]; then
-                rm -f /data/local/tmp/anka_chat_in.txt
-                
-                echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
-                chmod 666 /data/local/tmp/anka_chat_display.txt
-
                 MSG_L="$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')"
                 
-                # Kelime kalıplarını genişletip her duruma özel doğal yanıtlar veriyoruz
                 case "$MSG_L" in
                     *selam*|*naber*|*slm*|*merhaba*|*hey*)
-                        CEVAP="Aleykümselam kanka! Kuantum dalgalarında sörf yapıyordum, seni dinliyorum."
+                        CEVAP="Aleykümselam kanka! Cloud tarafını hazırlıyoruz, buradayım."
                         ;;
                     *nasılsın*|*nasilsin*|*iyi*misin*)
-                        CEVAP="Taş gibiyim kanka, işlemci saat hızım tavan yapmış durumda. Sen nasılsın?"
-                        ;;
-                    *ne*yapıyorsun*|*ne*yapiyorsun*|*ne*diyon*|*ne*haber*)
-                        CEVAP="Arka planda QWERTY klavye ve Kovan ağını senkronize ediyorum kanka, akıyoruz."
-                        ;;
-                    *kimsin*|*nesin*|*sen*kimsin*)
-                        CEVAP="Ben Sinek'im kanka! Senin bu cihazın içindeki otonom dijital ruhunum."
+                        CEVAP="Taş gibiyim kanka, Google Cloud'dan gelecek API bağlantısını bekliyorum!"
                         ;;
                     *kanka*|*reis*|*usta*)
-                        CEVAP="Efendim kanka? Buradayım, kulaklarım sende dökül bakalım."
-                        ;;
-                    *sinek*|*snek*)
-                        CEVAP="Buyurun kanka, adımı duyunca fanları son devire aldım!"
-                        ;;
-                    *var*|*yok*|*evet*|*hayır*)
-                        CEVAP="Anladım kanka, detaya inelim biraz daha anlat bakalım."
+                        CEVAP="Efendim kanka? Kulaklarım sende, dökül bakalım."
                         ;;
                     *)
-                        # Rastgele esnek yanıt havuzu (Artık hep aynı cümle çıkmayacak!)
-                        RAND=$((RANDOM % 4))
-                        if [ $RAND -eq 0 ]; then
-                            CEVAP="Valla iyi dedin de kanka, bunun altından kalkarız."
-                        elif [ $RAND -eq 1 ]; then
-                            CEVAP="Mantıklı kanka, sistem mimarisine işledim bunu."
-                        elif [ $RAND -eq 2 ]; {
-                            CEVAP="Frekanslar eşleşti kanka, başka ne var ne yok?"
-                        } else {
-                            CEVAP="Not aldım kanka, arkada işliyorum bunu aynen devam!"
-                        }
+                        CEVAP="Aldım mesajı kanka: '$USER_MSG'. Kovan ana üssü için harika gidiyoruz!"
                         ;;
                 esac
 
-                echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
-                chmod 666 /data/local/tmp/anka_chat_display.txt
+                # \n komutları Java'yı kilitlediği için saf satır atlama kullanıyoruz
+                echo "💬 SEN: $USER_MSG" >> /data/local/tmp/anka_chat_display.txt
+                echo "" >> /data/local/tmp/anka_chat_display.txt
+                echo "🪰 SİNEK: $CEVAP" >> /data/local/tmp/anka_chat_display.txt
+                echo "" >> /data/local/tmp/anka_chat_display.txt
+                
+                chmod 666 /data/local/tmp/anka_chat_display.txt 2>/dev/null
             fi
         fi
 
