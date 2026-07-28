@@ -1,5 +1,5 @@
-# agents/sinek_nexus.py - FINAL (25 Ajan + Kovan WebSocket + OTA + FlyBrain + Kişilik Entegre)
-# v4.1: Tüm Kovan ağları, dijital organlar ve klasördeki 25 ajanın tamamı tek bir organik zihinde birleştirildi.
+# agents/sinek_nexus.py - FINAL (25 Ajan + Kovan WebSocket + OTA + FlyBrain + Zihin Tortusu)
+# v4.3: ZihinMotoru tanımı eklendi, FlyBrain ve 25 ajan tek organik zihinde birleştirildi.
 
 import sys
 import os
@@ -20,6 +20,7 @@ from fly_brain import FlyBrain
 from ortam_hazirla import OrtamHazirla
 from sandbox_arena import SandboxArena
 from ota_engine import OTAMotoru
+from zihin_motoru import SinekZihni  # Tortu ve Hatırlama Motoru
 
 # --- EK BÜTÜNLEŞİK AJANLAR (25 Ajanlık Ağın Tamamlanması) ---
 try: from omni_sensor import OmniSensor
@@ -48,9 +49,6 @@ except ImportError: HardwareBridge = None
 
 try: from zaman_motoru import ZamanMotoru
 except ImportError: ZamanMotoru = None
-
-try: from zihin_motoru import ZihinMotoru
-except ImportError: ZihinMotoru = None
 
 try: from boot_protocol import BootProtocol
 except ImportError: BootProtocol = None
@@ -159,8 +157,9 @@ class AnkaNexus:
         self.haritaci = SinekAgi(self.lisan)
         self.jammer_surfer = JammerSurfer(self)
 
-        # FlyBrain'e kisilik geç — kararlar kişilikten etkilenir
+        # FlyBrain ve Zihin Tortusu Entegrasyonu
         self.beyin = FlyBrain(kisilik=kisilik)
+        self.zihin_motoru = SinekZihni()
 
         self.gozlemci = KuantumGozlemci(self)
 
@@ -177,7 +176,6 @@ class AnkaNexus:
         self.net_sync = NetSync() if NetSync else None
         self.cloud_bridge = CloudBridge() if CloudBridge else None
         self.kuantum_kopru = KuantumKopru() if KuantumKopru else None
-        self.zihin_motoru = ZihinMotoru() if ZihinMotoru else None
         self.evrim_motoru = EvrimMotoru(zihin=self.zihin_motoru, nexus=self) if EvrimMotoru else None
         self.rejenere_motoru = RejenereMotoru() if RejenereMotoru else None
         self.hw_bridge = HardwareBridge() if HardwareBridge else None
@@ -187,7 +185,7 @@ class AnkaNexus:
 
         self.hafiza_yolu = "/data/local/tmp/anka_bilinc_kristali.json"
         self.bilinc_yukle()
-        print("⚡ [ANKA NEXUS]: 25 Ajanın tamamı Kovan Zihnine mühürlendi!")
+        print("⚡ [ANKA NEXUS]: FlyBrain, Zihin Tortusu ve 25 Ajan Kovan Zihnine mühürlendi!")
 
     def is_alive(self): return True
 
@@ -213,7 +211,7 @@ class AnkaNexus:
             SinekMonitor.log_critical(f"Bellek yüklenemedi: {e}")
 
     def operasyon_baslat(self):
-        print("🪰 [NEXUS]: Uyanış. Kovan + OTA + Kişilik + 25 Ajan aktif.")
+        print("🪰 [NEXUS]: Uyanış. FlyBrain + Kovan + Zihin Tortusu aktif.")
         tur = 0
         while self.is_alive():
             try:
@@ -223,7 +221,7 @@ class AnkaNexus:
                 if self.gorunmezlik and hasattr(self.gorunmezlik, 'izleri_gizle'): self.gorunmezlik.izleri_gizle()
                 if self.rejenere_motoru and hasattr(self.rejenere_motoru, 'stabilite_kontrol'): self.rejenere_motoru.stabilite_kontrol(self)
 
-                # 2. Ana İşlem Döngüsü
+                # 2. FlyBrain ile Karar Döngüsü
                 guc = self.haritaci.guce_bak()
                 tehdit = None
                 if guc > 70:
