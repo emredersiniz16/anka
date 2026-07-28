@@ -24,7 +24,7 @@ public class AnkaOverlay {
     private static TextView headerView;
     private static TextView middleView;
     private static TextView consoleView;
-    private static ScrollView scrollView; // Otomatik kaydırma için eklendi
+    private static ScrollView scrollView;
     private static Handler mainHandler;
     private static WindowManager windowManager;
     private static WindowManager.LayoutParams rootParams;
@@ -33,7 +33,7 @@ public class AnkaOverlay {
     private static LinearLayout modalLayout = null;
     private static TextView inputDisplay;
     private static StringBuilder currentMessage = new StringBuilder();
-    private static int lastChatLength = 0; // Titreşimi önlemek için
+    private static int lastChatLength = 0;
 
     public static void main(String[] args) {
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -77,9 +77,9 @@ public class AnkaOverlay {
             LinearLayout rootLayout = new LinearLayout(appContext);
             rootLayout.setBackgroundColor(Color.parseColor("#EE050B14"));
             rootLayout.setOrientation(LinearLayout.VERTICAL);
-            rootLayout.setPadding(30, 80, 30, 40);
+            // Klavyenin üstünde kalması için alt boşluk (padding) optimize edildi
+            rootLayout.setPadding(30, 80, 30, 350); 
 
-            // 1. ÜST BAR
             headerView = new TextView(appContext);
             headerView.setText("● ANKA OS v1.0  |  SAAT: --:--  |  PİL: %--");
             headerView.setTextColor(Color.GREEN);
@@ -94,7 +94,6 @@ public class AnkaOverlay {
             divParams.setMargins(0, 10, 0, 30);
             rootLayout.addView(topDivider, divParams);
 
-            // 2. ORTA BÖLÜM (TOZ VE MOD)
             middleView = new TextView(appContext);
             middleView.setText("KUANTUM TOZU: ---  |  MOD: YÜKLENİYOR...");
             middleView.setTextColor(Color.GREEN);
@@ -102,11 +101,11 @@ public class AnkaOverlay {
             if (safeFont != null) middleView.setTypeface(safeFont);
             rootLayout.addView(middleView);
 
-            // 3. DEV TERMİNAL EKRANI (Scroll Edilebilir)
+            // DEV TERMİNAL EKRANI (Scroll Edilebilir)
             scrollView = new ScrollView(appContext);
             LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
-            scrollParams.setMargins(0, 40, 0, 40);
+            scrollParams.setMargins(0, 20, 0, 20);
 
             consoleView = new TextView(appContext);
             consoleView.setText(">_ BAĞLANTI BEKLENİYOR...");
@@ -118,13 +117,12 @@ public class AnkaOverlay {
             scrollView.addView(consoleView);
             rootLayout.addView(scrollView, scrollParams);
 
-            // 4. DOKUNMATİK BUTONLAR
             LinearLayout btnRow = new LinearLayout(appContext);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
             btnRow.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams btnRowParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            btnRowParams.setMargins(0, 0, 0, 20);
+            btnRowParams.setMargins(0, 0, 0, 10);
 
             TextView btnMod = createSafeCyberButton(appContext, "⚡ MOD", safeFont, "CMD_MOD");
             TextView btnScan = createSafeCyberButton(appContext, "🔍 TARA", safeFont, "CMD_SCAN");
@@ -162,7 +160,6 @@ public class AnkaOverlay {
             rootLayout.addView(btnRow, btnRowParams);
 
             windowManager.addView(rootLayout, rootParams);
-
             startStatePoller();
 
         } catch (Throwable t) {
@@ -183,7 +180,7 @@ public class AnkaOverlay {
             modalLayout = new LinearLayout(appContext);
             modalLayout.setOrientation(LinearLayout.VERTICAL);
             modalLayout.setBackgroundColor(Color.parseColor("#F5050B14"));
-            modalLayout.setPadding(40, 40, 40, 40);
+            modalLayout.setPadding(30, 30, 30, 30);
             modalLayout.setGravity(Gravity.CENTER);
 
             Typeface safeFont = Typeface.MONOSPACE;
@@ -191,23 +188,23 @@ public class AnkaOverlay {
             TextView title = new TextView(appContext);
             title.setText("💬 SİNEK ÖZEL MESAJ KUTUSU");
             title.setTextColor(Color.GREEN);
-            title.setTextSize(16);
+            title.setTextSize(14);
             if (safeFont != null) title.setTypeface(safeFont);
             title.setGravity(Gravity.CENTER);
-            title.setPadding(0, 0, 0, 20);
+            title.setPadding(0, 0, 0, 10);
             modalLayout.addView(title);
 
             inputDisplay = new TextView(appContext);
             inputDisplay.setText("Yazmak için harflere dokun...");
             inputDisplay.setTextColor(Color.parseColor("#00FF00"));
             inputDisplay.setBackgroundColor(Color.parseColor("#33003300"));
-            inputDisplay.setTextSize(15);
-            inputDisplay.setPadding(20, 20, 20, 20);
+            inputDisplay.setTextSize(14);
+            inputDisplay.setPadding(15, 15, 15, 15);
             if (safeFont != null) inputDisplay.setTypeface(safeFont);
             
             LinearLayout.LayoutParams dispParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 120);
-            dispParams.setMargins(0, 0, 0, 20);
+                LinearLayout.LayoutParams.MATCH_PARENT, 100);
+            dispParams.setMargins(0, 0, 0, 10);
             modalLayout.addView(inputDisplay, dispParams);
 
             addKeyboardRow(new String[]{"A", "B", "C", "D", "E", "F", "G", "H", "İ"});
@@ -237,7 +234,7 @@ public class AnkaOverlay {
         row.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rowParams.setMargins(0, 5, 0, 5);
+        rowParams.setMargins(0, 3, 0, 3);
 
         for (final String key : keys) {
             final TextView btn = new TextView(appContext);
@@ -246,11 +243,11 @@ public class AnkaOverlay {
             btn.setBackgroundColor(Color.parseColor("#44004400"));
             btn.setTextSize(12);
             btn.setGravity(Gravity.CENTER);
-            btn.setPadding(10, 18, 10, 18);
+            btn.setPadding(8, 14, 8, 14);
 
             LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            btnParams.setMargins(3, 0, 3, 0);
+            btnParams.setMargins(2, 0, 2, 0);
             btn.setLayoutParams(btnParams);
 
             btn.setOnTouchListener(new View.OnTouchListener() {
@@ -295,7 +292,7 @@ public class AnkaOverlay {
             String msg = currentMessage.toString().trim();
             if (!msg.isEmpty()) {
                 sendSinekMessage(msg);
-                currentMessage.setLength(0); // Yazıyı temizle ama klavyeyi kapatma!
+                currentMessage.setLength(0);
             }
         } else {
             currentMessage.append(key.toLowerCase());
@@ -308,17 +305,11 @@ public class AnkaOverlay {
 
     private static void sendSinekMessage(String msg) {
         try {
-            File chatFile = new File("/data/local/tmp/anka_chat_in.txt");
-            FileWriter writer = new FileWriter(chatFile, false);
-            writer.write(msg);
-            writer.close();
-            
             File cmdFile = new File("/data/local/tmp/anka_cmd.txt");
             FileWriter cmdWriter = new FileWriter(cmdFile, false);
             cmdWriter.write("SOHBET: " + msg);
             cmdWriter.close();
 
-            // DİKKAT: Üzerine yazmak yerine (false), alt alta eklemesi için true yapıldı!
             File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
             FileWriter dispWriter = new FileWriter(chatDisplay, true);
             dispWriter.write("💬 SEN: " + msg + "\n\n");
@@ -401,16 +392,19 @@ public class AnkaOverlay {
                             if (chatDisplay.exists() && chatDisplay.length() > 0) {
                                 BufferedReader cr = new BufferedReader(new FileReader(chatDisplay));
                                 String cLine;
+                                StringBuilder sb = new StringBuilder();
                                 while ((cLine = cr.readLine()) != null) {
-                                    chatContent += cLine + "\n";
+                                    // \n karakterlerinin düz metin olarak basılmasını önleyen temizleme
+                                    sb.append(cLine.replace("\\n", "\n")).append("\n");
                                 }
                                 cr.close();
+                                chatContent = sb.toString();
                                 isChatActive = true;
                             }
                         } catch (Exception ignored) {}
 
                         final String headerText = "● ANKA OS v1.0  |  SAAT: " + time + "  |  PİL: %" + battery;
-                        final String middleText = "KUANTUM TOZU: " + dust + "  |  MOD: " + mode;
+                        final String middleText = "KUANTUM TOZU: " + dust + "  |  MODE: " + mode;
                         
                         final String finalConsole;
                         if (isChatActive) {
@@ -431,7 +425,6 @@ public class AnkaOverlay {
                                     if (headerView != null) headerView.setText(headerText);
                                     if (middleView != null) middleView.setText(middleText);
                                     
-                                    // Sadece yeni mesaj geldiğinde metni güncelle ve aşağı kaydır
                                     if (consoleView != null && lastChatLength != currentLen) {
                                         consoleView.setText(finalConsole);
                                         if (scrollView != null) {
@@ -450,7 +443,7 @@ public class AnkaOverlay {
                     } catch (Exception ignored) {}
 
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(300);
                     } catch (InterruptedException e) {
                         break;
                     }
