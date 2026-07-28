@@ -300,6 +300,11 @@ public class AnkaOverlay {
                 modalLayout = null;
                 currentMessage.setLength(0);
             }
+            // ÇÖZÜM: KAPAT tuşuna basınca sohbet dosyasını temizle, normal yazılar geri dönsün
+            try {
+                File f = new File("/data/local/tmp/anka_chat_display.txt");
+                if (f.exists()) f.delete();
+            } catch (Exception ignored) {}
         } else if (key.equals("GÖNDER")) {
             String msg = currentMessage.toString().trim();
             if (!msg.isEmpty()) {
@@ -378,6 +383,10 @@ public class AnkaOverlay {
             FileWriter writer = new FileWriter(cmdFile, false);
             writer.write(cmd);
             writer.close();
+            
+            // ÇÖZÜM: MOD veya TARA tuşuna basınca sohbet dosyasını temizle
+            File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
+            if (chatDisplay.exists()) chatDisplay.delete();
         } catch (Throwable ignored) {}
     }
 
@@ -387,12 +396,13 @@ public class AnkaOverlay {
             public void run() {
                 while (true) {
                     try {
+                        String time = "--:--", battery = "--", dust = "0", mode = "--", thought = "--";
+                        
+                        // 1. Önce standart sistem verilerini al
                         File stateFile = new File("/data/local/tmp/anka_state.txt");
                         if (stateFile.exists()) {
                             BufferedReader reader = new BufferedReader(new FileReader(stateFile));
                             String line;
-                            String time = "--:--", battery = "--", dust = "0", mode = "--", thought = "--";
-
                             while ((line = reader.readLine()) != null) {
                                 if (line.startsWith("TIME:")) time = line.substring(5).trim();
                                 else if (line.startsWith("BATTERY:")) battery = line.substring(8).trim();
@@ -401,22 +411,35 @@ public class AnkaOverlay {
                                 else if (line.startsWith("THOUGHT:")) thought = line.substring(8).trim();
                             }
                             reader.close();
-
-                            final String headerText = "● ANKA OS v1.0  |  SAAT: " + time + "  |  PİL: %" + battery;
-                            final String middleText = "\nKUANTUM TOZU: " + dust + "  |  MOD: " + mode;
-                            final String thoughtText = thought;
-
-                            mainHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        if (headerView != null) headerView.setText(headerText);
-                                        if (middleView != null) middleView.setText(middleText);
-                                        if (thoughtView != null) thoughtView.setText(thoughtText);
-                                    } catch (Throwable ignored) {}
-                                }
-                            });
                         }
+
+                        // 2. ÇAKIŞMA ÇÖZÜCÜ: Eğer Sinek bir şey söylemişse, C çekirdeğini EZ GEÇ!
+                        try {
+                            File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
+                            if (chatDisplay.exists() && chatDisplay.length() > 0) {
+                                BufferedReader cr = new BufferedReader(new FileReader(chatDisplay));
+                                String cLine = cr.readLine();
+                                cr.close();
+                                if (cLine != null && !cLine.trim().isEmpty()) {
+                                    thought = cLine; // Sistem yazısını Sinek'in mesajıyla değiştiriyoruz!
+                                }
+                            }
+                        } catch (Exception ignored) {}
+
+                        final String headerText = "● ANKA OS v1.0  |  SAAT: " + time + "  |  PİL: %" + battery;
+                        final String middleText = "\nKUANTUM TOZU: " + dust + "  |  MOD: " + mode;
+                        final String thoughtText = thought;
+
+                        mainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    if (headerView != null) headerView.setText(headerText);
+                                    if (middleView != null) middleView.setText(middleText);
+                                    if (thoughtView != null) thoughtView.setText(thoughtText);
+                                } catch (Throwable ignored) {}
+                            }
+                        });
                     } catch (Exception ignored) {}
 
                     try {
