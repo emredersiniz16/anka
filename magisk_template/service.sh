@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.7: Kusursuz Zihin ve Zombi Temizleyici
+# ANKA OS boot servisi v12.8: Kesin Çözüm - Sohbet Ekranda Sabit Kalır
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -158,14 +158,14 @@ start_anka() {
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.7..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.8..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 
 # 13. Ortamı yapılandır ve Sineği başlat
 configure_system_env
 PID=$(start_anka)
 
-# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (Çakışmalar Giderildi, Zombi Korumalı)
+# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (SOHBET SABİTLENDİ)
 start_command_listener() {
     CURRENT_MODE="KUANTUM SAVAŞI"
     
@@ -179,6 +179,7 @@ start_command_listener() {
                 
                 case "$CMD_CONTENT" in
                     "CMD_MOD")
+                        rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null # Mod değişince sohbet silinsin
                         if [ "$CURRENT_MODE" = "KUANTUM SAVAŞI" ]; then
                             CURRENT_MODE="SİBER SAVUNMA"
                             NEW_DUST="6200"
@@ -190,7 +191,7 @@ start_command_listener() {
                         else
                             CURRENT_MODE="KUANTUM SAVAŞI"
                             NEW_DUST="5515"
-                            NEW_THOUGHT="KUANTUM SAVAŞI: Frekans tarayıcı aktif!" # +1000 Toz yazısını kaldırdık kanka!
+                            NEW_THOUGHT="KUANTUM SAVAŞI: Frekans tarayıcı aktif!"
                         fi
                         
                         echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
@@ -202,6 +203,7 @@ start_command_listener() {
                         ;;
                         
                     "CMD_SCAN")
+                        rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null
                         echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
                         echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
                         echo "DUST: 8900" >> /data/local/tmp/anka_state.txt
@@ -213,10 +215,10 @@ start_command_listener() {
                     SOHBET:*)
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
                         
-                        # Sinek'in cümle analizi ve zeki cevapları
+                        # Sinek'in cümle analizi
                         MSG_LOWER=$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')
                         
-                        if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber"; then
+                        if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber|hi"; then
                             CEVAP="Aleykümselam kanka! Yeni zihnim devrede, seni dinliyorum."
                         elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
                             CEVAP="Durum stabil kanka! Kalkanlar %100."
@@ -231,13 +233,9 @@ start_command_listener() {
                             fi
                         fi
                         
-                        # Sinek'in cevabını anında ekrana yansıt
-                        echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
-                        echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
-                        echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
-                        echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
-                        echo "THOUGHT: 💬 Sinek: $CEVAP" >> /data/local/tmp/anka_state.txt
-                        chmod 666 /data/local/tmp/anka_state.txt
+                        # ÇÖZÜM BURADA: Sinek cevabını ayrı ve silinemez bir dosyaya yazıyor!
+                        echo "💬 Sinek: $CEVAP" > /data/local/tmp/anka_chat_display.txt
+                        chmod 666 /data/local/tmp/anka_chat_display.txt
                         ;;
                 esac
             fi
@@ -248,7 +246,7 @@ start_command_listener() {
                 rm -f /data/local/tmp/anka_chat_in.txt
                 MSG_LOWER=$(echo "$CHAT_MSG" | tr '[:upper:]' '[:lower:]')
 
-                if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber"; then
+                if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber|hi"; then
                     CEVAP="Aleykümselam kanka! Sistem hazır."
                 elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
                     CEVAP="Her şey kontrol altında komutanım."
@@ -256,12 +254,9 @@ start_command_listener() {
                     CEVAP="'$CHAT_MSG' mesajını aldım kanka!"
                 fi
 
-                echo "TIME: $(date '+%H:%M:%S')" > /data/local/tmp/anka_state.txt
-                echo "BATTERY: $(cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo '75')" >> /data/local/tmp/anka_state.txt
-                echo "DUST: 6181" >> /data/local/tmp/anka_state.txt
-                echo "MODE: SİNEK AKTİF" >> /data/local/tmp/anka_state.txt
-                echo "THOUGHT: 💬 Sinek: $CEVAP" >> /data/local/tmp/anka_state.txt
-                chmod 666 /data/local/tmp/anka_state.txt
+                # ÇÖZÜM BURADA: Sinek cevabını ayrı ve silinemez bir dosyaya yazıyor!
+                echo "💬 Sinek: $CEVAP" > /data/local/tmp/anka_chat_display.txt
+                chmod 666 /data/local/tmp/anka_chat_display.txt
             fi
         fi
         
