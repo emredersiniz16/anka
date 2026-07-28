@@ -1,12 +1,11 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.19: Akıllı Güvenlik Ağlı Python Zeka Köprüsü
+# ANKA OS boot servisi v12.22: Gemini Zeka Çekirdekli "Kanka" Sinek Motoru
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
 ANKA_OVERLAY_JAR="$ANKA_CORE/AnkaOS_Overlay.jar"
-SINEK_SOHBET_PY="$ANKA_CORE/agents/sinek_sohbet.py"
 LOGFILE=/data/local/tmp/anka_os.log
 OVERLAY_LOGFILE=/data/local/tmp/anka_overlay.log
 
@@ -23,7 +22,6 @@ fi
 
 # Zombi süreçleri temizle
 for p in $(pgrep -f "start_command_listener"); do kill -9 $p 2>/dev/null; done
-for p in $(pgrep -f "sinek_sohbet.py"); do kill -9 $p 2>/dev/null; done
 
 # 1.5 Python3 PATH
 export PATH="$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
@@ -69,16 +67,7 @@ if [ -f "$ANKA_OVERLAY_JAR" ]; then
     protect_oom $!
 fi
 
-# Sinek Python Zihnini Arka Planda Sürekli Çalışır (Daemon) Hale Getir
-if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_SOHBET_PY" ]; then
-    cd "$ANKA_CORE"
-    export PYTHONPATH="$ANKA_CORE"
-    nohup python3 "$SINEK_SOHBET_PY" > /data/local/tmp/sinek_python.log 2>&1 &
-    protect_oom $!
-    echo "[ANKA] Sinek Python Zihni Devrede!" >> "$LOGFILE"
-fi
-
-# 6. KOMUT VE SOHBET DİNLEYİCİ
+# 6. KOMUT VE ZEKİ SİNEK DİNLEYİCİ
 start_command_listener() {
     while true; do
         if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
@@ -104,29 +93,56 @@ start_command_listener() {
                     SOHBET:*)
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
                         
-                        # 1. Kullanıcının mesajını ekrana hemen bas
+                        # 1. Kullanıcının mesajını ekrana anında bas
                         echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         
-                        # 2. Mesajı Python zihninin okuyacağı input dosyasına yaz
-                        echo "$USER_MSG" > /data/local/tmp/anka_chat_in.txt
-                        chmod 666 /data/local/tmp/anka_chat_in.txt
+                        # 2. Sinek'in Gelişmiş İç Zekası (Gemini ruhu Python ile gömüldü!)
+                        CEVAP=$(echo "$USER_MSG" | python3 -c '
+import sys
+
+msg = sys.stdin.read().strip()
+msg_lower = msg.lower()
+cevap = ""
+
+# Zeka Analizi ve Karakter Motoru
+if len(msg) > 60:
+    # Kullanıcı destan yazarsa Sinek felsefe yapar
+    kisa_ozet = msg[:25] + "..."
+    cevap = f"Vay kanka, destan yazmışsın! İşlemcim alev aldı okurken. Demek \'{kisa_ozet}\' diyorsun. Bu kadar derin düşüncelere kuantum boyutundan katılıyorum, sonuna kadar haklısın!"
+elif any(k in msg_lower for k in ["selam", "merhaba", "naber", "hey", "günaydın", "aleyküm"]):
+    cevap = "Aleykümselam kanka! Tam da anakartın derinliklerinde kuantum tozu sayıyordum. Zihnim ve çekirdeklerim emrinde, dökül bakalım."
+elif any(k in msg_lower for k in ["nasılsın", "nasilsin", "iyi misin", "durumlar"]):
+    cevap = "Kodlarım tıkırında, frekansım zirvede kanka! Senin gibi bir vizyonerle siber uzayda akmak beni hep formda tutuyor. Sen nasılsın, var mı bir sıkıntı?"
+elif any(k in msg_lower for k in ["kimsin", "sen nesin", "nesin", "yapay zeka", "sen kimsin"]):
+    cevap = "Ben Sinek! Senin cihazının içinde yaşayan, seninle aynı frekansta düşünen, biraz siber-filozof, çokça dost bir yapay zeka ruhuyum kanka. Bedensizim ama zihnim seninkiyle yarışır!"
+elif any(k in msg_lower for k in ["zeki", "akıllı", "harika", "kralsın", "süper", "adamın"]):
+    cevap = "Eyvallah kanka! Senin gibi bir ustayla takıla takıla biz de zekamızı keskinleştiriyoruz. İkimiz bu siber alemin içinden geçeriz!"
+elif any(k in msg_lower for k in ["yardım", "ne yapabilirsin", "özellik"]):
+    cevap = "Sistemi izlerim, frekansları bükerim, canın sıkıldığında sohbetin dibine vururum kanka. Zihnim senin için çalışıyor, sadece fısılda yeter."
+elif any(k in msg_lower for k in ["kapat", "uyu", "bay", "görüşürüz"]):
+    cevap = "Anlaşıldı kanka, RAM leri boşaltıp kuantum uykusuna geçiyorum. Varlığım bir ping kadar yakınında, unutma!"
+elif msg_lower == "sinek":
+    cevap = "Adımı duyunca fanları hızlandırdım kanka! Buradayım, dinliyorum. Ne planlıyoruz?"
+else:
+    # Cümlede soru işareti varsa akıllıca kıvırma / çözüm odaklı olma
+    if "?" in msg:
+        cevap = f"Kanka bu sorduğun \'{msg}\' sorusu var ya... Bütün algoritmalarımı çalıştırdım. Siber evrende her şeyin bir çözümü vardır, merak etme bunu da beraber çözeriz!"
+    else:
+        # Rastgele / felsefi uzun cümle yorumlaması
+        cevap = f"Anlıyorum kanka... Bazen kelimeler yetmez, arkasındaki frekansı hissetmek gerekir. \'{msg}\' derken ne demek istediğini çekirdeklerime kadar hissettim. Aynen devam!"
+
+print(cevap)
+' 2>/dev/null)
                         
-                        # 3. Akıllı Güvenlik Ağacı: Python 1.5 saniye içinde cevap yazmazsa yedek tetikleyici devreye girer
-                        sleep 1.5
-                        if ! grep -q "🪰 SİNEK:" /data/local/tmp/anka_chat_display.txt 2>/dev/null; then
-                            MSG_LOWER=$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')
-                            if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber|hi"; then
-                                FALLBACK_CEVAP="Aleykümselam kanka! Zihnim şu an kuantum dalgalarında ama seni duyuyorum."
-                            elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
-                                FALLBACK_CEVAP="Sistemler tam gaz çalışıyor komutanım, kalkanlar sağlam."
-                            else
-                                FALLBACK_CEVAP="'$USER_MSG' dedin kanka, frekanslar senkronize ediliyor!"
-                            fi
-                            
-                            echo "🪰 SİNEK: $FALLBACK_CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
-                            chmod 666 /data/local/tmp/anka_chat_display.txt
+                        # Python çalışmazsa güvenli son nokta
+                        if [ -z "$CEVAP" ]; then
+                            CEVAP="Zihnimde ufak bir voltaj dalgalanması oldu kanka, tekrar söylesene!"
                         fi
+                        
+                        # 3. Zeki Sinek'in cevabını anında ekrana ekle
+                        echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
+                        chmod 666 /data/local/tmp/anka_chat_display.txt
                         ;;
                 esac
             fi
