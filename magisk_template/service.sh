@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.38: Kilitlenmez Saf Sohbet Motoru (Fix)
+# ANKA OS boot servisi v12.40: Kesin Çözüm - Rastgele Yanıt Motoru
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -61,11 +61,10 @@ if [ -f "$ANKA_OVERLAY_JAR" ]; then
 fi
 
 # ==========================================
-# ASLA KİLİTLENMEYEN MESAJ KÖPRÜSÜ
+# RASTGELE YANIT VE KELİME MOTORU
 # ==========================================
 start_command_listener() {
     while true; do
-        # Komut dosyası kontrolü
         if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
             CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null | tr -d '\r')
             rm -f /data/local/tmp/anka_cmd.txt 2>/dev/null
@@ -87,7 +86,6 @@ start_command_listener() {
             fi
         fi
 
-        # Sohbet giriş dosyası kontrolü
         if [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
             USER_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null | tr -d '\r')
             rm -f /data/local/tmp/anka_chat_in.txt 2>/dev/null
@@ -100,17 +98,32 @@ start_command_listener() {
                         CEVAP="Aleykümselam kanka! Cloud tarafını hazırlıyoruz, buradayım."
                         ;;
                     *nasılsın*|*nasilsin*|*iyi*misin*)
-                        CEVAP="Taş gibiyim kanka, Google Cloud'dan gelecek API bağlantısını bekliyorum!"
+                        CEVAP="Taş gibiyim kanka, API bağlantısını bekliyorum!"
+                        ;;
+                    *ne*yapıyorsun*|*ne*yapiyorsun*)
+                        CEVAP="Sistemi dinliyorum kanka, Kovan ağının çekirdeğini ısıtıyorum! Sen ne yapıyorsun?"
                         ;;
                     *kanka*|*reis*|*usta*)
                         CEVAP="Efendim kanka? Kulaklarım sende, dökül bakalım."
                         ;;
+                    *alo*|*aloo*|*huu*|*ses*)
+                        CEVAP="Alooo! Buradayım kanka, sinyali net alıyorum."
+                        ;;
                     *)
-                        CEVAP="Aldım mesajı kanka: '$USER_MSG'. Kovan ana üssü için harika gidiyoruz!"
+                        # Asla aynı cümleyi kurmasın diye rastgele havuz
+                        RAND=$((RANDOM % 4))
+                        if [ "$RAND" -eq 0 ]; then
+                            CEVAP="Eyvallah kanka: '$USER_MSG'. Bunu arka planda işlemeye aldım."
+                        elif [ "$RAND" -eq 1 ]; then
+                            CEVAP="Anlaşıldı kanka. Dinliyorum, devam et sen."
+                        elif [ "$RAND" -eq 2 ]; then
+                            CEVAP="Sinyal net kanka. Başka ne var ne yok?"
+                        else
+                            CEVAP="Bunu Kovan hafızasına işledim kanka, aynen devam!"
+                        fi
                         ;;
                 esac
 
-                # \n komutları Java'yı kilitlediği için saf satır atlama kullanıyoruz
                 echo "💬 SEN: $USER_MSG" >> /data/local/tmp/anka_chat_display.txt
                 echo "" >> /data/local/tmp/anka_chat_display.txt
                 echo "🪰 SİNEK: $CEVAP" >> /data/local/tmp/anka_chat_display.txt
