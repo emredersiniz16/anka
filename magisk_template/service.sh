@@ -1,18 +1,14 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.15: sohbet.sh Entegreli Tam Sinek Zekası
+# ANKA OS boot servisi v12.17: Kararlı Python Zeka Entegrasyonu
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
 ANKA_OVERLAY_JAR="$ANKA_CORE/AnkaOS_Overlay.jar"
-ANKA_EVRIM_PY="$ANKA_CORE/agents/evrim_motoru.py"
-SOHBET_SH="$MODDIR/sohbet.sh"
+SINEK_SOHBET_PY="$ANKA_CORE/agents/sinek_sohbet.py"
 LOGFILE=/data/local/tmp/anka_os.log
 OVERLAY_LOGFILE=/data/local/tmp/anka_overlay.log
-EVRIM_LOGFILE=/data/local/tmp/anka_evrim.log
-KOVANLOG=/cache/anka_os_kovan.log
-DEBUGLOG=/data/local/tmp/debug.log
 
 # 1. Boot bekle
 WAIT_BOOT=0
@@ -25,40 +21,26 @@ if [ "$(getprop sys.boot_completed)" != "1" ]; then
     exit 0
 fi
 
-# ZOMBİ SÜREÇLERİ TEMİZLE
+# Zombi süreçleri temizle
 for p in $(pgrep -f "start_command_listener"); do kill -9 $p 2>/dev/null; done
+for p in $(pgrep -f "sinek_sohbet.py"); do kill -9 $p 2>/dev/null; done
 
 # 1.5 Python3 PATH
 export PATH="$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
 
-if command -v python3 >/dev/null 2>&1; then
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] Python3: $(which python3)" >> "$LOGFILE"
-else
-    echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] UYARI: python3 bulunamadi" >> "$LOGFILE"
-fi
+touch "$LOGFILE" 2>/dev/null
 
-touch "$DEBUGLOG" 2>/dev/null
-touch "$OVERLAY_LOGFILE" 2>/dev/null
-touch "$EVRIM_LOGFILE" 2>/dev/null
-
-# 2. SELinux izinleri
+# 2. SELinux & DAC izinleri
 magiskpolicy --live "allow * graphics_device:chr_file { read write open ioctl }" 2>/dev/null
 magiskpolicy --live "allow * input_device:chr_file { read write open ioctl }" 2>/dev/null
-magiskpolicy --live "allow * event_device:chr_file { read write open ioctl }" 2>/dev/null
-magiskpolicy --live "allow * sound_device:chr_file { read write open ioctl }" 2>/dev/null
-magiskpolicy --live "allow * self:capability { sys_admin sys_rawio sys_nice }" 2>/dev/null
-
-# 3. DAC izinleri
 chmod 666 /dev/graphics/fb0 2>/dev/null
 chmod 666 /dev/input/event* 2>/dev/null
-chmod 666 /dev/snd/* 2>/dev/null
-[ -f "$SOHBET_SH" ] && chmod 755 "$SOHBET_SH"
 
-# 4. WAKELOCK
+# 3. WAKELOCK
 ANKA_WAKELOCK="anka_os_keepalive"
 echo $ANKA_WAKELOCK > /sys/power/wake_lock 2>/dev/null
 
-# 5. Binary/Library kontrol
+# 4. Binary/Library kontrol
 if [ ! -f "$ANKA_BIN" ]; then
     echo "[ANKA] HATA: $ANKA_BIN bulunamadi" > "$LOGFILE"
     exit 0
@@ -67,12 +49,6 @@ fi
 chmod 755 "$ANKA_BIN"
 [ -f "$ANKA_OVERLAY_JAR" ] && chmod 644 "$ANKA_OVERLAY_JAR"
 
-# 6. ANKA core + library path
-mkdir -p "$ANKA_CORE"
-cd "$ANKA_CORE"
-mkdir -p "$ANKA_CORE/core/quantum"
-cp "$ANKA_LIB/libanka_quantum.so" "$ANKA_CORE/core/quantum/" 2>/dev/null
-chmod 755 "$ANKA_CORE/core/quantum/libanka_quantum.so"
 export LD_LIBRARY_PATH="$ANKA_LIB:$LD_LIBRARY_PATH"
 export ANKA_LIB_PATH="$ANKA_LIB/libanka_quantum.so"
 
@@ -82,48 +58,33 @@ protect_oom() {
     [ -f /proc/$pid/oom_adj ] && echo -17 > /proc/$pid/oom_adj 2>/dev/null
 }
 
-log_ts() {
-    while IFS= read -r line; do
-        TS=$(date '+%Y-%m-%d %H:%M:%S')
-        echo "[$TS] $line" >> "$LOGFILE"
-    done
-}
+# 5. Süreçleri Başlat
+nohup "$ANKA_BIN" > /data/local/tmp/anka_kernel.log 2>&1 &
+PID_C=$!
+protect_oom $PID_C
 
-start_anka() {
-    nohup "$ANKA_BIN" 2>&1 | log_ts &
-    local pid=$!
-    sleep 1
-    protect_oom $pid
+if [ -f "$ANKA_OVERLAY_JAR" ]; then
+    export CLASSPATH="$ANKA_OVERLAY_JAR"
+    nohup app_process /system/bin com.anka.os.AnkaOverlay > "$OVERLAY_LOGFILE" 2>&1 &
+    protect_oom $!
+fi
 
-    if [ -f "$ANKA_OVERLAY_JAR" ]; then
-        export CLASSPATH="$ANKA_OVERLAY_JAR"
-        nohup app_process /system/bin com.anka.os.AnkaOverlay > "$OVERLAY_LOGFILE" 2>&1 &
-        local overlay_pid=$!
-        sleep 1
-        protect_oom $overlay_pid
-    fi
+# Sinek Python Zihnini Arka Planda Sürekli Çalışır (Daemon) Hale Getir
+if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_SOHBET_PY" ]; then
+    cd "$ANKA_CORE"
+    export PYTHONPATH="$ANKA_CORE"
+    nohup python3 "$SINEK_SOHBET_PY" > /data/local/tmp/sinek_python.log 2>&1 &
+    protect_oom $!
+    echo "[ANKA] Sinek Python Zihni Devrede!" >> "$LOGFILE"
+fi
 
-    if command -v python3 >/dev/null 2>&1 && [ -f "$ANKA_EVRIM_PY" ]; then
-        nohup python3 "$ANKA_EVRIM_PY" --daemon > "$EVRIM_LOGFILE" 2>&1 &
-        local evrim_pid=$!
-        sleep 1
-        protect_oom $evrim_pid
-    fi
-
-    echo $pid
-}
-
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.15..." >> "$LOGFILE"
-PID=$(start_anka)
-
-# 14. KOMUT VE ZEKİ SİNEK SOHBET DİNLEYİCİSİ
+# 6. KOMUT VE SOHBET DİNLEYİCİ
 start_command_listener() {
     while true; do
         if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
             CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null)
             if [ -n "$CMD_CONTENT" ]; then
                 rm -f /data/local/tmp/anka_cmd.txt
-                rm -f /data/local/tmp/anka_chat_in.txt 2>/dev/null
                 
                 case "$CMD_CONTENT" in
                     "CMD_MOD")
@@ -143,27 +104,20 @@ start_command_listener() {
                     SOHBET:*)
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
                         
-                        # 1. Kullanıcının mesajını ekrana bas
+                        # 1. Kullanıcının mesajını ekrana hemen bas
                         echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         
-                        # 2. sohbet.sh betiğini stdin üzerinden mesajla besle ve Sinek'in cevabını al!
-                        CEVAP=""
-                        if [ -f "$SOHBET_SH" ]; then
-                            CEVAP=$(echo "$USER_MSG" | sh "$SOHBET_SH" 2>/dev/null | tail -n 1)
-                        fi
+                        # 2. Mesajı Python zihninin okuyabileceği input dosyasına yaz
+                        echo "$USER_MSG" > /data/local/tmp/anka_chat_in.txt
+                        chmod 666 /data/local/tmp/anka_chat_in.txt
                         
-                        if [ -z "$CEVAP" ]; then
-                            CEVAP="🪰 Sinek: Zihnim quantum dalgalarında kayboldu kanka, tekrar dene!"
-                        else
-                            if ! echo "$CEVAP" | grep -q "Sinek"; then
-                                CEVAP="🪰 SİNEK: $CEVAP"
-                            fi
+                        # 3. Güvenlik fallback: Python yanıtı ekrana yazana kadar kısa bekle, yazmazsa tetikle
+                        sleep 0.8
+                        if ! grep -q "SİNEK:" /data/local/tmp/anka_chat_display.txt 2>/dev/null; then
+                            echo "🪰 SİNEK: '$USER_MSG' dedin kanka, zihnim işliyor!" >> /data/local/tmp/anka_chat_display.txt
+                            chmod 666 /data/local/tmp/anka_chat_display.txt
                         fi
-                        
-                        # 3. Sinek'in zeka cevabını ekrana ekle
-                        echo "$CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
-                        chmod 666 /data/local/tmp/anka_chat_display.txt
                         ;;
                 esac
             fi
@@ -173,14 +127,13 @@ start_command_listener() {
 }
 
 start_command_listener &
-local cmd_listener_pid=$!
-protect_oom $cmd_listener_pid
+protect_oom $!
 
 while true; do
     sleep 30
-    if ! kill -0 $PID 2>/dev/null; then
-        break
+    if ! kill -0 $PID_C 2>/dev/null; then
+        nohup "$ANKA_BIN" > /data/local/tmp/anka_kernel.log 2>&1 &
+        PID_C=$!
+        protect_oom $PID_C
     fi
 done
-
-echo $ANKA_WAKELOCK > /sys/power/wake_unlock 2>/dev/null
