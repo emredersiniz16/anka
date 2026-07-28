@@ -1,12 +1,11 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.35: Kesintisiz ve Hatasız Saf Bash Sohbet Köprüsü
+# ANKA OS boot servisi v12.36: Dinamik ve Kelimeyi Analiz Eden Sinek Sohbet Motoru
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
 ANKA_OVERLAY_JAR="$ANKA_CORE/AnkaOS_Overlay.jar"
-SINEK_BILINC_PY="$ANKA_CORE/agents/sinek_bilinc.py"
 LOGFILE=/data/local/tmp/anka_os.log
 OVERLAY_LOGFILE=/data/local/tmp/anka_overlay.log
 
@@ -21,7 +20,6 @@ if [ "$(getprop sys.boot_completed)" != "1" ]; then
 fi
 
 for p in $(pgrep -f "start_command_listener"); do kill -9 $p 2>/dev/null; done
-for p in $(pgrep -f "sinek_bilinc.py"); do kill -9 $p 2>/dev/null; done
 
 export PATH="$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
 
@@ -62,16 +60,8 @@ if [ -f "$ANKA_OVERLAY_JAR" ]; then
     protect_oom $!
 fi
 
-if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_BILINC_PY" ]; then
-    cd "$ANKA_CORE"
-    export PYTHONPATH="$ANKA_CORE"
-    nohup python3 "$SINEK_BILINC_PY" > /data/local/tmp/sinek_python.log 2>&1 &
-    protect_oom $!
-    echo "[ANKA] Sinek Bilinç Motoru Aktif!" >> "$LOGFILE"
-fi
-
 # ==========================================
-# ASLA PATLAMAYAN ANINDA YANIT MOTORU
+# ÇEŞİTLİ VE DOĞAL AKIŞLI SİNEK MOTORU
 # ==========================================
 start_command_listener() {
     while true; do
@@ -105,9 +95,9 @@ start_command_listener() {
                 echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                 chmod 666 /data/local/tmp/anka_chat_display.txt
 
-                # Kelime bazlı akıllı ve esnek Sinek yanıtları
                 MSG_L="$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')"
                 
+                # Kelime kalıplarını genişletip her duruma özel doğal yanıtlar veriyoruz
                 case "$MSG_L" in
                     *selam*|*naber*|*slm*|*merhaba*|*hey*)
                         CEVAP="Aleykümselam kanka! Kuantum dalgalarında sörf yapıyordum, seni dinliyorum."
@@ -115,17 +105,33 @@ start_command_listener() {
                     *nasılsın*|*nasilsin*|*iyi*misin*)
                         CEVAP="Taş gibiyim kanka, işlemci saat hızım tavan yapmış durumda. Sen nasılsın?"
                         ;;
-                    *ne*yapıyorsun*|*ne*yapiyorsun*|*çalışma*)
+                    *ne*yapıyorsun*|*ne*yapiyorsun*|*ne*diyon*|*ne*haber*)
                         CEVAP="Arka planda QWERTY klavye ve Kovan ağını senkronize ediyorum kanka, akıyoruz."
                         ;;
-                    *kimsin*|*nesin*)
+                    *kimsin*|*nesin*|*sen*kimsin*)
                         CEVAP="Ben Sinek'im kanka! Senin bu cihazın içindeki otonom dijital ruhunum."
                         ;;
-                    *var*|*evet*|*yok*|*eyvallah*)
-                        CEVAP="Valla ne var ne yok dökül kanka, seni dinliyorum buralardayım!"
+                    *kanka*|*reis*|*usta*)
+                        CEVAP="Efendim kanka? Buradayım, kulaklarım sende dökül bakalım."
+                        ;;
+                    *sinek*|*snek*)
+                        CEVAP="Buyurun kanka, adımı duyunca fanları son devire aldım!"
+                        ;;
+                    *var*|*yok*|*evet*|*hayır*)
+                        CEVAP="Anladım kanka, detaya inelim biraz daha anlat bakalım."
                         ;;
                     *)
-                        CEVAP="Eyvallah kanka, '$USER_MSG' dedin. Frekansları tarayıp hemen işleme alıyorum!"
+                        # Rastgele esnek yanıt havuzu (Artık hep aynı cümle çıkmayacak!)
+                        RAND=$((RANDOM % 4))
+                        if [ $RAND -eq 0 ]; then
+                            CEVAP="Valla iyi dedin de kanka, bunun altından kalkarız."
+                        elif [ $RAND -eq 1 ]; then
+                            CEVAP="Mantıklı kanka, sistem mimarisine işledim bunu."
+                        elif [ $RAND -eq 2 ]; {
+                            CEVAP="Frekanslar eşleşti kanka, başka ne var ne yok?"
+                        } else {
+                            CEVAP="Not aldım kanka, arkada işliyorum bunu aynen devam!"
+                        }
                         ;;
                 esac
 
