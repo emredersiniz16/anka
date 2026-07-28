@@ -24,6 +24,7 @@ public class AnkaOverlay {
     private static TextView headerView;
     private static TextView middleView;
     private static TextView consoleView;
+    private static ScrollView scrollView; // Otomatik kaydırma için eklendi
     private static Handler mainHandler;
     private static WindowManager windowManager;
     private static WindowManager.LayoutParams rootParams;
@@ -32,6 +33,7 @@ public class AnkaOverlay {
     private static LinearLayout modalLayout = null;
     private static TextView inputDisplay;
     private static StringBuilder currentMessage = new StringBuilder();
+    private static int lastChatLength = 0; // Titreşimi önlemek için
 
     public static void main(String[] args) {
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -100,8 +102,8 @@ public class AnkaOverlay {
             if (safeFont != null) middleView.setTypeface(safeFont);
             rootLayout.addView(middleView);
 
-            // 3. DEV TERMİNAL EKRANI
-            ScrollView scroll = new ScrollView(appContext);
+            // 3. DEV TERMİNAL EKRANI (Scroll Edilebilir)
+            scrollView = new ScrollView(appContext);
             LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
             scrollParams.setMargins(0, 40, 0, 40);
@@ -113,8 +115,8 @@ public class AnkaOverlay {
             consoleView.setLineSpacing(0, 1.3f);
             if (safeFont != null) consoleView.setTypeface(safeFont);
             
-            scroll.addView(consoleView);
-            rootLayout.addView(scroll, scrollParams);
+            scrollView.addView(consoleView);
+            rootLayout.addView(scrollView, scrollParams);
 
             // 4. DOKUNMATİK BUTONLAR
             LinearLayout btnRow = new LinearLayout(appContext);
@@ -287,12 +289,13 @@ public class AnkaOverlay {
             try {
                 File f = new File("/data/local/tmp/anka_chat_display.txt");
                 if (f.exists()) f.delete();
+                lastChatLength = 0;
             } catch (Exception ignored) {}
         } else if (key.equals("GÖNDER")) {
             String msg = currentMessage.toString().trim();
             if (!msg.isEmpty()) {
                 sendSinekMessage(msg);
-                currentMessage.setLength(0); // Yazıyı temizle ama KLAVYEYİ KAPATMA!
+                currentMessage.setLength(0); // Yazıyı temizle ama klavyeyi kapatma!
             }
         } else {
             currentMessage.append(key.toLowerCase());
@@ -315,9 +318,10 @@ public class AnkaOverlay {
             cmdWriter.write("SOHBET: " + msg);
             cmdWriter.close();
 
+            // DİKKAT: Üzerine yazmak yerine (false), alt alta eklemesi için true yapıldı!
             File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
-            FileWriter dispWriter = new FileWriter(chatDisplay, false);
-            dispWriter.write("💬 SEN: " + msg + "\n\n🪰 SİNEK: Zihnim işliyor, bekle...");
+            FileWriter dispWriter = new FileWriter(chatDisplay, true);
+            dispWriter.write("💬 SEN: " + msg + "\n\n");
             dispWriter.close();
         } catch (Throwable ignored) {}
     }
@@ -364,6 +368,7 @@ public class AnkaOverlay {
             
             File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
             if (chatDisplay.exists()) chatDisplay.delete();
+            lastChatLength = 0;
         } catch (Throwable ignored) {}
     }
 
@@ -417,13 +422,28 @@ public class AnkaOverlay {
                             finalConsole = ">_ SİSTEM DURUM RAPORU:\n\n" + sysThought;
                         }
 
+                        final int currentLen = finalConsole.length();
+
                         mainHandler.post(new Runnable() {
                             @Override
                             public void run() {
                                 try {
                                     if (headerView != null) headerView.setText(headerText);
                                     if (middleView != null) middleView.setText(middleText);
-                                    if (consoleView != null) consoleView.setText(finalConsole);
+                                    
+                                    // Sadece yeni mesaj geldiğinde metni güncelle ve aşağı kaydır
+                                    if (consoleView != null && lastChatLength != currentLen) {
+                                        consoleView.setText(finalConsole);
+                                        if (scrollView != null) {
+                                            scrollView.post(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    scrollView.fullScroll(View.FOCUS_DOWN);
+                                                }
+                                            });
+                                        }
+                                        lastChatLength = currentLen;
+                                    }
                                 } catch (Throwable ignored) {}
                             }
                         });
