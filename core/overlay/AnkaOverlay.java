@@ -32,8 +32,6 @@ public class AnkaOverlay {
     private static Context appContext;
     
     private static LinearLayout modalLayout = null;
-    private static TextView inputDisplay;
-    private static StringBuilder currentMessage = new StringBuilder();
     private static int lastChatLength = 0;
 
     public static void main(String[] args) {
@@ -101,7 +99,9 @@ public class AnkaOverlay {
             if (safeFont != null) middleView.setTypeface(safeFont);
             rootLayout.addView(middleView);
 
+            // SCROLLVIEW - Parmağınla yukarı aşağı kaydırabilme özelliği aktif!
             scrollView = new ScrollView(appContext);
+            scrollView.setNestedScrollingEnabled(true);
             LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
             scrollParams.setMargins(0, 20, 0, 20);
@@ -180,34 +180,28 @@ public class AnkaOverlay {
 
             modalLayout = new LinearLayout(appContext);
             modalLayout.setOrientation(LinearLayout.VERTICAL);
-            modalLayout.setBackgroundColor(Color.parseColor("#F8050B14")); // Biraz daha koyu arka plan
-            modalLayout.setPadding(15, 25, 15, 25); // Kenar boşlukları daraltıldı
+            modalLayout.setBackgroundColor(Color.parseColor("#F8050B14"));
+            modalLayout.setPadding(15, 25, 15, 25);
             modalLayout.setGravity(Gravity.CENTER);
 
-            // GÖSTERGE EKRANI (Yazdıklarını gördüğün yer)
-            inputDisplay = new TextView(appContext);
-            inputDisplay.setHint("Frekansa mesaj gir...");
+            final TextView inputDisplay = new TextView(appContext);
+            inputDisplay.setHint("Mesajını yaz...");
             inputDisplay.setHintTextColor(Color.parseColor("#5500FF00"));
             inputDisplay.setTextColor(Color.parseColor("#00FF00"));
             inputDisplay.setBackgroundColor(Color.parseColor("#33003300"));
             inputDisplay.setTextSize(16);
             inputDisplay.setPadding(20, 25, 20, 25);
-            inputDisplay.setText(currentMessage.toString());
-            if (safeFont != null) inputDisplay.setTypeface(safeFont);
             
             LinearLayout.LayoutParams dispParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             dispParams.setMargins(0, 0, 0, 20);
             modalLayout.addView(inputDisplay, dispParams);
 
-            // ===============================================
-            // YENİ NESİL TAM QWERTY SİBER KLAVYE
-            // ===============================================
-            addKeyboardRow(new String[]{"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"});
-            addKeyboardRow(new String[]{"A", "S", "D", "F", "G", "H", "J", "K", "L", "Ş", "İ"});
-            addKeyboardRow(new String[]{"Z", "X", "C", "V", "B", "N", "M", "Ö", "Ç"});
+            // QWERTY KLAVYE SATIRLARI
+            addKeyboardRow(new String[]{"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"}, inputDisplay);
+            addKeyboardRow(new String[]{"A", "S", "D", "F", "G", "H", "J", "K", "L", "Ş", "İ"}, inputDisplay);
+            addKeyboardRow(new String[]{"Z", "X", "C", "V", "B", "N", "M", "Ö", "Ç"}, inputDisplay);
 
-            // ALT AKSİYON SATIRI
             LinearLayout actionRow = new LinearLayout(appContext);
             actionRow.setOrientation(LinearLayout.HORIZONTAL);
             actionRow.setGravity(Gravity.CENTER);
@@ -215,10 +209,10 @@ public class AnkaOverlay {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             rowParams.setMargins(0, 6, 0, 6);
 
-            actionRow.addView(createActionBtn("KAPAT", 1.2f, "#AA0000", "#FFFFFF")); // Kırmızımsı Kapat
-            actionRow.addView(createActionBtn("BOŞLUK", 2.0f, "#2200FF00", "#00FF00"));
-            actionRow.addView(createActionBtn("SİL", 1.0f, "#88003300", "#00FF00"));
-            actionRow.addView(createActionBtn("GÖNDER", 1.5f, "#00FF00", "#000000")); // Dolu Yeşil Gönder
+            actionRow.addView(createActionBtn("KAPAT", 1.2f, "#AA0000", "#FFFFFF", inputDisplay));
+            actionRow.addView(createActionBtn("BOŞLUK", 2.0f, "#2200FF00", "#00FF00", inputDisplay));
+            actionRow.addView(createActionBtn("SİL", 1.0f, "#88003300", "#00FF00", inputDisplay));
+            actionRow.addView(createActionBtn("GÖNDER", 1.5f, "#00FF00", "#000000", inputDisplay));
 
             modalLayout.addView(actionRow, rowParams);
 
@@ -238,7 +232,7 @@ public class AnkaOverlay {
         }
     }
 
-    private static void addKeyboardRow(String[] keys) {
+    private static void addKeyboardRow(String[] keys, final TextView inputDisplay) {
         LinearLayout row = new LinearLayout(appContext);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER);
@@ -250,14 +244,14 @@ public class AnkaOverlay {
             final TextView btn = new TextView(appContext);
             btn.setText(key);
             btn.setTextColor(Color.GREEN);
-            btn.setBackgroundColor(Color.parseColor("#33003300")); // Yarı saydam yeşil tuş
+            btn.setBackgroundColor(Color.parseColor("#33003300"));
             btn.setTextSize(15);
             btn.setGravity(Gravity.CENTER);
-            btn.setPadding(0, 35, 0, 35); // Dokunması kolay uzun tuşlar
+            btn.setPadding(0, 35, 0, 35);
 
             LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            btnParams.setMargins(3, 0, 3, 0); // Tuş aralıkları daraltıldı (şık görünüm)
+            btnParams.setMargins(3, 0, 3, 0);
             btn.setLayoutParams(btnParams);
 
             btn.setOnTouchListener(new View.OnTouchListener() {
@@ -265,8 +259,8 @@ public class AnkaOverlay {
                 public boolean onTouch(View v, MotionEvent event) {
                     try {
                         if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                            btn.setBackgroundColor(Color.parseColor("#8800FF00")); // Basılınca parlar
-                            handleKeyClick(key);
+                            btn.setBackgroundColor(Color.parseColor("#8800FF00"));
+                            handleKeyClick(key, inputDisplay);
                         } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
                             btn.setBackgroundColor(Color.parseColor("#33003300"));
                         }
@@ -280,7 +274,7 @@ public class AnkaOverlay {
         modalLayout.addView(row, rowParams);
     }
 
-    private static TextView createActionBtn(final String text, float weight, final String bgColor, String textColor) {
+    private static TextView createActionBtn(final String text, float weight, final String bgColor, String textColor, final TextView inputDisplay) {
         final TextView btn = new TextView(appContext);
         btn.setText(text);
         btn.setTextColor(Color.parseColor(textColor));
@@ -300,7 +294,7 @@ public class AnkaOverlay {
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
                     btn.setBackgroundColor(Color.WHITE);
-                    handleKeyClick(text);
+                    handleKeyClick(text, inputDisplay);
                 } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
                     btn.setBackgroundColor(Color.parseColor(bgColor));
                 }
@@ -310,7 +304,9 @@ public class AnkaOverlay {
         return btn;
     }
 
-    private static void handleKeyClick(String key) {
+    private static StringBuilder currentMessage = new StringBuilder();
+
+    private static void handleKeyClick(String key, TextView inputDisplay) {
         if (key.equals("SİL")) {
             if (currentMessage.length() > 0) {
                 currentMessage.deleteCharAt(currentMessage.length() - 1);
@@ -328,8 +324,6 @@ public class AnkaOverlay {
             if (!msg.isEmpty()) {
                 sendSinekMessage(msg);
                 currentMessage.setLength(0);
-                
-                // Gönderince klavyeyi otomatik kapat ki cevabı görsün!
                 if (modalLayout != null) {
                     windowManager.removeView(modalLayout);
                     modalLayout = null;
@@ -351,11 +345,19 @@ public class AnkaOverlay {
             cmdWriter.write("SOHBET: " + msg);
             cmdWriter.close();
 
-            File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
-            FileWriter dispWriter = new FileWriter(chatDisplay, true);
-            dispWriter.write("💬 SEN: " + msg + "\n\n");
-            dispWriter.close();
+            // Sadece Sinek'e input veriyoruz, ekrana yazdırma işini Python bilincine bırakıyoruz (Çift yazmayı önler!)
+            File chatIn = new File("/data/local/tmp/anka_chat_in.txt");
+            FileWriter inWriter = new FileWriter(chatIn, false);
+            inWriter.write(msg);
+            inWriter.close();
+            osChmod(chatIn);
         } catch (Throwable ignored) {}
+    }
+
+    private static void osChmod(File f) {
+        try {
+            Runtime.getRuntime().exec("chmod 666 " + f.getAbsolutePath());
+        } catch (Exception ignored) {}
     }
 
     private static TextView createSafeCyberButton(Context context, String text, Typeface font, final String cmd) {
