@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.30: Düşünen ve Mantıklı Sinek Sohbet Köprüsü
+# ANKA OS boot servisi v12.32: Doğrudan FlyBrain Zekasına Bağlı Sinek Sohbet Köprüsü
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -71,7 +71,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_BILINC_PY" ]; then
 fi
 
 # ==========================================
-# AKILLI VE DÜŞÜNEREK CEVAP VEREN SOHBET KÖPRÜSÜ
+# FLYBRAIN ZEKASINA BAĞLI SOHBET KÖPRÜSÜ
 # ==========================================
 start_command_listener() {
     while true; do
@@ -105,28 +105,22 @@ start_command_listener() {
                 echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                 chmod 666 /data/local/tmp/anka_chat_display.txt
 
-                # Sinek'in Mantıklı Analiz ve Yanıt Üreticisi
-                MSG_L="$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')"
-                case "$MSG_L" in
-                    *selam*|*naber*|*slm*|*merhaba*|*iyi*günler*)
-                        CEVAP="Aleykümselam. Sistemler stabil çalışıyor, buyur dinliyorum."
-                        ;;
-                    *nasılsın*|*nasilsin*|*durum*ne*)
-                        CEVAP="Çekirdek sıcaklığı ve bellek akışı normal seviyede, her şey yolunda."
-                        ;;
-                    *ne*yapıyorsun*|*ne*yapiyorsun*|*çalışma*|*calisiyorsun*)
-                        CEVAP="Arka planda Kovan ağını senkronize ediyor ve anlık sensör verilerini işliyorum."
-                        ;;
-                    *kimsin*|*ne*sinnis*|*nesin*)
-                        CEVAP="Ben Anka OS bünyesinde çalışan otonom Sinek bilinç motoruyum."
-                        ;;
-                    *yardım*|*yardim*|*komut*)
-                        CEVAP="Mod, Tara veya sohbet ekranı üzerinden sistem parametrelerini yönetebilirsin."
-                        ;;
-                    *)
-                        CEVAP="Analiz edildi: '$USER_MSG'. İlettiğin veriyi kovan hafızasına işledim, başka bir isteğin var mı?"
-                        ;;
-                esac
+                # Doğrudan FlyBrain üzerinden gerçek zeka yanıtı üret
+                CEVAP=$(python3 -c "
+import sys
+import os
+sys.path.append('$ANKA_CORE')
+try:
+    from fly_brain import FlyBrain
+    brain = FlyBrain()
+    print(brain.sohbet('''$USER_MSG'''))
+except Exception as e:
+    print(f'Eyvallah kanka, mesajını aldım: {e}')
+" 2>/dev/null)
+
+                if [ -z "$CEVAP" ]; then
+                    CEVAP="Frekans koptu kanka, bir daha dene bakalım!"
+                fi
 
                 echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
                 chmod 666 /data/local/tmp/anka_chat_display.txt
