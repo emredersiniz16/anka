@@ -99,12 +99,12 @@ public class AnkaOverlay {
             if (safeFont != null) middleView.setTypeface(safeFont);
             rootLayout.addView(middleView);
 
-            // SCROLLVIEW - Parmağınla yukarı aşağı kaydırabilme özelliği aktif!
+            // TERMİNAL VE KAYDIRMA ALANI
             scrollView = new ScrollView(appContext);
             scrollView.setNestedScrollingEnabled(true);
             LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
-            scrollParams.setMargins(0, 20, 0, 20);
+            scrollParams.setMargins(0, 20, 0, 10);
 
             consoleView = new TextView(appContext);
             consoleView.setText(">_ BAĞLANTI BEKLENİYOR...");
@@ -116,6 +116,23 @@ public class AnkaOverlay {
             scrollView.addView(consoleView);
             rootLayout.addView(scrollView, scrollParams);
 
+            // ==========================================
+            // SCROLL KONTROL BUTONLARI (▲ YUKARI / ▼ AŞAĞI)
+            // ==========================================
+            LinearLayout scrollBtnRow = new LinearLayout(appContext);
+            scrollBtnRow.setOrientation(LinearLayout.HORIZONTAL);
+            scrollBtnRow.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams sbParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            sbParams.setMargins(0, 0, 0, 10);
+
+            TextView btnUp = createScrollButton("▲ YUKARI ÇIK", -1);
+            TextView btnDown = createScrollButton("▼ EN AŞAĞI İN", 1);
+            scrollBtnRow.addView(btnUp);
+            scrollBtnRow.addView(btnDown);
+            rootLayout.addView(scrollBtnRow, sbParams);
+
+            // ALT AKSİYON BUTONLARI (MOD, TARA, SOHBET)
             LinearLayout btnRow = new LinearLayout(appContext);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
             btnRow.setGravity(Gravity.CENTER);
@@ -168,6 +185,45 @@ public class AnkaOverlay {
         Looper.loop();
     }
 
+    private static TextView createScrollButton(String text, final int direction) {
+        final TextView btn = new TextView(appContext);
+        btn.setText(text);
+        btn.setTextColor(Color.GREEN);
+        btn.setBackgroundColor(Color.parseColor("#22003300"));
+        btn.setTextSize(12);
+        btn.setGravity(Gravity.CENTER);
+        btn.setPadding(10, 15, 10, 15);
+
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        p.setMargins(4, 0, 4, 0);
+        btn.setLayoutParams(p);
+
+        btn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    btn.setBackgroundColor(Color.parseColor("#8800FF00"));
+                    if (scrollView != null) {
+                        scrollView.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (direction < 0) {
+                                    scrollView.fullScroll(View.FOCUS_UP);
+                                } else {
+                                    scrollView.fullScroll(View.FOCUS_DOWN);
+                                }
+                            }
+                        });
+                    }
+                } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                    btn.setBackgroundColor(Color.parseColor("#22003300"));
+                }
+                return true;
+            }
+        });
+        return btn;
+    }
+
     private static void toggleChatModal() {
         try {
             if (modalLayout != null) {
@@ -197,7 +253,6 @@ public class AnkaOverlay {
             dispParams.setMargins(0, 0, 0, 20);
             modalLayout.addView(inputDisplay, dispParams);
 
-            // QWERTY KLAVYE SATIRLARI
             addKeyboardRow(new String[]{"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"}, inputDisplay);
             addKeyboardRow(new String[]{"A", "S", "D", "F", "G", "H", "J", "K", "L", "Ş", "İ"}, inputDisplay);
             addKeyboardRow(new String[]{"Z", "X", "C", "V", "B", "N", "M", "Ö", "Ç"}, inputDisplay);
@@ -345,7 +400,6 @@ public class AnkaOverlay {
             cmdWriter.write("SOHBET: " + msg);
             cmdWriter.close();
 
-            // Sadece Sinek'e input veriyoruz, ekrana yazdırma işini Python bilincine bırakıyoruz (Çift yazmayı önler!)
             File chatIn = new File("/data/local/tmp/anka_chat_in.txt");
             FileWriter inWriter = new FileWriter(chatIn, false);
             inWriter.write(msg);
