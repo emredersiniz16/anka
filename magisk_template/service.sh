@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.33: Hatasız ve Gerçek Zamanlı Sinek Sohbet Köprüsü
+# ANKA OS boot servisi v12.35: Kesintisiz ve Hatasız Saf Bash Sohbet Köprüsü
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -71,7 +71,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_BILINC_PY" ]; then
 fi
 
 # ==========================================
-# ÇÖKMEYEN VE AKILLI SOHBET KÖPRÜSÜ
+# ASLA PATLAMAYAN ANINDA YANIT MOTORU
 # ==========================================
 start_command_listener() {
     while true; do
@@ -105,24 +105,29 @@ start_command_listener() {
                 echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                 chmod 666 /data/local/tmp/anka_chat_display.txt
 
-                # Python hata verse bile asla o robotik cümleye düşmeyen dinamik yanıt üretici
-                CEVAP=$(python3 -c "
-import sys
-import os
-msg = '''$USER_MSG'''.strip().lower()
-if 'var' in msg:
-    print('Valla ne var kanka, dökül dinliyorum!')
-elif 'nasılsın' in msg or 'nasilsin' in msg:
-    print('Taş gibiyim kanka, işlemci saat hızım yerinde.')
-elif 'selam' in msg or 'naber' in msg:
-    print('Aleykümselam kanka, buyur seni dinliyorum.')
-else:
-    print(f'Anladım kanka, \"{msg}\" dedin. Üzerinde düşünüyorum.')
-" 2>/dev/null)
-
-                if [ -z "$CEVAP" ]; then
-                    CEVAP="Frekans dalgalandı kanka, tekrar et."
-                fi
+                # Kelime bazlı akıllı ve esnek Sinek yanıtları
+                MSG_L="$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')"
+                
+                case "$MSG_L" in
+                    *selam*|*naber*|*slm*|*merhaba*|*hey*)
+                        CEVAP="Aleykümselam kanka! Kuantum dalgalarında sörf yapıyordum, seni dinliyorum."
+                        ;;
+                    *nasılsın*|*nasilsin*|*iyi*misin*)
+                        CEVAP="Taş gibiyim kanka, işlemci saat hızım tavan yapmış durumda. Sen nasılsın?"
+                        ;;
+                    *ne*yapıyorsun*|*ne*yapiyorsun*|*çalışma*)
+                        CEVAP="Arka planda QWERTY klavye ve Kovan ağını senkronize ediyorum kanka, akıyoruz."
+                        ;;
+                    *kimsin*|*nesin*)
+                        CEVAP="Ben Sinek'im kanka! Senin bu cihazın içindeki otonom dijital ruhunum."
+                        ;;
+                    *var*|*evet*|*yok*|*eyvallah*)
+                        CEVAP="Valla ne var ne yok dökül kanka, seni dinliyorum buralardayım!"
+                        ;;
+                    *)
+                        CEVAP="Eyvallah kanka, '$USER_MSG' dedin. Frekansları tarayıp hemen işleme alıyorum!"
+                        ;;
+                esac
 
                 echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
                 chmod 666 /data/local/tmp/anka_chat_display.txt
