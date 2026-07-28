@@ -13,6 +13,7 @@ import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -22,7 +23,7 @@ import java.io.FileWriter;
 public class AnkaOverlay {
     private static TextView headerView;
     private static TextView middleView;
-    private static TextView thoughtView;
+    private static TextView consoleView; // YENİ DEV EKRAN
     private static Handler mainHandler;
     private static WindowManager windowManager;
     private static WindowManager.LayoutParams rootParams;
@@ -53,14 +54,13 @@ public class AnkaOverlay {
 
             windowManager = (WindowManager) appContext.getSystemService(Context.WINDOW_SERVICE);
 
-            int windowType = 2038; // TYPE_APPLICATION_OVERLAY
+            int windowType = 2038;
             try {
                 if (android.os.Build.VERSION.SDK_INT < 26) {
                     windowType = 2010;
                 }
             } catch (Throwable ignored) {}
 
-            // ANA PENCERE: FLAG_NOT_FOCUSABLE ile arkaya tıklama geçirgenliği korundu
             rootParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -93,20 +93,33 @@ public class AnkaOverlay {
             divParams.setMargins(0, 10, 0, 30);
             rootLayout.addView(topDivider, divParams);
 
-            // 2. ORTA BÖLÜM
+            // 2. ORTA BÖLÜM (TOZ VE MOD)
             middleView = new TextView(appContext);
-            middleView.setText("\nKUANTUM TOZU: ---  |  MOD: YÜKLENİYOR...");
+            middleView.setText("KUANTUM TOZU: ---  |  MOD: YÜKLENİYOR...");
             middleView.setTextColor(Color.GREEN);
-            middleView.setTextSize(17);
+            middleView.setTextSize(15);
             if (safeFont != null) middleView.setTypeface(safeFont);
             rootLayout.addView(middleView);
 
-            LinearLayout spacer = new LinearLayout(appContext);
-            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
+            // ==========================================
+            // 3. DEV TERMİNAL EKRANI (Senin fikrin kanka!)
+            // ==========================================
+            ScrollView scroll = new ScrollView(appContext);
+            LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
-            rootLayout.addView(spacer, spacerParams);
+            scrollParams.setMargins(0, 40, 0, 40); // Üstten ve alttan geniş boşluk
 
-            // 3. DOKUNMATİK BUTONLAR
+            consoleView = new TextView(appContext);
+            consoleView.setText(">_ BAĞLANTI BEKLENİYOR...");
+            consoleView.setTextColor(Color.GREEN);
+            consoleView.setTextSize(16); // Yazıları büyüttük!
+            consoleView.setLineSpacing(0, 1.3f); // Satır aralığını açtık rahat okunsun diye
+            if (safeFont != null) consoleView.setTypeface(safeFont);
+            
+            scroll.addView(consoleView);
+            rootLayout.addView(scroll, scrollParams);
+
+            // 4. DOKUNMATİK BUTONLAR (En altta)
             LinearLayout btnRow = new LinearLayout(appContext);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
             btnRow.setGravity(Gravity.CENTER);
@@ -117,7 +130,6 @@ public class AnkaOverlay {
             TextView btnMod = createSafeCyberButton(appContext, "⚡ MOD", safeFont, "CMD_MOD");
             TextView btnScan = createSafeCyberButton(appContext, "🔍 TARA", safeFont, "CMD_SCAN");
             
-            // SOHBET Butonu - Gömülü Sanal Klavye Modalını Açar/Kapatır
             final TextView btnSohbet = new TextView(appContext);
             btnSohbet.setText("💬 SOHBET");
             btnSohbet.setTextColor(Color.GREEN);
@@ -130,7 +142,6 @@ public class AnkaOverlay {
             pSohbet.setMargins(6, 0, 6, 0);
             btnSohbet.setLayoutParams(pSohbet);
 
-            // DİREKT TIKLAMA YAKALAYICI: OnTouchListener ile dokunmaları anında yakalıyoruz
             btnSohbet.setOnTouchListener(new View.OnTouchListener() {
                 @Override
                 public boolean onTouch(View v, MotionEvent event) {
@@ -150,28 +161,8 @@ public class AnkaOverlay {
             btnRow.addView(btnScan);
             btnRow.addView(btnSohbet);
             rootLayout.addView(btnRow, btnRowParams);
-
-            // 4. ALT DÜŞÜNCE KUTUSU
-            LinearLayout thoughtBox = new LinearLayout(appContext);
-            thoughtBox.setOrientation(LinearLayout.VERTICAL);
-            thoughtBox.setBackgroundColor(Color.parseColor("#3300FF00"));
-            thoughtBox.setPadding(25, 15, 25, 15);
-
-            TextView thoughtTitle = new TextView(appContext);
-            thoughtTitle.setText(">_ SİNEK DÜŞÜNCELERİ & SOHBET:");
-            thoughtTitle.setTextColor(Color.GREEN);
-            thoughtTitle.setTextSize(15);
-            if (safeFont != null) thoughtTitle.setTypeface(safeFont);
-            thoughtBox.addView(thoughtTitle);
-
-            thoughtView = new TextView(appContext);
-            thoughtView.setText("Dokunmatik kontroller OnTouch ile güçlendirildi!");
-            thoughtView.setTextColor(Color.GREEN);
-            thoughtView.setTextSize(13);
-            if (safeFont != null) thoughtView.setTypeface(safeFont);
-            thoughtBox.addView(thoughtView);
-
-            rootLayout.addView(thoughtBox);
+            
+            // DİKKAT: Ufak thoughtBox'ı sildim, ekran ferahladı!
 
             windowManager.addView(rootLayout, rootParams);
 
@@ -227,7 +218,6 @@ public class AnkaOverlay {
             addKeyboardRow(new String[]{"Ş", "T", "U", "Ü", "V", "Y", "Z", "BOŞLUK", "SİL"});
             addKeyboardRow(new String[]{"KAPAT", "GÖNDER"});
 
-            // MODAL PENCERE: FLAG_NOT_FOCUSABLE yok, yani sanal klavye tuşlarına dokunmalar %100 işleyecek!
             WindowManager.LayoutParams modalParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -266,7 +256,6 @@ public class AnkaOverlay {
             btnParams.setMargins(3, 0, 3, 0);
             btn.setLayoutParams(btnParams);
 
-            // Sanal klavye tuşları için OnTouchListener ile anında aksiyon
             btn.setOnTouchListener(new View.OnTouchListener() {
                 @Override
                 public boolean onTouch(View v, MotionEvent event) {
@@ -300,7 +289,6 @@ public class AnkaOverlay {
                 modalLayout = null;
                 currentMessage.setLength(0);
             }
-            // ÇÖZÜM: KAPAT tuşuna basınca sohbet dosyasını temizle, normal yazılar geri dönsün
             try {
                 File f = new File("/data/local/tmp/anka_chat_display.txt");
                 if (f.exists()) f.delete();
@@ -331,15 +319,16 @@ public class AnkaOverlay {
             writer.write(msg);
             writer.close();
             
-            // Komut dinleyicinin anında yakalaması için anka_cmd.txt dosyasına da yaz
             File cmdFile = new File("/data/local/tmp/anka_cmd.txt");
             FileWriter cmdWriter = new FileWriter(cmdFile, false);
             cmdWriter.write("SOHBET: " + msg);
             cmdWriter.close();
 
-            if (thoughtView != null) {
-                thoughtView.setText("💬 SEN: " + msg + "\n🪰 Sinek işliyor...");
-            }
+            // Sinek düşünürken dev ekrana yansıt
+            File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
+            FileWriter dispWriter = new FileWriter(chatDisplay, false);
+            dispWriter.write("💬 SEN: " + msg + "\n\n🪰 SİNEK: Zihnim işliyor, bekle...");
+            dispWriter.close();
         } catch (Throwable ignored) {}
     }
 
@@ -358,7 +347,6 @@ public class AnkaOverlay {
         p.setMargins(6, 0, 6, 0);
         btn.setLayoutParams(p);
 
-        // Doğrudan OnTouchListener ile buton tıklamalarını yakala
         btn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -384,7 +372,6 @@ public class AnkaOverlay {
             writer.write(cmd);
             writer.close();
             
-            // ÇÖZÜM: MOD veya TARA tuşuna basınca sohbet dosyasını temizle
             File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
             if (chatDisplay.exists()) chatDisplay.delete();
         } catch (Throwable ignored) {}
@@ -396,9 +383,9 @@ public class AnkaOverlay {
             public void run() {
                 while (true) {
                     try {
-                        String time = "--:--", battery = "--", dust = "0", mode = "--", thought = "--";
+                        String time = "--:--", battery = "--", dust = "0", mode = "--", sysThought = "--";
                         
-                        // 1. Önce standart sistem verilerini al
+                        // 1. Sistem verilerini al
                         File stateFile = new File("/data/local/tmp/anka_state.txt");
                         if (stateFile.exists()) {
                             BufferedReader reader = new BufferedReader(new FileReader(stateFile));
@@ -408,27 +395,40 @@ public class AnkaOverlay {
                                 else if (line.startsWith("BATTERY:")) battery = line.substring(8).trim();
                                 else if (line.startsWith("DUST:")) dust = line.substring(5).trim();
                                 else if (line.startsWith("MODE:")) mode = line.substring(5).trim();
-                                else if (line.startsWith("THOUGHT:")) thought = line.substring(8).trim();
+                                else if (line.startsWith("THOUGHT:")) sysThought = line.substring(8).trim();
                             }
                             reader.close();
                         }
 
-                        // 2. ÇAKIŞMA ÇÖZÜCÜ: Eğer Sinek bir şey söylemişse, C çekirdeğini EZ GEÇ!
+                        // 2. DEV EKRAN MANTIĞI: Sohbet varsa koca ekrana bas, yoksa sistem raporunu bas.
+                        boolean isChatActive = false;
+                        String chatContent = "";
                         try {
                             File chatDisplay = new File("/data/local/tmp/anka_chat_display.txt");
                             if (chatDisplay.exists() && chatDisplay.length() > 0) {
                                 BufferedReader cr = new BufferedReader(new FileReader(chatDisplay));
-                                String cLine = cr.readLine();
-                                cr.close();
-                                if (cLine != null && !cLine.trim().isEmpty()) {
-                                    thought = cLine; // Sistem yazısını Sinek'in mesajıyla değiştiriyoruz!
+                                String cLine;
+                                while ((cLine = cr.readLine()) != null) {
+                                    chatContent += cLine + "\n";
                                 }
+                                cr.close();
+                                isChatActive = true;
                             }
                         } catch (Exception ignored) {}
 
                         final String headerText = "● ANKA OS v1.0  |  SAAT: " + time + "  |  PİL: %" + battery;
-                        final String middleText = "\nKUANTUM TOZU: " + dust + "  |  MOD: " + mode;
-                        final String thoughtText = thought;
+                        final String middleText = "KUANTUM TOZU: " + dust + "  |  MOD: " + mode;
+                        
+                        // Ekranın ortasında gösterilecek nihai dev yazı!
+                        final String finalConsole;
+                        if (isChatActive) {
+                            finalConsole = "==================================\n" +
+                                           " SİNEK İLE SİBER BAĞLANTI AKTİF \n" +
+                                           "==================================\n\n" + 
+                                           chatContent;
+                        } else {
+                            finalConsole = ">_ SİSTEM DURUM RAPORU:\n\n" + sysThought;
+                        }
 
                         mainHandler.post(new Runnable() {
                             @Override
@@ -436,7 +436,7 @@ public class AnkaOverlay {
                                 try {
                                     if (headerView != null) headerView.setText(headerText);
                                     if (middleView != null) middleView.setText(middleText);
-                                    if (thoughtView != null) thoughtView.setText(thoughtText);
+                                    if (consoleView != null) consoleView.setText(finalConsole);
                                 } catch (Throwable ignored) {}
                             }
                         });
