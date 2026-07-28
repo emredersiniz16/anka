@@ -11,6 +11,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.MotionEvent;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -33,6 +34,7 @@ public class AnkaOverlay {
     private static Context appContext;
     
     private static LinearLayout modalLayout = null;
+    private static EditText inputField = null;
     private static int lastChatLength = 0;
 
     public static void main(String[] args) {
@@ -191,14 +193,15 @@ public class AnkaOverlay {
             title.setPadding(0, 0, 0, 15);
             modalLayout.addView(title);
 
-            // İŞTE YENİ ORİJİNAL ANDROİD KLAVYE METİN KUTUSU!
-            final EditText inputField = new EditText(appContext);
+            inputField = new EditText(appContext);
             inputField.setHint("Mesajını yaz...");
             inputField.setTextColor(Color.GREEN);
             inputField.setHintTextColor(Color.parseColor("#5500FF00"));
             inputField.setBackgroundColor(Color.parseColor("#33003300"));
             inputField.setTextSize(16);
             inputField.setPadding(30, 30, 30, 30);
+            inputField.setFocusable(true);
+            inputField.setFocusableInTouchMode(true);
             inputField.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
             if (safeFont != null) inputField.setTypeface(safeFont);
             
@@ -206,6 +209,19 @@ public class AnkaOverlay {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             dispParams.setMargins(0, 0, 0, 20);
             modalLayout.addView(inputField, dispParams);
+
+            // Tıklandığında klavyeyi zorla aç
+            inputField.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (event.getAction() == MotionEvent.ACTION_UP) {
+                        inputField.requestFocus();
+                        InputMethodManager imm = (InputMethodManager) appContext.getSystemService(Context.INPUT_METHOD_SERVICE);
+                        if (imm != null) imm.showSoftInput(inputField, InputMethodManager.SHOW_IMPLICIT);
+                    }
+                    return false;
+                }
+            });
 
             LinearLayout btnRow = new LinearLayout(appContext);
             btnRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -248,6 +264,7 @@ public class AnkaOverlay {
                         if (!msg.isEmpty()) {
                             sendSinekMessage(msg);
                             inputField.setText("");
+                            hideKeyboard();
                         }
                     }
                     return true;
@@ -258,28 +275,26 @@ public class AnkaOverlay {
             btnRow.addView(btnGonder, btnParams);
             modalLayout.addView(btnRow);
 
+            // KLAVYE İÇİN SİHİRLİ PARAMETRELER: FLAG_NOT_TOUCH_MODAL ve softInputMode
             WindowManager.LayoutParams modalParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 rootParams.type,
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, 
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH, 
                 PixelFormat.TRANSLUCENT
             );
             modalParams.gravity = Gravity.BOTTOM;
-
-            // DİKKAT: FLAG_NOT_FOCUSABLE kaldırılıyor ki orjinal klavye açılabilsin!
-            rootParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
-            windowManager.updateViewLayout(rootLayout, rootParams);
+            modalParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
 
             windowManager.addView(modalLayout, modalParams);
 
-            // Klavyeyi otomatik tetikle
+            // Odağı hemen al ve klavyeyi fırlat
             inputField.requestFocus();
             mainHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) appContext.getSystemService(Context.INPUT_METHOD_SERVICE);
-                    if (imm != null) imm.showSoftInput(inputField, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                    InputMethodManager imm = (InputMethodManager) appContext.getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.showSoftInput(inputField, InputMethodManager.SHOW_IMPLICIT);
                 }
             }, 200);
 
@@ -288,15 +303,23 @@ public class AnkaOverlay {
         }
     }
 
+    private static void hideKeyboard() {
+        try {
+            if (inputField != null) {
+                InputMethodManager imm = (InputMethodManager) appContext.getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) imm.hideSoftInputFromWindow(inputField.getWindowToken(), 0);
+            }
+        } catch (Exception ignored) {}
+    }
+
     private static void closeChatModal() {
         try {
+            hideKeyboard();
             if (modalLayout != null) {
                 windowManager.removeView(modalLayout);
                 modalLayout = null;
+                inputField = null;
             }
-            // Klavye kapandığında dokunmatiklerin arkaya geçmesi için odağı geri kapatıyoruz
-            rootParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
-            windowManager.updateViewLayout(rootLayout, rootParams);
             
             File f = new File("/data/local/tmp/anka_chat_display.txt");
             if (f.exists()) f.delete();
