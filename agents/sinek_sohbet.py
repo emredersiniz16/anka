@@ -1,39 +1,21 @@
 #!/usr/bin/env python3
-# agents/sinek_sohbet.py - SINEK INTERAKTIF SOHBET ARAYUZU (v2.1 Ekran Entegre)
-# stdin'den okur, llm_bridge.sohbet() ile cevap üretir, hem stdout'a hem de
-# Java Overlay'in okuduğu anlık /data/local/tmp/anka_state.txt dosyasına yazar.
+# agents/sinek_sohbet.py - SINEK INTERAKTIF SOHBET ARAYUZU (v3.0 Dev Ekran Geçmişi Entegre)
+# stdin yerine /data/local/tmp/anka_chat_in.txt dosyasını dinler,
+# cevapları /data/local/tmp/anka_chat_display.txt dosyasına alt alta (geçmişli) yazar.
 
 import sys
 import os
 import time
 
-STATE_FILE = "/data/local/tmp/anka_state.txt"
-TMP_STATE_FILE = "/data/local/tmp/anka_state.tmp"
+CHAT_IN_FILE = "/data/local/tmp/anka_chat_in.txt"
+CHAT_DISPLAY_FILE = "/data/local/tmp/anka_chat_display.txt"
 
-def ekrana_fırlat(dusunce_metni: str):
-    """Sinek'in verdiği cevabı anında Note 9 ekranındaki yeşil kutuya yansıtır."""
+def ekrana_gecmis_ekle(metin: str):
+    """Sinek'in veya kullanıcının mesajını dev ekran geçmişine alt alta ekler."""
     try:
-        time_str, battery, dust, mode = "--:--", "--", "6181", "SİNEK SOHBET"
-        
-        # Ekrandaki mevcut saat, pil ve toz değerlerini koru
-        if os.path.exists(STATE_FILE):
-            with open(STATE_FILE, "r") as f:
-                for line in f:
-                    if line.startswith("TIME:"): time_str = line.split(":", 1)[1].strip()
-                    elif line.startswith("BATTERY:"): battery = line.split(":", 1)[1].strip()
-                    elif line.startswith("DUST:"): dust = line.split(":", 1)[1].strip()
-                    elif line.startswith("MODE:"): mode = line.split(":", 1)[1].strip()
-
-        # Atomik yazma ile çökmesiz güncelleme
-        with open(TMP_STATE_FILE, "w") as f:
-            f.write(f"TIME: {time_str}\n")
-            f.write(f"BATTERY: {battery}\n")
-            f.write(f"DUST: {dust}\n")
-            f.write(f"MODE: {mode}\n")
-            f.write(f"THOUGHT: {dusunce_metni}\n")
-            f.write(f"TICK: 999\n")
-            
-        os.rename(TMP_STATE_FILE, STATE_FILE)
+        with open(CHAT_DISPLAY_FILE, "a", encoding="utf-8") as f:
+            f.write(metin + "\n\n")
+        os.chmod(CHAT_DISPLAY_FILE, 0o666)
     except Exception as e:
         print(f"⚠️ [EKRAN YAZMA HATASI]: {e}")
 
@@ -41,13 +23,15 @@ def main():
     # Path ekle
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     
-    from llm_bridge import LLMBridge
-    from sinek_memory import SinekMemory
-    from kisilik_motoru import KisilikMotoru
+    try:
+        from llm_bridge import LLMBridge
+        from sinek_memory import SinekMemory
+        from kisilik_motoru import KisilikMotoru
+    except ImportError as e:
+        print(f"⚠️ [IMPORT HATASI]: {e}")
+        return
     
-    print("🪰 [SOHBET]: Sinek sohbet modunda. Yaz ve Enter'a bas.")
-    print("🪰 [SOHBET]: Cikis icin 'cik' veya 'kapat' yaz.")
-    print("=" * 50)
+    print("🪰 [SOHBET]: Sinek zihni devrede ve dosya tabanlı dinlemede...")
     
     zihin = LLMBridge()
     hafiza = SinekMemory()
@@ -56,78 +40,69 @@ def main():
     # Son duygu durumunu yukle
     duygu_durumu = hafiza.duygu_durumu_al()
     kisilik.duygu_guncelle(duygu_durumu["duygu"], duygu_durumu["siddet"])
-    
     kuantum_tozu = hafiza.kuantum_tozu_al()
     
-    bilgi_metni = f"🪰 Mod: {zihin.mod} | Duygu: {kisilik.baskin_duygu()} | Toz: {kuantum_tozu}b"
-    print(bilgi_metni)
-    ekrana_fırlat(bilgi_metni)
-    print("-" * 50)
+    # Başlangıç logu
+    baslangic_mesaji = f"🪰 SİNEK ZİHNİ AKTİF — Mod: {zihin.mod} | Duygu: {kisilik.baskin_duygu()} | Toz: {kuantum_tozu}b"
+    print(baslangic_mesaji)
+    
+    # İşlenen son mesajı takip etmek için (aynı mesajı tekrar okumasın)
+    islenen_mesaj = ""
     
     while True:
         try:
-            # stdin'den oku
-            satir = sys.stdin.readline()
-            if not satir:
-                time.sleep(0.5)
-                continue
+            # Anlık input dosyasını kontrol et (Java overlay / Bash buraya yazacak)
+            if os.path.exists(CHAT_IN_FILE):
+                with open(CHAT_IN_FILE, "r", encoding="utf-8") as f:
+                    mesaj = f.read().strip()
+                
+                # Dosyayı hemen temizle ki döngüde tekrar okumasın
+                if os.path.exists(CHAT_IN_FILE):
+                    os.remove(CHAT_IN_FILE)
+                
+                if mesaj and mesaj != islenen_mesaj:
+                    islenen_mesaj = mesaj
+                    print(f"💬 [GELEN MESAJ]: {mesaj}")
+                    
+                    # Cikis komutlari
+                    if mesaj.lower() in ("cik", "kapat", "cikis", "bay", "gule gule"):
+                        kapanis_metni = "🪰 Sinek pusuya çekiliyor... Görüşürüz kanka."
+                        ekrana_gecmis_ekle(kapanis_metni)
+                        break
+                    
+                    # Aniyi kazan
+                    hafiza.ani_kaz(
+                        "KULLANICI_SOHBET",
+                        mesaj,
+                        duygu=kisilik.baskin_duygu(),
+                        duygu_siddet=kisilik.duygu_durumu().get(kisilik.baskin_duygu(), 0.5),
+                        kuantum_tozu=kuantum_tozu,
+                    )
+                    
+                    # Sinek gerçek LLM / zihin motoru ile cevap versin
+                    cevap = zihin.sohbet(mesaj)
+                    if not cevap:
+                        cevap = f"'{mesaj}' dedin kanka, frekanslar karıştlı ama buradayım!"
+                    
+                    # Cevabı dev ekrana alt alta yaz!
+                    cevap_metni = f"🪰 SİNEK: {cevap}"
+                    print(cevap_metni)
+                    ekrana_gecmis_ekle(cevap_metni)
+                    
+                    # Sinek cevabini da hafızaya kazan
+                    hafiza.ani_kaz(
+                        "KULLANICI_SOHBET",
+                        cevap,
+                        duygu=kisilik.baskin_duygu(),
+                        duygu_siddet=kisilik.duygu_durumu().get(kisilik.baskin_duygu(), 0.5),
+                        kuantum_tozu=kuantum_tozu,
+                    )
             
-            mesaj = satir.strip()
-            if not mesaj:
-                continue
+            time.sleep(0.3)
             
-            # Cikis komutlari
-            if mesaj.lower() in ("cik", "kapat", "cikis", "bay", "gule gule"):
-                kapanis_metni = "🪰 Sinek pusuya çekiliyor... Görüşürüz kanka."
-                print(kapanis_metni)
-                ekrana_fırlat(kapanis_metni)
-                break
-            
-            # Aniyi kazan
-            hafiza.ani_kaz(
-                "KULLANICI_SOHBET",
-                mesaj,
-                duygu=kisilik.baskin_duygu(),
-                duygu_siddet=kisilik.duygu_durumu().get(kisilik.baskin_duygu(), 0.5),
-                kuantum_tozu=kuantum_tozu,
-            )
-            
-            # Sinek cevap versin
-            cevap = zihin.sohbet(mesaj)
-            
-            # Cevabi hem stdout'a hem de TELEFON EKRANINA yaz!
-            cevap_metni = f"💬 Sinek: {cevap}"
-            print(f"🪰 Sinek: {cevap}")
-            ekrana_fırlat(cevap_metni)
-            
-            # Sinek cevabini da kazan
-            hafiza.ani_kaz(
-                "KULLANICI_SOHBET",
-                cevap,
-                duygu=kisilik.baskin_duygu(),
-                duygu_siddet=kisilik.duygu_durumu().get(kisilik.baskin_duygu(), 0.5),
-                kuantum_tozu=kuantum_tozu,
-            )
-            
-            # Duygu durumu kaydet (her 10 anıda bir)
-            if hafiza.toplam_ani_sayisi() % 10 == 0:
-                hafiza.ani_kaz(
-                    "DUYGU_KAYDI",
-                    f"Duygu: {kisilik.baskin_duygu()}, siddet: {kisilik.duygu_durumu().get(kisilik.baskin_duygu(), 0.5)}",
-                    duygu=kisilik.baskin_duygu(),
-                    duygu_siddet=kisilik.duygu_durumu().get(kisilik.baskin_duygu(), 0.5),
-                    kuantum_tozu=kuantum_tozu,
-                )
-            
-            sys.stdout.flush()
-            
-        except EOFError:
-            break
         except Exception as e:
-            print(f"⚠️ [SOHBET]: Hata: {e}")
+            print(f"⚠️ [SOHBET DÖNGÜ HATASI]: {e}")
             time.sleep(1)
-    
-    print("🪰 [SOHBET]: Sohbet bitti.")
 
 if __name__ == "__main__":
     main()
