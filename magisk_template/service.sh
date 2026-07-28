@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.8: Kesin Çözüm - Sohbet Ekranda Sabit Kalır
+# ANKA OS boot servisi v12.9: Alt Alta Kayan Geçmişli Sohbet Motoru
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -158,14 +158,14 @@ start_anka() {
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.8..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.9..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 
 # 13. Ortamı yapılandır ve Sineği başlat
 configure_system_env
 PID=$(start_anka)
 
-# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (SOHBET SABİTLENDİ)
+# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (ALT ALTA EKLEME DÜZELTİLDİ)
 start_command_listener() {
     CURRENT_MODE="KUANTUM SAVAŞI"
     
@@ -173,13 +173,12 @@ start_command_listener() {
         if [ -f "/data/local/tmp/anka_cmd.txt" ]; then
             CMD_CONTENT=$(cat /data/local/tmp/anka_cmd.txt 2>/dev/null)
             if [ -n "$CMD_CONTENT" ]; then
-                # Çakışmayı engellemek için anında dosyaları sil
                 rm -f /data/local/tmp/anka_cmd.txt
                 rm -f /data/local/tmp/anka_chat_in.txt 2>/dev/null
                 
                 case "$CMD_CONTENT" in
                     "CMD_MOD")
-                        rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null # Mod değişince sohbet silinsin
+                        rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null
                         if [ "$CURRENT_MODE" = "KUANTUM SAVAŞI" ]; then
                             CURRENT_MODE="SİBER SAVUNMA"
                             NEW_DUST="6200"
@@ -214,8 +213,6 @@ start_command_listener() {
                         
                     SOHBET:*)
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
-                        
-                        # Sinek'in cümle analizi
                         MSG_LOWER=$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')
                         
                         if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber|hi"; then
@@ -227,19 +224,17 @@ start_command_listener() {
                             echo "anka_os_keepalive" > /sys/power/wake_unlock 2>/dev/null
                         else
                             CEVAP="'$USER_MSG' dedin kanka, İşleme alıyorum!"
-                            # Arka planda python scripti varsa ona da paslar
                             if [ -f "$ANKA_CORE/agents/sinek_sohbet.py" ]; then
                                 PYTHONPATH="$ANKA_CORE" python3 "$ANKA_CORE/agents/sinek_sohbet.py" "$USER_MSG" >> "$LOGFILE" 2>&1 &
                             fi
                         fi
                         
-                        # ÇÖZÜM BURADA: Sinek cevabını ayrı ve silinemez bir dosyaya yazıyor!
-                        echo "💬 Sinek: $CEVAP" > /data/local/tmp/anka_chat_display.txt
+                        # DİKKAT: Üzerine yazmak yerine (>) alt alta ekliyoruz (>>)
+                        echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         ;;
                 esac
             fi
-        # Yedek okuma
         elif [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
             CHAT_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null)
             if [ -n "$CHAT_MSG" ]; then
@@ -254,8 +249,7 @@ start_command_listener() {
                     CEVAP="'$CHAT_MSG' mesajını aldım kanka!"
                 fi
 
-                # ÇÖZÜM BURADA: Sinek cevabını ayrı ve silinemez bir dosyaya yazıyor!
-                echo "💬 Sinek: $CEVAP" > /data/local/tmp/anka_chat_display.txt
+                echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
                 chmod 666 /data/local/tmp/anka_chat_display.txt
             fi
         fi
