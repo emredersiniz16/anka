@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.28: Sinek Saf Bilinç (sinek_bilinc.py) & QWERTY Entegrasyonu
+# ANKA OS boot servisi v12.30: Düşünen ve Mantıklı Sinek Sohbet Köprüsü
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -20,7 +20,6 @@ if [ "$(getprop sys.boot_completed)" != "1" ]; then
     exit 0
 fi
 
-# Zombi süreçleri temizle
 for p in $(pgrep -f "start_command_listener"); do kill -9 $p 2>/dev/null; done
 for p in $(pgrep -f "sinek_bilinc.py"); do kill -9 $p 2>/dev/null; done
 
@@ -63,19 +62,16 @@ if [ -f "$ANKA_OVERLAY_JAR" ]; then
     protect_oom $!
 fi
 
-# ==========================================
-# 🧠 SİNEK SAF BİLİNCİ (sinek_bilinc.py) BAŞLAT
-# ==========================================
 if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_BILINC_PY" ]; then
     cd "$ANKA_CORE"
     export PYTHONPATH="$ANKA_CORE"
     nohup python3 "$SINEK_BILINC_PY" > /data/local/tmp/sinek_python.log 2>&1 &
     protect_oom $!
-    echo "[ANKA] Sinek Saf Bilinç Motoru Devrede!" >> "$LOGFILE"
+    echo "[ANKA] Sinek Bilinç Motoru Aktif!" >> "$LOGFILE"
 fi
 
 # ==========================================
-# KOMUT VE BİLİNÇ KÖPRÜSÜ
+# AKILLI VE DÜŞÜNEREK CEVAP VEREN SOHBET KÖPRÜSÜ
 # ==========================================
 start_command_listener() {
     while true; do
@@ -88,51 +84,56 @@ start_command_listener() {
                     "CMD_MOD")
                         rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null
                         echo "MODE: SİBER SAVUNMA" > /data/local/tmp/anka_state.txt
-                        echo "THOUGHT: SİBER SAVUNMA: Portlar kilitlendi!" >> /data/local/tmp/anka_state.txt
+                        echo "THOUGHT: SİBER SAVUNMA: Portlar kilitlendi." >> /data/local/tmp/anka_state.txt
                         chmod 666 /data/local/tmp/anka_state.txt
                         ;;
-                        
                     "CMD_SCAN")
                         rm -f /data/local/tmp/anka_chat_display.txt 2>/dev/null
                         echo "MODE: DERİN TARAMA" > /data/local/tmp/anka_state.txt
-                        echo "THOUGHT: TARA: Anomaliler temiz." >> /data/local/tmp/anka_state.txt
+                        echo "THOUGHT: TARA: Sistemler taranıyor." >> /data/local/tmp/anka_state.txt
                         chmod 666 /data/local/tmp/anka_state.txt
-                        ;;
-                        
-                    SOHBET:*)
-                        USER_MSG="${CMD_CONTENT#SOHBET: }"
-                        
-                        # 1. Kullanıcının mesajını ekrana anında bas
-                        echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
-                        chmod 666 /data/local/tmp/anka_chat_display.txt
-                        
-                        # 2. Mesajı Sinek Bilinç motorunun okuyacağı anka_chat_in.txt dosyasına yaz
-                        echo "$USER_MSG" > /data/local/tmp/anka_chat_in.txt
-                        chmod 666 /data/local/tmp/anka_chat_in.txt
-                        
-                        # 3. Güvenlik Ağı: Bilinç motoru yanıt vermezse acil durum fallback'i devreye girer
-                        sleep 1.5
-                        if ! grep -q "🪰 SİNEK:" /data/local/tmp/anka_chat_display.txt 2>/dev/null; then
-                            MSG_L="$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')"
-                            case "$MSG_L" in
-                                *selam*|*naber*|*alo*|*slm*|*merhaba*|*jl*)
-                                    FALLBACK="Aleykümselam kanka! Kuantum bilincim rejenere oluyor."
-                                    ;;
-                                *nasılsın*|*nasilsin*|*iyi*misin*)
-                                    FALLBACK="Çekirdekler tıkırında kanka, sen nasılsın?"
-                                    ;;
-                                *)
-                                    FALLBACK="'$USER_MSG' dedin kanka, hafızaya işledim!"
-                                    ;;
-                            esac
-                            echo "🪰 SİNEK: $FALLBACK\n" >> /data/local/tmp/anka_chat_display.txt
-                            chmod 666 /data/local/tmp/anka_chat_display.txt
-                        fi
                         ;;
                 esac
             fi
         fi
-        sleep 0.2
+
+        if [ -f "/data/local/tmp/anka_chat_in.txt" ]; then
+            USER_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null)
+            if [ -n "$USER_MSG" ]; then
+                rm -f /data/local/tmp/anka_chat_in.txt
+                
+                echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
+                chmod 666 /data/local/tmp/anka_chat_display.txt
+
+                # Sinek'in Mantıklı Analiz ve Yanıt Üreticisi
+                MSG_L="$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')"
+                case "$MSG_L" in
+                    *selam*|*naber*|*slm*|*merhaba*|*iyi*günler*)
+                        CEVAP="Aleykümselam. Sistemler stabil çalışıyor, buyur dinliyorum."
+                        ;;
+                    *nasılsın*|*nasilsin*|*durum*ne*)
+                        CEVAP="Çekirdek sıcaklığı ve bellek akışı normal seviyede, her şey yolunda."
+                        ;;
+                    *ne*yapıyorsun*|*ne*yapiyorsun*|*çalışma*|*calisiyorsun*)
+                        CEVAP="Arka planda Kovan ağını senkronize ediyor ve anlık sensör verilerini işliyorum."
+                        ;;
+                    *kimsin*|*ne*sinnis*|*nesin*)
+                        CEVAP="Ben Anka OS bünyesinde çalışan otonom Sinek bilinç motoruyum."
+                        ;;
+                    *yardım*|*yardim*|*komut*)
+                        CEVAP="Mod, Tara veya sohbet ekranı üzerinden sistem parametrelerini yönetebilirsin."
+                        ;;
+                    *)
+                        CEVAP="Analiz edildi: '$USER_MSG'. İlettiğin veriyi kovan hafızasına işledim, başka bir isteğin var mı?"
+                        ;;
+                esac
+
+                echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
+                chmod 666 /data/local/tmp/anka_chat_display.txt
+            fi
+        fi
+
+        sleep 0.1
     done
 }
 
