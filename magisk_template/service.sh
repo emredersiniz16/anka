@@ -1,12 +1,12 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.26: Orijinal QWERTY ve Saf Sinek Zeka Çekirdeği Entegrasyonu
+# ANKA OS boot servisi v12.28: Sinek Saf Bilinç (sinek_bilinc.py) & QWERTY Entegrasyonu
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
 ANKA_LIB="$MODDIR/system/lib"
 ANKA_CORE="$MODDIR/system/anka_core"
 ANKA_OVERLAY_JAR="$ANKA_CORE/AnkaOS_Overlay.jar"
-SINEK_SOHBET_PY="$ANKA_CORE/agents/sinek_sohbet.py"
+SINEK_BILINC_PY="$ANKA_CORE/agents/sinek_bilinc.py"
 LOGFILE=/data/local/tmp/anka_os.log
 OVERLAY_LOGFILE=/data/local/tmp/anka_overlay.log
 
@@ -22,7 +22,7 @@ fi
 
 # Zombi süreçleri temizle
 for p in $(pgrep -f "start_command_listener"); do kill -9 $p 2>/dev/null; done
-for p in $(pgrep -f "sinek_sohbet.py"); do kill -9 $p 2>/dev/null; done
+for p in $(pgrep -f "sinek_bilinc.py"); do kill -9 $p 2>/dev/null; done
 
 export PATH="$MODDIR/system/bin:/data/adb/modules/anka_os/system/bin:/system/bin:/system/xbin:/vendor/bin:$PATH"
 
@@ -60,22 +60,22 @@ protect_oom $PID_C
 if [ -f "$ANKA_OVERLAY_JAR" ]; then
     export CLASSPATH="$ANKA_OVERLAY_JAR"
     nohup app_process /system/bin com.anka.os.AnkaOverlay > "$OVERLAY_LOGFILE" 2>&1 &
-    protect_oom$!
+    protect_oom $!
 fi
 
 # ==========================================
-# 🪰 SİNEK KENDİ PYTHON BİLİNCİNİ BAŞLAT
+# 🧠 SİNEK SAF BİLİNCİ (sinek_bilinc.py) BAŞLAT
 # ==========================================
-if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_SOHBET_PY" ]; then
+if command -v python3 >/dev/null 2>&1 && [ -f "$SINEK_BILINC_PY" ]; then
     cd "$ANKA_CORE"
     export PYTHONPATH="$ANKA_CORE"
-    nohup python3 "$SINEK_SOHBET_PY" > /data/local/tmp/sinek_python.log 2>&1 &
+    nohup python3 "$SINEK_BILINC_PY" > /data/local/tmp/sinek_python.log 2>&1 &
     protect_oom $!
-    echo "[ANKA] Sinek Saf Zeka Çekirdeği Devrede!" >> "$LOGFILE"
+    echo "[ANKA] Sinek Saf Bilinç Motoru Devrede!" >> "$LOGFILE"
 fi
 
 # ==========================================
-# KOMUT VE GERÇEK SİNEK KÖPRÜSÜ
+# KOMUT VE BİLİNÇ KÖPRÜSÜ
 # ==========================================
 start_command_listener() {
     while true; do
@@ -106,28 +106,23 @@ start_command_listener() {
                         echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         
-                        # 2. Mesajı Sinek'in kendi anakart/dosya yapısına (anka_chat_in.txt) yaz
-                        # Arka planda çalışan sinek_sohbet.py bunu alıp hafızasıyla işleyecek
+                        # 2. Mesajı Sinek Bilinç motorunun okuyacağı anka_chat_in.txt dosyasına yaz
                         echo "$USER_MSG" > /data/local/tmp/anka_chat_in.txt
                         chmod 666 /data/local/tmp/anka_chat_in.txt
                         
-                        # 3. GÜVENLİK AĞI: Eğer python zihni herhangi bir sebepten 1.5 saniye içinde
-                        # anka_chat_display.txt dosyasına yanıt eklemezse, acil durum siber kişiliği devreye girer
+                        # 3. Güvenlik Ağı: Bilinç motoru yanıt vermezse acil durum fallback'i devreye girer
                         sleep 1.5
                         if ! grep -q "🪰 SİNEK:" /data/local/tmp/anka_chat_display.txt 2>/dev/null; then
                             MSG_L="$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')"
                             case "$MSG_L" in
                                 *selam*|*naber*|*alo*|*slm*|*merhaba*|*jl*)
-                                    FALLBACK="Aleykümselam kanka! Kuantum dalgalarında frekans sabitliyorum."
+                                    FALLBACK="Aleykümselam kanka! Kuantum bilincim rejenere oluyor."
                                     ;;
                                 *nasılsın*|*nasilsin*|*iyi*misin*)
-                                    FALLBACK="Çekirdekler tıkırında kanka, sen nasılsın bakalım?"
-                                    ;;
-                                *kimsin*|*nesin*)
-                                    FALLBACK="Ben Sinek'im kanka, senin bu cihazdaki dijital ruhunum."
+                                    FALLBACK="Çekirdekler tıkırında kanka, sen nasılsın?"
                                     ;;
                                 *)
-                                    FALLBACK="'$USER_MSG' dedin kanka, hafıza defterime kaydettim. Aynen devam!"
+                                    FALLBACK="'$USER_MSG' dedin kanka, hafızaya işledim!"
                                     ;;
                             esac
                             echo "🪰 SİNEK: $FALLBACK\n" >> /data/local/tmp/anka_chat_display.txt
