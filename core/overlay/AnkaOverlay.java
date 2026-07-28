@@ -11,11 +11,9 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.MotionEvent;
 import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.EditText;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -34,7 +32,8 @@ public class AnkaOverlay {
     private static Context appContext;
     
     private static LinearLayout modalLayout = null;
-    private static EditText inputField = null;
+    private static TextView inputDisplay;
+    private static StringBuilder currentMessage = new StringBuilder();
     private static int lastChatLength = 0;
 
     public static void main(String[] args) {
@@ -172,7 +171,8 @@ public class AnkaOverlay {
     private static void toggleChatModal() {
         try {
             if (modalLayout != null) {
-                closeChatModal();
+                windowManager.removeView(modalLayout);
+                modalLayout = null;
                 return;
             }
 
@@ -180,151 +180,168 @@ public class AnkaOverlay {
 
             modalLayout = new LinearLayout(appContext);
             modalLayout.setOrientation(LinearLayout.VERTICAL);
-            modalLayout.setBackgroundColor(Color.parseColor("#F5050B14"));
-            modalLayout.setPadding(30, 30, 30, 30);
+            modalLayout.setBackgroundColor(Color.parseColor("#F8050B14")); // Biraz daha koyu arka plan
+            modalLayout.setPadding(15, 25, 15, 25); // Kenar boşlukları daraltıldı
             modalLayout.setGravity(Gravity.CENTER);
 
-            TextView title = new TextView(appContext);
-            title.setText("💬 SİNEK ÖZEL MESAJ KUTUSU");
-            title.setTextColor(Color.GREEN);
-            title.setTextSize(14);
-            if (safeFont != null) title.setTypeface(safeFont);
-            title.setGravity(Gravity.CENTER);
-            title.setPadding(0, 0, 0, 15);
-            modalLayout.addView(title);
-
-            inputField = new EditText(appContext);
-            inputField.setHint("Mesajını yaz...");
-            inputField.setTextColor(Color.GREEN);
-            inputField.setHintTextColor(Color.parseColor("#5500FF00"));
-            inputField.setBackgroundColor(Color.parseColor("#33003300"));
-            inputField.setTextSize(16);
-            inputField.setPadding(30, 30, 30, 30);
-            inputField.setFocusable(true);
-            inputField.setFocusableInTouchMode(true);
-            inputField.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-            if (safeFont != null) inputField.setTypeface(safeFont);
+            // GÖSTERGE EKRANI (Yazdıklarını gördüğün yer)
+            inputDisplay = new TextView(appContext);
+            inputDisplay.setHint("Frekansa mesaj gir...");
+            inputDisplay.setHintTextColor(Color.parseColor("#5500FF00"));
+            inputDisplay.setTextColor(Color.parseColor("#00FF00"));
+            inputDisplay.setBackgroundColor(Color.parseColor("#33003300"));
+            inputDisplay.setTextSize(16);
+            inputDisplay.setPadding(20, 25, 20, 25);
+            inputDisplay.setText(currentMessage.toString());
+            if (safeFont != null) inputDisplay.setTypeface(safeFont);
             
             LinearLayout.LayoutParams dispParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             dispParams.setMargins(0, 0, 0, 20);
-            modalLayout.addView(inputField, dispParams);
+            modalLayout.addView(inputDisplay, dispParams);
 
-            // Tıklandığında klavyeyi zorla aç
-            inputField.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (event.getAction() == MotionEvent.ACTION_UP) {
-                        inputField.requestFocus();
-                        InputMethodManager imm = (InputMethodManager) appContext.getSystemService(Context.INPUT_METHOD_SERVICE);
-                        if (imm != null) imm.showSoftInput(inputField, InputMethodManager.SHOW_IMPLICIT);
-                    }
-                    return false;
-                }
-            });
+            // ===============================================
+            // YENİ NESİL TAM QWERTY SİBER KLAVYE
+            // ===============================================
+            addKeyboardRow(new String[]{"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"});
+            addKeyboardRow(new String[]{"A", "S", "D", "F", "G", "H", "J", "K", "L", "Ş", "İ"});
+            addKeyboardRow(new String[]{"Z", "X", "C", "V", "B", "N", "M", "Ö", "Ç"});
 
-            LinearLayout btnRow = new LinearLayout(appContext);
-            btnRow.setOrientation(LinearLayout.HORIZONTAL);
-            btnRow.setGravity(Gravity.CENTER);
+            // ALT AKSİYON SATIRI
+            LinearLayout actionRow = new LinearLayout(appContext);
+            actionRow.setOrientation(LinearLayout.HORIZONTAL);
+            actionRow.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rowParams.setMargins(0, 6, 0, 6);
 
-            TextView btnKapat = new TextView(appContext);
-            btnKapat.setText("KAPAT");
-            btnKapat.setTextColor(Color.GREEN);
-            btnKapat.setBackgroundColor(Color.parseColor("#44004400"));
-            btnKapat.setTextSize(14);
-            btnKapat.setGravity(Gravity.CENTER);
-            btnKapat.setPadding(30, 20, 30, 20);
-            if (safeFont != null) btnKapat.setTypeface(safeFont);
-            
-            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-            btnParams.setMargins(10, 0, 10, 0);
+            actionRow.addView(createActionBtn("KAPAT", 1.2f, "#AA0000", "#FFFFFF")); // Kırmızımsı Kapat
+            actionRow.addView(createActionBtn("BOŞLUK", 2.0f, "#2200FF00", "#00FF00"));
+            actionRow.addView(createActionBtn("SİL", 1.0f, "#88003300", "#00FF00"));
+            actionRow.addView(createActionBtn("GÖNDER", 1.5f, "#00FF00", "#000000")); // Dolu Yeşil Gönder
 
-            btnKapat.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (event.getAction() == MotionEvent.ACTION_DOWN) closeChatModal();
-                    return true;
-                }
-            });
+            modalLayout.addView(actionRow, rowParams);
 
-            TextView btnGonder = new TextView(appContext);
-            btnGonder.setText("GÖNDER");
-            btnGonder.setTextColor(Color.GREEN);
-            btnGonder.setBackgroundColor(Color.parseColor("#44004400"));
-            btnGonder.setTextSize(14);
-            btnGonder.setGravity(Gravity.CENTER);
-            btnGonder.setPadding(30, 20, 30, 20);
-            if (safeFont != null) btnGonder.setTypeface(safeFont);
-
-            btnGonder.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                        String msg = inputField.getText().toString().trim();
-                        if (!msg.isEmpty()) {
-                            sendSinekMessage(msg);
-                            inputField.setText("");
-                            hideKeyboard();
-                        }
-                    }
-                    return true;
-                }
-            });
-
-            btnRow.addView(btnKapat, btnParams);
-            btnRow.addView(btnGonder, btnParams);
-            modalLayout.addView(btnRow);
-
-            // KLAVYE İÇİN SİHİRLİ PARAMETRELER: FLAG_NOT_TOUCH_MODAL ve softInputMode
             WindowManager.LayoutParams modalParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 rootParams.type,
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH, 
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             );
             modalParams.gravity = Gravity.BOTTOM;
-            modalParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
 
             windowManager.addView(modalLayout, modalParams);
-
-            // Odağı hemen al ve klavyeyi fırlat
-            inputField.requestFocus();
-            mainHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    InputMethodManager imm = (InputMethodManager) appContext.getSystemService(Context.INPUT_METHOD_SERVICE);
-                    if (imm != null) imm.showSoftInput(inputField, InputMethodManager.SHOW_IMPLICIT);
-                }
-            }, 200);
 
         } catch (Throwable e) {
             e.printStackTrace();
         }
     }
 
-    private static void hideKeyboard() {
-        try {
-            if (inputField != null) {
-                InputMethodManager imm = (InputMethodManager) appContext.getSystemService(Context.INPUT_METHOD_SERVICE);
-                if (imm != null) imm.hideSoftInputFromWindow(inputField.getWindowToken(), 0);
-            }
-        } catch (Exception ignored) {}
+    private static void addKeyboardRow(String[] keys) {
+        LinearLayout row = new LinearLayout(appContext);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        rowParams.setMargins(0, 4, 0, 4);
+
+        for (final String key : keys) {
+            final TextView btn = new TextView(appContext);
+            btn.setText(key);
+            btn.setTextColor(Color.GREEN);
+            btn.setBackgroundColor(Color.parseColor("#33003300")); // Yarı saydam yeşil tuş
+            btn.setTextSize(15);
+            btn.setGravity(Gravity.CENTER);
+            btn.setPadding(0, 35, 0, 35); // Dokunması kolay uzun tuşlar
+
+            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+            btnParams.setMargins(3, 0, 3, 0); // Tuş aralıkları daraltıldı (şık görünüm)
+            btn.setLayoutParams(btnParams);
+
+            btn.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    try {
+                        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                            btn.setBackgroundColor(Color.parseColor("#8800FF00")); // Basılınca parlar
+                            handleKeyClick(key);
+                        } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                            btn.setBackgroundColor(Color.parseColor("#33003300"));
+                        }
+                    } catch (Throwable ignored) {}
+                    return true;
+                }
+            });
+
+            row.addView(btn);
+        }
+        modalLayout.addView(row, rowParams);
     }
 
-    private static void closeChatModal() {
-        try {
-            hideKeyboard();
+    private static TextView createActionBtn(final String text, float weight, final String bgColor, String textColor) {
+        final TextView btn = new TextView(appContext);
+        btn.setText(text);
+        btn.setTextColor(Color.parseColor(textColor));
+        btn.setBackgroundColor(Color.parseColor(bgColor));
+        btn.setTextSize(14);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
+        btn.setGravity(Gravity.CENTER);
+        btn.setPadding(0, 35, 0, 35);
+
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, weight);
+        btnParams.setMargins(5, 0, 5, 0);
+        btn.setLayoutParams(btnParams);
+
+        btn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    btn.setBackgroundColor(Color.WHITE);
+                    handleKeyClick(text);
+                } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                    btn.setBackgroundColor(Color.parseColor(bgColor));
+                }
+                return true;
+            }
+        });
+        return btn;
+    }
+
+    private static void handleKeyClick(String key) {
+        if (key.equals("SİL")) {
+            if (currentMessage.length() > 0) {
+                currentMessage.deleteCharAt(currentMessage.length() - 1);
+            }
+        } else if (key.equals("BOŞLUK")) {
+            currentMessage.append(" ");
+        } else if (key.equals("KAPAT")) {
             if (modalLayout != null) {
                 windowManager.removeView(modalLayout);
                 modalLayout = null;
-                inputField = null;
+                currentMessage.setLength(0);
             }
-            
-            File f = new File("/data/local/tmp/anka_chat_display.txt");
-            if (f.exists()) f.delete();
-            lastChatLength = 0;
-        } catch (Exception e) {}
+        } else if (key.equals("GÖNDER")) {
+            String msg = currentMessage.toString().trim();
+            if (!msg.isEmpty()) {
+                sendSinekMessage(msg);
+                currentMessage.setLength(0);
+                
+                // Gönderince klavyeyi otomatik kapat ki cevabı görsün!
+                if (modalLayout != null) {
+                    windowManager.removeView(modalLayout);
+                    modalLayout = null;
+                }
+            }
+        } else {
+            currentMessage.append(key.toLowerCase());
+        }
+
+        if (inputDisplay != null) {
+            inputDisplay.setText(currentMessage.length() > 0 ? currentMessage.toString() : "");
+        }
     }
 
     private static void sendSinekMessage(String msg) {
