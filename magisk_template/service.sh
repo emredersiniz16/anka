@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# ANKA OS boot servisi v12.9: Alt Alta Kayan Geçmişli Sohbet Motoru
+# ANKA OS boot servisi v12.11: Eksiksiz İki Yönlü Sohbet Geçmişi
 
 MODDIR=${0%/*}
 ANKA_BIN="$MODDIR/system/bin/anka_os_bin"
@@ -158,14 +158,14 @@ start_anka() {
 
 # 12. Log başlangıç
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ====================================" > "$LOGFILE"
-echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.9..." >> "$LOGFILE"
+echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] ANKA OS basliyor v12.11..." >> "$LOGFILE"
 echo "[ANKA $(date '+%Y-%m-%d %H:%M:%S')] SELinux: $(getenforce)" >> "$LOGFILE"
 
 # 13. Ortamı yapılandır ve Sineği başlat
 configure_system_env
 PID=$(start_anka)
 
-# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (ALT ALTA EKLEME DÜZELTİLDİ)
+# 14. KOMUT DİNLEYİCİ ARKA PLAN SERVİSİ (İKİ YÖNLÜ SOHBET GEÇMİŞİ)
 start_command_listener() {
     CURRENT_MODE="KUANTUM SAVAŞI"
     
@@ -213,6 +213,11 @@ start_command_listener() {
                         
                     SOHBET:*)
                         USER_MSG="${CMD_CONTENT#SOHBET: }"
+                        
+                        # 1. Önce senin yazdığın mesajı ekrana alt alta ekle
+                        echo "💬 SEN: $USER_MSG\n" >> /data/local/tmp/anka_chat_display.txt
+                        chmod 666 /data/local/tmp/anka_chat_display.txt
+                        
                         MSG_LOWER=$(echo "$USER_MSG" | tr '[:upper:]' '[:lower:]')
                         
                         if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber|hi"; then
@@ -229,7 +234,7 @@ start_command_listener() {
                             fi
                         fi
                         
-                        # DİKKAT: Üzerine yazmak yerine (>) alt alta ekliyoruz (>>)
+                        # 2. Sonra Sinek'in cevabını altına ekle (>>)
                         echo "🪰 SİNEK: $CEVAP\n" >> /data/local/tmp/anka_chat_display.txt
                         chmod 666 /data/local/tmp/anka_chat_display.txt
                         ;;
@@ -239,8 +244,11 @@ start_command_listener() {
             CHAT_MSG=$(cat /data/local/tmp/anka_chat_in.txt 2>/dev/null)
             if [ -n "$CHAT_MSG" ]; then
                 rm -f /data/local/tmp/anka_chat_in.txt
-                MSG_LOWER=$(echo "$CHAT_MSG" | tr '[:upper:]' '[:lower:]')
+                
+                echo "💬 SEN: $CHAT_MSG\n" >> /data/local/tmp/anka_chat_display.txt
+                chmod 666 /data/local/tmp/anka_chat_display.txt
 
+                MSG_LOWER=$(echo "$CHAT_MSG" | tr '[:upper:]' '[:lower:]')
                 if echo "$MSG_LOWER" | grep -Eq "selam|merhaba|naber|hi"; then
                     CEVAP="Aleykümselam kanka! Sistem hazır."
                 elif echo "$MSG_LOWER" | grep -Eq "durum|rapor"; then
