@@ -33,9 +33,6 @@ class HarcanabilirSinek:
             lib_path = os.path.join(os.path.dirname(__file__), "core/quantum/libanka_quantum.so")
             self.dust = ctypes.CDLL(lib_path)
             
-            # Animasyon motoru fonksiyonunu tanımla (Opsiyonel: Eğer Python'dan tetiklemek istersen)
-            # self.dust.anim_update_fly_state.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_float]
-            
             print("[SİNEK] Kuantum motoru (libanka_quantum) hazır.")
         except Exception as e:
             print(f"[HATA] Kuantum motoru yüklenemedi: {e}")
@@ -53,7 +50,8 @@ class HarcanabilirSinek:
         print(f"[SİNEK] Donanım köprüsü: {durum}")
 
     async def canli_baglanti_kur(self):
-        kovan_url = os.getenv("KOVAN_URL", "ws://127.0.0.1:8000")
+        # Google Cloud Kovan Ana Üs Adresimiz (Port 8000)
+        kovan_url = os.getenv("KOVAN_URL", "ws://35.246.65.130:8000")
         uri = f"{kovan_url}/{self.token}"
         max_deneme = int(os.getenv("KOVAN_MAX_DENEME", "3"))
         baglanti_deneme = 0
@@ -82,7 +80,7 @@ class HarcanabilirSinek:
             except Exception as e:
                 baglanti_deneme += 1
                 if baglanti_deneme == 1:
-                    print(f"[AĞ] Kovan bulunamadı — standalone modda çalışıyorum.")
+                    print(f"[AĞ] Kovan bulunamadı — standalone modda çalışıyorum. ({e})")
                 if max_deneme > 0 and baglanti_deneme >= max_deneme:
                     print(f"[AĞ] Kovan {max_deneme} denemede bulunamadı. Bağlantı devre dışı.")
                     return
@@ -110,6 +108,6 @@ class HarcanabilirSinek:
 
 if __name__ == "__main__":
     # Sinek kimliğiyle başla
-    token = os.getenv("SINEK_TOKEN", "KAYITSIZ_SINEK")
+    token = os.getenv("SINEK_TOKEN", "NOTE9_SINEK")
     sinek = HarcanabilirSinek(token)
     sinek.kovan_icin_yasa()
