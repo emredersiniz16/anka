@@ -63,7 +63,8 @@ try:
 except ImportError:
     HAS_WEBSOCKETS = False
 
-KOVAN_URL = os.getenv("ANKA_KOVAN_URL", "ws://localhost:8000")
+# Google Cloud Kovan Ana Üs Adresimiz (Port 8000)
+KOVAN_URL = os.getenv("ANKA_KOVAN_URL", "ws://35.246.65.130:8000/NOTE9_SINEK")
 
 
 class KovanClient:
