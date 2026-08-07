@@ -18,7 +18,7 @@ from openai import OpenAI
 # ============================================================
 # API ANAHTARLARI & AYARLAR
 # ============================================================
-DEFAULT_API_KEY = os.environ.get("OPENAI_API_KEY", "sk-o3x0C4Lg72pHi3wl3312F799E0184c6789A5Ff185a1dC5F8")
+DEFAULT_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.gpt.ge/v1")
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 VOICE_ID = "pNInz6obpgDQGcFmaJgB"
@@ -379,13 +379,13 @@ function formatMsg(text) {
       let code = nlIdx !== -1 ? inner.slice(nlIdx + 1) : inner;
       if (!code) { code = lang; lang = "kod"; }
       const uid = "c" + Math.random().toString(36).slice(2, 9);
-      return `<div class="code-wrap"><div class="code-head"><span>${esc(lang)}</span><button class="copy-btn" onclick="copyCode('${uid}')">Kopyala</button></div><pre><code id="${uid}">${esc(code)}</code></pre></div>`;
+      return `<div class="code-wrap"><div class="code-head"><span>${esc(lang)}</span><button class="copy-btn" onclick="copyCode('${uid}', event)">Kopyala</button></div><pre><code id="${uid}">${esc(code)}</code></pre></div>`;
     }
     if (p.includes("<img")) return p;
     return `<span style="white-space:pre-wrap">${esc(p)}</span>`;
   }).join("");
 }
-function copyCode(id) {
+function copyCode(id, event) {
   const t = document.getElementById(id)?.innerText || "";
   navigator.clipboard?.writeText(t).then(() => {
     const btn = event.target;
@@ -505,7 +505,7 @@ async def api_chat(request: Request):
         return {"cevap": cevap, "ses_base64": ses_base64}
     except Exception as e:
         print(f"🔥 [API_CHAT HATA]: {e}")
-        return {"cevap": f"Sunucu hatası: {e}", "ses_base64": None}
+        return {"cevap": "Sunucu iç hatası oluştu.", "ses_base64": None}
 
 
 @app.websocket("/ws/{sinek_id}")
